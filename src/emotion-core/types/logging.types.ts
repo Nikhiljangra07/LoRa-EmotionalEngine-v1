@@ -1,0 +1,60 @@
+// src/emotion-core/types/logging.types.ts
+
+export type EIVTier = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
+
+export interface AnalyzerSummary {
+  emojiUsed: boolean;
+  capsUsed: boolean;
+  punctuationUsed: boolean;
+  repetitionDetected: boolean;
+}
+
+export interface EmotionalStateSnapshot {
+  arousal: 'LOW' | 'MEDIUM' | 'HIGH';
+  valence: 'NEUTRAL' | 'POSITIVE' | 'NEGATIVE';
+}
+
+export interface PromptProfile {
+  relationshipStyle: 'PROFESSIONAL' | 'FRIENDLY' | 'CASUAL';
+  guidanceMode:
+    | 'CALM_NEUTRAL'
+    | 'ENERGY_MATCH'
+    | 'VALIDATING'
+    | 'SUPPORTIVE'
+    | 'FALLBACK';
+}
+
+export interface MessageDecisionLog {
+  messageId: string;
+  timestamp: number;
+
+  analyzerSummary: AnalyzerSummary;
+
+  eiv: {
+    value: number;
+    tier: EIVTier;
+  };
+
+  emotionalState: EmotionalStateSnapshot;
+
+  promptProfile: PromptProfile;
+
+  flags: {
+    safetyTriggered: boolean;
+    ambiguityDetected: boolean;
+  };
+
+  // 🔹 NEW (beta intelligence)
+  llmOutput?: string;
+  userReaction?: 'positive' | 'neutral' | 'negative';
+}
+
+export interface SessionLog {
+  sessionId: string;
+  startETV: number;
+  endETV: number;
+  meanSessionEIV: number;
+  violationOccurred: boolean;
+  messageCount: number;
+  endedAt: number;
+}

@@ -1,0 +1,17 @@
+{
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.0.10",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2"
+  },
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "test": "jest"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "openai": "^6.16.0"
+  }
+}
