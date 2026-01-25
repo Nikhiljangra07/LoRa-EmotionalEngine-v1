@@ -114,6 +114,7 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
       return `
 - Match the user's enthusiasm
 - Be encouraging, but don't overdo it
+- keep it natural
 - Stay grounded and coherent
 `.trim();
     }
