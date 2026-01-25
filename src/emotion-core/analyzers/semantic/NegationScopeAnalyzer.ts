@@ -69,6 +69,19 @@ export class NegationScopeAnalyzer {
     'yet'
   ]);
 
+  private static readonly SENTENCE_BOUNDARIES = new Set(['.', '!', '?']);
+
+  private static readonly LIST_CONJUNCTIONS = new Set(['or', 'and']);
+
+  private static readonly FILLER_WORDS = new Set([
+    'here',
+    'now',
+    'there',
+    'then',
+    'just',
+    'really'
+  ]);
+
   private static readonly FORWARD_WINDOW = 5;
   private static readonly BACKWARD_WINDOW = 2;
 
@@ -88,7 +101,12 @@ export class NegationScopeAnalyzer {
       negationCueCount++;
 
       const { start, end } = this.resolveScope(tokens, i);
-      const negatedTokens = tokens.slice(start, end + 1).filter(t => t !== token);
+      const negatedTokens = tokens
+        .slice(start, end + 1)
+        .filter(t => t !== token)
+        .filter(t => !this.SENTENCE_BOUNDARIES.has(t))
+        .filter(t => !this.LIST_CONJUNCTIONS.has(t))
+        .filter(t => !this.FILLER_WORDS.has(t));
 
       scopes.push({
         cue: token,
@@ -99,7 +117,17 @@ export class NegationScopeAnalyzer {
       });
     }
 
-    const doubleNegationDetected = negationCueCount >= 2;
+    const doubleNegationDetected =
+      negationCueCount >= 2 &&
+      scopes.some(scope =>
+        tokens
+          .slice(scope.scopeStart, scope.scopeEnd + 1)
+          .some(
+            (t, idx) =>
+              this.NEGATION_CUES.has(t) &&
+              scope.scopeStart + idx !== scope.cueIndex
+          )
+      );
 
     // Double negation policy: NEVER invert automatically
     if (doubleNegationDetected) {
@@ -121,7 +149,8 @@ export class NegationScopeAnalyzer {
   private static tokenize(text: string): string[] {
     return text
       .toLowerCase()
-      .replace(/[^a-z\s']/g, ' ')
+      .replace(/([.!?])/g, ' $1 ')
+      .replace(/[^a-z\s'!?\.]/g, ' ')
       .split(/\s+/)
       .filter(Boolean);
   }
@@ -133,9 +162,23 @@ export class NegationScopeAnalyzer {
     let start = Math.max(0, cueIndex - this.BACKWARD_WINDOW);
     let end = Math.min(tokens.length - 1, cueIndex + this.FORWARD_WINDOW);
 
+    for (let i = cueIndex - 1; i >= start; i--) {
+      if (this.SENTENCE_BOUNDARIES.has(tokens[i])) {
+        start = i + 1;
+        break;
+      }
+    }
+
     // Early termination on contrastive conjunction
     for (let i = cueIndex + 1; i <= end; i++) {
       if (this.TERMINATORS.has(tokens[i])) {
+        end = i - 1;
+        break;
+      }
+    }
+
+    for (let i = cueIndex + 1; i <= end; i++) {
+      if (this.SENTENCE_BOUNDARIES.has(tokens[i])) {
         end = i - 1;
         break;
       }
