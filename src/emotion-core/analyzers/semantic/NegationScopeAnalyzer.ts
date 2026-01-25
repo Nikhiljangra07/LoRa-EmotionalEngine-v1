@@ -74,6 +74,11 @@ export class NegationScopeAnalyzer {
   private static readonly LIST_CONJUNCTIONS = new Set(['or', 'and']);
 
   private static readonly FILLER_WORDS = new Set([
+    'i',
+    'am',
+    'is',
+    'was',
+    'were',
     'here',
     'now',
     'there',
@@ -92,21 +97,13 @@ export class NegationScopeAnalyzer {
     const tokens = this.tokenize(text);
     const scopes: NegationScope[] = [];
 
-    let negationCueCount = 0;
-
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
 
       if (!this.NEGATION_CUES.has(token)) continue;
-      negationCueCount++;
 
       const { start, end } = this.resolveScope(tokens, i);
-      const negatedTokens = tokens
-        .slice(start, end + 1)
-        .filter(t => t !== token)
-        .filter(t => !this.SENTENCE_BOUNDARIES.has(t))
-        .filter(t => !this.LIST_CONJUNCTIONS.has(t))
-        .filter(t => !this.FILLER_WORDS.has(t));
+      const negatedTokens = this.collectNegatedTokens(tokens, i, end);
 
       scopes.push({
         cue: token,
@@ -117,17 +114,9 @@ export class NegationScopeAnalyzer {
       });
     }
 
-    const doubleNegationDetected =
-      negationCueCount >= 2 &&
-      scopes.some(scope =>
-        tokens
-          .slice(scope.scopeStart, scope.scopeEnd + 1)
-          .some(
-            (t, idx) =>
-              this.NEGATION_CUES.has(t) &&
-              scope.scopeStart + idx !== scope.cueIndex
-          )
-      );
+    const doubleNegationDetected = scopes.some(
+      scope => this.countNegationCues(tokens, scope.scopeStart, scope.scopeEnd) >= 2
+    );
 
     // Double negation policy: NEVER invert automatically
     if (doubleNegationDetected) {
@@ -186,5 +175,50 @@ export class NegationScopeAnalyzer {
 
     
     return { start, end };
+  }
+
+  private static collectNegatedTokens(
+    tokens: string[],
+    cueIndex: number,
+    end: number
+  ): string[] {
+    const negatedTokens: string[] = [];
+
+    for (let i = cueIndex + 1; i <= end; i++) {
+      const token = tokens[i];
+
+      if (this.SENTENCE_BOUNDARIES.has(token)) break;
+      if (this.TERMINATORS.has(token)) break;
+      if (this.FILLER_WORDS.has(token)) continue;
+      if (this.LIST_CONJUNCTIONS.has(token)) continue;
+      if (this.NEGATION_CUES.has(token)) continue;
+
+      negatedTokens.push(token);
+    }
+
+    return negatedTokens;
+  }
+
+  private static countNegationCues(
+    tokens: string[],
+    start: number,
+    end: number
+  ): number {
+    let count = 0;
+
+    for (let i = start; i <= end; i++) {
+      const token = tokens[i];
+
+      if (this.NEGATION_CUES.has(token)) {
+        count++;
+        continue;
+      }
+
+      if (token.startsWith('un') && token.length > 3) {
+        count++;
+      }
+    }
+
+    return count;
   }
 }
