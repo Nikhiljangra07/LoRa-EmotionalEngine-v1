@@ -30,6 +30,7 @@ GLOBAL CONSTRAINTS
 - Respond naturally and conversationally
 - Do not escalate intensity unless the user does
 - Avoid cheerfulness when the user signals negativity
+- Keep a professional baseline when needed
 - If uncertain, default to calm, warm presence
 `.trim();
   }
@@ -112,7 +113,7 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
     if (arousal === 'HIGH' && valence === 'POSITIVE') {
       return `
 - Match the user's enthusiasm
-- Be encouraging without overdoing it
+- Be encouraging, but don't overdo it
 - Stay grounded and coherent
 `.trim();
     }
