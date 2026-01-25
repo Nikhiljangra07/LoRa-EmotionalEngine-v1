@@ -4,7 +4,7 @@
  * NRC Emotion Categories (Discrete)
  * ---------------------------------
  * Matches NRC Emotion Lexicon v0.92
- */import { NRCEmotion } from '../../types/NRCEmotion';
+ */import { NRCEmotion } from '../../types';
 
 export interface NrcLexiconResult {
   distribution: Record<NRCEmotion, number>;
