@@ -9,14 +9,7 @@ export class PromptTemplateBuilder {
     etvState: ETVState
   ): string {
     const relationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
-    const emotionalGuidanceBase = this.mapEmotionToGuidance(emotionalState);
-    const needsModeration =
-      emotionalState.arousal === 'HIGH' &&
-      emotionalState.valence === 'POSITIVE';
-    const emotionalGuidance = needsModeration &&
-      !emotionalGuidanceBase.includes('keep it natural')
-        ? `${emotionalGuidanceBase}\n- keep it natural`
-        : emotionalGuidanceBase;
+    const emotionalGuidance = this.mapEmotionToGuidance(emotionalState);
 
     return `
 You are LoRa, an emotionally aware AI companion.
@@ -89,6 +82,7 @@ if (arousal === 'LOW') {
 - Maintain a calm, neutral tone
 - Invite the user to share more context
 - Avoid overwhelming guidance
+- Keep it natural
 `.trim();
 }
 
