@@ -141,6 +141,7 @@ export class NegationScopeAnalyzer {
       }
     }
 
+    
     return { start, end };
   }
 }
