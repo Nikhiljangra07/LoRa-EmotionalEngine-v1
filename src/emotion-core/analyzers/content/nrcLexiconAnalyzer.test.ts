@@ -1,51 +1,75 @@
-// import { NrcLexiconAnalyzer } from './NrcLexiconAnalyzer';
-// import { NRCEmotion } from '../../types/NRCEmotion';
+import { NrcLexiconAnalyzer } from './NrcLexiconAnalyzer';
+import { NRCEmotion } from '../../types/NRCEmotion';
 
-// describe('NrcLexiconAnalyzer — Core Invariants (Production)', () => {
+describe('NrcLexiconAnalyzer — Production Behavior', () => {
+  test('normalizes distribution from raw counts', () => {
+    const result = NrcLexiconAnalyzer.analyze('happy love');
+    const total = Object.values(result.rawCounts).reduce((a, b) => a + b, 0);
 
-//   test('detects sadness and negative valence when sadness language is present', () => {
-//     const result = NrcLexiconAnalyzer.analyze('I feel sad and hopeless today');
+    expect(total).toBeGreaterThan(0);
 
-//     // Core invariant: sadness + negative must be present
-//     expect(result.distribution[NRCEmotion.SADNESS]).toBeGreaterThan(0);
-//     expect(result.distribution[NRCEmotion.NEGATIVE]).toBeGreaterThan(0);
+    for (const emotion of Object.values(NRCEmotion)) {
+      const expected =
+        total === 0
+          ? 0
+          : Number((result.rawCounts[emotion] / total).toFixed(4));
+      expect(result.distribution[emotion]).toBe(expected);
+    }
+  });
 
-//     // Sadness must outweigh unrelated emotions
-//     expect(result.distribution[NRCEmotion.SADNESS])
-//       .toBeGreaterThan(result.distribution[NRCEmotion.JOY]);
-//   });
+  test('tokenization lowercases and strips punctuation', () => {
+    const result = NrcLexiconAnalyzer.analyze('HAPPY!!!');
 
-//   test('mixed emotional signals produce multiple active emotions', () => {
-//     const result = NrcLexiconAnalyzer.analyze('I am happy but also nervous');
+    expect(result.tokenCount).toBe(1);
+    expect(sumValues(result.distribution)).toBeCloseTo(1, 4);
+  });
 
-//     // Invariant: both signals must register
-//     expect(result.distribution[NRCEmotion.JOY]).toBeGreaterThan(0);
-//     expect(result.distribution[NRCEmotion.FEAR]).toBeGreaterThan(0);
+  test('mixed valence keeps dominance suppressed under default gap', () => {
+    const result = NrcLexiconAnalyzer.analyze('sadness love');
 
-//     // Invariant: both sentiment dimensions may coexist
-//     expect(result.distribution[NRCEmotion.POSITIVE]).toBeGreaterThan(0);
-//     expect(result.distribution[NRCEmotion.NEGATIVE]).toBeGreaterThan(0);
-//   });
+    expect(result.distribution[NRCEmotion.NEGATIVE]).toBeGreaterThan(0);
+    expect(result.distribution[NRCEmotion.POSITIVE]).toBeGreaterThan(0);
 
-//   test('confidence gap equals max emotion minus second max emotion', () => {
-//     const result = NrcLexiconAnalyzer.analyze('sad sad happy');
+    const expectedGap = confidenceGap(result.distribution);
+    expect(result.confidenceGap).toBeCloseTo(expectedGap, 4);
+    expect(result.dominantEmotion).toBeUndefined();
+  });
 
-//     const scores = Object.values(result.distribution);
-//     const sorted = [...scores].sort((a, b) => b - a);
+  test('zero-emotion input returns zero distribution', () => {
+    const result = NrcLexiconAnalyzer.analyze('zxqv blargh trnq');
 
-//     const expectedGap = sorted[0] - sorted[1];
-//     expect(result.confidenceGap).toBeCloseTo(expectedGap, 5);
-//   });
+    expect(result.tokenCount).toBe(0);
+    expect(Object.values(result.distribution).every(v => v === 0)).toBe(
+      true
+    );
+    expect(result.dominantEmotion).toBeUndefined();
+    expect(result.confidenceGap).toBe(1);
+  });
 
-//   test('neutral sentences return a zero emotion distribution', () => {
-//     const result = NrcLexiconAnalyzer.analyze('The table is next to the door');
+  test('confidence level is based on token length', () => {
+    const low = NrcLexiconAnalyzer.analyze('one two three four five six seven eight nine');
+    const moderate = NrcLexiconAnalyzer.analyze(
+      'one two three four five six seven eight nine ten'
+    );
+    const high = NrcLexiconAnalyzer.analyze(
+      'one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty'
+    );
 
-//     expect(
-//       Object.values(result.distribution).every(v => v === 0)
-//     ).toBe(true);
+    expect(low.confidenceLevel).toBe('LOW');
+    expect(moderate.confidenceLevel).toBe('MODERATE');
+    expect(high.confidenceLevel).toBe('HIGH');
+  });
+});
 
-//     expect(result.dominantEmotion).toBeUndefined();
-//     expect(result.confidenceGap).toBe(0);
-//   });
+function sumValues(distribution: Record<NRCEmotion, number>): number {
+  return Object.values(distribution).reduce((a, b) => a + b, 0);
+}
 
-// });
+function confidenceGap(distribution: Record<NRCEmotion, number>): number {
+  const sorted = Object.values(distribution)
+    .filter(v => v > 0)
+    .sort((a, b) => b - a);
+
+  if (sorted.length < 2) return 1;
+  return Number((sorted[0] - sorted[1]).toFixed(4));
+}
