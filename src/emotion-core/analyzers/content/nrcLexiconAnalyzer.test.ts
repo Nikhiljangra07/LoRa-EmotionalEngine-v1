@@ -1,5 +1,5 @@
 import { NrcLexiconAnalyzer } from './NrcLexiconAnalyzer';
-import { NRCEmotion } from '../../types/NRCEmotion';
+import { NRCEmotion } from '../../types';
 
 describe('NrcLexiconAnalyzer — Production Behavior', () => {
   test('normalizes distribution from raw counts', () => {
@@ -8,7 +8,7 @@ describe('NrcLexiconAnalyzer — Production Behavior', () => {
 
     expect(total).toBeGreaterThan(0);
 
-    for (const emotion of Object.values(NRCEmotion)) {
+    for (const emotion of Object.values(NRCEmotion) as NRCEmotion[]) {
       const expected =
         total === 0
           ? 0
