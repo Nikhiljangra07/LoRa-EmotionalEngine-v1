@@ -12,6 +12,7 @@ describe("ExpressionStrengthScorer", () => {
       intensifierCount: 1,
       interjectionCount: 1,
       messageCharLength: 35,
+      hasText: true,
     });
 
     const flat = ExpressionStrengthScorer.compute({
@@ -24,6 +25,7 @@ describe("ExpressionStrengthScorer", () => {
       intensifierCount: 0,
       interjectionCount: 0,
       messageCharLength: 40,
+      hasText: true,
     });
 
     expect(expressive.es).toBeGreaterThan(flat.es);

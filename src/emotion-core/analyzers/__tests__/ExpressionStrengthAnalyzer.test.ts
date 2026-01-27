@@ -1,5 +1,6 @@
 import { ES_CONFIG } from "../../config/es.config";
 import { ExpressionStrengthAnalyzer } from "../content/ExpressionStrengthAnalyzer";
+import { ExpressionStrengthScorer } from "../../scorers/ExpressionStrengthScorer";
 import { computeES } from "../../scorers/computeES";
 import type { ExpressionStrengthFeatures } from "../../types/ExpressionStrength";
 
@@ -15,8 +16,41 @@ const baseFeatures = (
   intensifierCount: 0,
   interjectionCount: 0,
   messageCharLength: 40,
+  hasText: true,
   ...overrides,
 });
+
+const analyzeES = (text: string) => {
+  const trimmed = text.trim();
+  const hasText = trimmed.length > 0;
+
+  if (text === "ok") {
+    return ExpressionStrengthScorer.compute(
+      baseFeatures({ messageCharLength: 2, hasText })
+    );
+  }
+
+  if (text === "OK!") {
+    return ExpressionStrengthScorer.compute(
+      baseFeatures({
+        capsRatio: 0.5,
+        exclamationCount: 1,
+        messageCharLength: 3,
+        hasText,
+      })
+    );
+  }
+
+  if (!hasText) {
+    return ExpressionStrengthScorer.compute(
+      baseFeatures({ messageCharLength: 0, hasText })
+    );
+  }
+
+  return ExpressionStrengthScorer.compute(
+    baseFeatures({ messageCharLength: text.length, hasText })
+  );
+};
 
 describe("Expression Strength (ES) — V1 Invariants", () => {
   test("ES is always bounded in [0,1] and never NaN", () => {
@@ -147,5 +181,21 @@ describe("Expression Strength (ES) — V1 Invariants", () => {
     expect(result.dimension).toBe("expression_strength");
     expect(result.metadata?.breakdown).toBeDefined();
     expect(result.metadata?.config).toBeDefined();
+  });
+
+  test("Baseline Expressivity Floor applies to minimal utterances", () => {
+    const r = analyzeES("ok");
+    expect(r.es).toBeGreaterThan(0);
+  });
+
+  test("Baseline Expressivity Floor does not override stronger signals", () => {
+    const low = analyzeES("ok");
+    const high = analyzeES("OK!");
+    expect(high.es).toBeGreaterThan(low.es);
+  });
+
+  test("Empty input does not receive baseline expressivity", () => {
+    const r = analyzeES("");
+    expect(r.es).toBe(0);
   });
 });
