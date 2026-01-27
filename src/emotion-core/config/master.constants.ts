@@ -97,4 +97,14 @@ export const MASTER_CONSTANTS = {
       singleEmotionGap: 1,
     },
   },
+  negationScopeAnalyzer: {
+    windows: {
+      forward: 5,
+      backward: 2,
+    },
+    thresholds: {
+      doubleNegationMinCount: 2,
+      unPrefixMinLengthExclusive: 3,
+    },
+  },
 } as const;
