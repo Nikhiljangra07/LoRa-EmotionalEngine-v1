@@ -18,6 +18,9 @@
  * - Chapman et al. (2011)
  * ============================================================================
  */
+import { MASTER_CONSTANTS } from '../../config/master.constants';
+
+const NEGATION_CONSTANTS = MASTER_CONSTANTS.negationScopeAnalyzer;
 
 export interface NegationScope {
   cue: string;
@@ -87,8 +90,8 @@ export class NegationScopeAnalyzer {
     'really'
   ]);
 
-  private static readonly FORWARD_WINDOW = 5;
-  private static readonly BACKWARD_WINDOW = 2;
+  private static readonly FORWARD_WINDOW = NEGATION_CONSTANTS.windows.forward;
+  private static readonly BACKWARD_WINDOW = NEGATION_CONSTANTS.windows.backward;
 
   // --------------------------------------------------
   // Public API
@@ -115,7 +118,9 @@ export class NegationScopeAnalyzer {
     }
 
     const doubleNegationDetected = scopes.some(
-      scope => this.countNegationCues(tokens, scope.scopeStart, scope.scopeEnd) >= 2
+      scope =>
+        this.countNegationCues(tokens, scope.scopeStart, scope.scopeEnd) >=
+        NEGATION_CONSTANTS.thresholds.doubleNegationMinCount
     );
 
     // Double negation policy: NEVER invert automatically
@@ -214,7 +219,10 @@ export class NegationScopeAnalyzer {
         continue;
       }
 
-      if (token.startsWith('un') && token.length > 3) {
+      if (
+        token.startsWith('un') &&
+        token.length > NEGATION_CONSTANTS.thresholds.unPrefixMinLengthExclusive
+      ) {
         count++;
       }
     }
