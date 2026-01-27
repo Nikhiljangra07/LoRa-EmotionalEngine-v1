@@ -21,6 +21,12 @@ export const ES_CONFIG = {
   shortMessage: {
     maxLength: 20,
     boost: 0.07,
+    scoreThreshold: 0.5,
+  },
+
+  scoring: {
+    capsRatioMultiplier: 3,
+    mixedPunctuationBoost: 0.2,
   },
 
   clipMin: 0,
