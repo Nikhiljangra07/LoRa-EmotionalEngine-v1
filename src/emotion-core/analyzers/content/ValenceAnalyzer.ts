@@ -1,4 +1,4 @@
-import { VALENCE_CONFIG } from "../../config/valence.config";
+import { MASTER_CONSTANTS } from "../../config/master.constants";
 import { NegationScopeAnalyzer } from "../semantic/NegationScopeAnalyzer";
 import lexicon from "../../resources/nrc/processed/nrc_lexicon.json";
 
@@ -25,6 +25,23 @@ type NrcLexicon = Record<string, NrcLexiconEntry>;
 
 const NRC_LEXICON = lexicon as NrcLexicon;
 
+const VALENCE_CONSTANTS = MASTER_CONSTANTS.valenceAnalyzer;
+
+const ZERO = VALENCE_CONSTANTS.bounds.zero;
+const ONE = VALENCE_CONSTANTS.bounds.one;
+const NEG_ONE = VALENCE_CONSTANTS.bounds.negOne;
+
+const INDEX_STEP = VALENCE_CONSTANTS.iteration.indexStep;
+
+const EPSILON = VALENCE_CONSTANTS.normalization.epsilon;
+const MIN_SCORE = VALENCE_CONSTANTS.normalization.minScore;
+const MAX_SCORE = VALENCE_CONSTANTS.normalization.maxScore;
+
+const MIN_MAGNITUDE = VALENCE_CONSTANTS.thresholds.minMagnitude;
+const MIN_AFFECTIVE_TOKENS = VALENCE_CONSTANTS.confidence.minAffectiveTokens;
+const LOW_EVIDENCE_MULTIPLIER = VALENCE_CONSTANTS.confidence.lowEvidenceMultiplier;
+const NEGATION_ATTENUATION = VALENCE_CONSTANTS.negation.attenuation;
+
 const ZERO = 0;
 const ONE = 1;
 const NEG_ONE = -1;
@@ -43,16 +60,16 @@ const NEGATION_ATTENUATION = VALENCE_CONFIG.negation.attenuation;
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
+// Valence ignores expressivity by design.
+// Surface signals are handled by ES.
 const tokenize = (text: string): string[] =>
   text
     .toLowerCase()
-    .replace(/([.!?])/g, " $1 ")
-    .replace(/[^a-z\s'!?\.]/g, " ")
+    .replace(/[^a-z\s]/g, " ")
     .split(/\s+/)
     .filter(Boolean);
 
-const normalizeToken = (token: string): string =>
-  token.replace(/[^a-z]/g, "");
+const normalizeToken = (token: string): string => token.replace(/[^a-z]/g, "");
 
 export class ValenceAnalyzer {
   readonly analyzerId = "valence";

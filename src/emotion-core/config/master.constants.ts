@@ -123,6 +123,33 @@ const NEGATION_SCOPE_CONSTANTS = {
   },
 } as const;
 
+// VALENCE (Valence Analyzer)
+const VALENCE_ANALYZER_CONSTANTS = {
+  thresholds: {
+    minMagnitude: 0.15,
+  },
+  confidence: {
+    minAffectiveTokens: 2,
+    lowEvidenceMultiplier: 0.5,
+  },
+  negation: {
+    attenuation: 0.5,
+  },
+  normalization: {
+    epsilon: 1e-6,
+    minScore: -1,
+    maxScore: 1,
+  },
+  bounds: {
+    zero: 0,
+    one: 1,
+    negOne: -1,
+  },
+  iteration: {
+    indexStep: 1,
+  },
+} as const;
+
 export const MASTER_CONSTANTS = {
   bounds: MASTER_BOUNDS,
   thresholds: MASTER_THRESHOLDS,
@@ -135,4 +162,5 @@ export const MASTER_CONSTANTS = {
   repetitionAnalyzer: REPETITION_ANALYZER_CONSTANTS,
   nrcLexiconAnalyzer: NRC_LEXICON_ANALYZER_CONSTANTS,
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
+  valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
 } as const;
