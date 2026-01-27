@@ -5,6 +5,9 @@ import type {
   AnalyzerSignal,
   AnalysisContext,
 } from '../../types/analysis.types';
+import { MASTER_CONSTANTS } from '../../config/master.constants';
+
+const REPETITION_THRESHOLDS = MASTER_CONSTANTS.repetitionAnalyzer.thresholds;
 
 /**
  * RepetitionAnalyzer
@@ -73,7 +76,7 @@ export class RepetitionAnalyzer {
         j++;
       }
 
-      if (count >= 2) {
+      if (count >= REPETITION_THRESHOLDS.minRepeatCount) {
         signals.push({
           token,
           count,

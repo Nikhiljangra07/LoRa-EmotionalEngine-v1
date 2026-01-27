@@ -81,4 +81,9 @@ export const MASTER_CONSTANTS = {
       indexStart: 0,
     },
   },
+  repetitionAnalyzer: {
+    thresholds: {
+      minRepeatCount: 2,
+    },
+  },
 } as const;
