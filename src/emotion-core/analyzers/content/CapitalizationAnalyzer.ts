@@ -3,9 +3,12 @@ import {
   AnalyzerSignal,
   AnalysisContext
 } from '../../types/analysis.types';
+import { MASTER_CONSTANTS } from '../../config/master.constants';
 
-const CAPS_BASE_WEIGHT = 0.18;
-const REPEAT_BASE_WEIGHT = 0.13;
+const CAPS_BASE_WEIGHT = MASTER_CONSTANTS.capitalization.weights.capsBase;
+const REPEAT_BASE_WEIGHT = MASTER_CONSTANTS.capitalization.weights.repeatBase;
+const CAPS_THRESHOLDS = MASTER_CONSTANTS.capitalization.thresholds;
+const CAPS_CONFIDENCE = MASTER_CONSTANTS.capitalization.confidence;
 
 const IGNORED_TOKENS = new Set(['OK']);
 
@@ -32,7 +35,9 @@ export class CapitalizationAnalyzer {
     const isAllCapsText = /^[A-Z_\s]+$/.test(text);
     const hasHeaderKeywords = cleanTokens.some(t => HEADER_KEYWORDS.has(t));
     const hasEmotionalToken = cleanTokens.some(
-      t => t.length > 2 && !HEADER_KEYWORDS.has(t)
+      t =>
+        t.length > CAPS_THRESHOLDS.emotionalTokenLengthMinExclusive &&
+        !HEADER_KEYWORDS.has(t)
     );
 
     // Correct title suppression
@@ -53,7 +58,7 @@ export class CapitalizationAnalyzer {
       const position = this.position(i, cleanTokens.length);
 
       if (IGNORED_TOKENS.has(token)) continue;
-      if (token.length < 2) continue;
+      if (token.length < CAPS_THRESHOLDS.minTokenLength) continue;
       if (this.isExcluded(rawToken, token, i)) continue;
 
       if (this.isAllCaps(token)) {
@@ -61,7 +66,7 @@ export class CapitalizationAnalyzer {
         signals.push({
           type: 'CAPITALIZATION',
           value: CAPS_BASE_WEIGHT,
-          confidence: 0.55,
+          confidence: CAPS_CONFIDENCE.allCaps,
           position,
           weightSource: 'ALL_CAPS',
           metadata: { token }
@@ -72,7 +77,7 @@ export class CapitalizationAnalyzer {
         signals.push({
           type: 'CAPITALIZATION',
           value: REPEAT_BASE_WEIGHT,
-          confidence: 0.75,
+          confidence: CAPS_CONFIDENCE.repeatedLetters,
           position,
           weightSource: 'REPEATED_LETTERS',
           metadata: { token }
@@ -80,9 +85,9 @@ export class CapitalizationAnalyzer {
       }
     }
 
-    if (capsCount > 1) {
+    if (capsCount > CAPS_THRESHOLDS.capsBoostCountThreshold) {
       signals.forEach(s => {
-        if (s.weightSource === 'ALL_CAPS') s.confidence = 0.8;
+        if (s.weightSource === 'ALL_CAPS') s.confidence = CAPS_CONFIDENCE.allCapsBoosted;
       });
     }
 
@@ -104,7 +109,11 @@ export class CapitalizationAnalyzer {
   }
 
   private hasRepeatedLetters(token: string): boolean {
-    return /(.)\1{2,}/i.test(token);
+    const repeatRegex = new RegExp(
+      `(.)\\1{${CAPS_THRESHOLDS.repeatedLetterMinCount},}`,
+      'i'
+    );
+    return repeatRegex.test(token);
   }
 
   private isExcluded(
