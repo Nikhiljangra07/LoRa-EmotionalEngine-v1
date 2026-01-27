@@ -155,3 +155,5 @@ Expression Strength (ES) is a bounded, deterministic, surface-level signal that 
 
 ⸻
 
+Baseline Expressivity Floor (BEF) represents the minimal expressivity inherent in any intentional human utterance. It does not encode emotion, intensity, or sentiment, and exists solely to distinguish uttered text from silence. BEF acts as a floor, not an amplifier.
+

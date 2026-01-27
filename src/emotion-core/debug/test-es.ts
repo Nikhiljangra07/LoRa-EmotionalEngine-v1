@@ -11,6 +11,7 @@ const features: ExpressionStrengthFeatures = {
   intensifierCount: 1,
   interjectionCount: 0,
   messageCharLength: 42,
+  hasText: true,
 };
 
 const result = ExpressionStrengthScorer.compute(features);

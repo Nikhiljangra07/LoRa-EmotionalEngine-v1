@@ -8,6 +8,7 @@ export interface ExpressionStrengthFeatures {
   intensifierCount: number;
   interjectionCount: number;
   messageCharLength: number;
+  hasText: boolean;
 }
 
 export interface ExpressionStrengthResult {
