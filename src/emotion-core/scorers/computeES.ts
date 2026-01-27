@@ -39,19 +39,21 @@ export function computeES(
 
   const sat = config.saturation;
   const w = config.weights;
+  const clipMax = config.clipMax;
+  const scoring = config.scoring;
 
-  const capsScore = Math.min(1, 3 * capsRatio);
-  const exclScore = Math.min(1, exclamationCount / sat.exclamation);
+  const capsScore = Math.min(clipMax, scoring.capsRatioMultiplier * capsRatio);
+  const exclScore = Math.min(clipMax, exclamationCount / sat.exclamation);
   const questScore = Math.min(
-    1,
-    Math.min(1, questionCount / sat.question) +
-      (hasMixedPunctuation ? 0.2 : 0)
+    clipMax,
+    Math.min(clipMax, questionCount / sat.question) +
+      (hasMixedPunctuation ? scoring.mixedPunctuationBoost : 0)
   );
 
-  const emojiScore = Math.min(1, emojiCount / sat.emoji);
-  const lengthScore = Math.min(1, expressiveLengtheningCount / sat.lengthening);
-  const intensScore = Math.min(1, intensifierCount / sat.intensifier);
-  const interjScore = Math.min(1, interjectionCount / sat.interjection);
+  const emojiScore = Math.min(clipMax, emojiCount / sat.emoji);
+  const lengthScore = Math.min(clipMax, expressiveLengtheningCount / sat.lengthening);
+  const intensScore = Math.min(clipMax, intensifierCount / sat.intensifier);
+  const interjScore = Math.min(clipMax, interjectionCount / sat.interjection);
 
   let esRaw =
     w.caps * capsScore +
@@ -64,7 +66,9 @@ export function computeES(
 
   const shortBoost =
     messageCharLength < config.shortMessage.maxLength &&
-    (capsScore > 0.5 || exclScore > 0.5 || emojiScore > 0.5)
+    (capsScore > config.shortMessage.scoreThreshold ||
+      exclScore > config.shortMessage.scoreThreshold ||
+      emojiScore > config.shortMessage.scoreThreshold)
       ? config.shortMessage.boost
       : 0;
 
