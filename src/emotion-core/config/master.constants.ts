@@ -42,4 +42,21 @@ export const MASTER_CONSTANTS = {
       max: 1,
     },
   },
+  capitalization: {
+    weights: {
+      capsBase: 0.18,
+      repeatBase: 0.13,
+    },
+    thresholds: {
+      minTokenLength: 2,
+      emotionalTokenLengthMinExclusive: 2,
+      capsBoostCountThreshold: 1,
+      repeatedLetterMinCount: 2,
+    },
+    confidence: {
+      allCaps: 0.55,
+      repeatedLetters: 0.75,
+      allCapsBoosted: 0.8,
+    },
+  },
 } as const;
