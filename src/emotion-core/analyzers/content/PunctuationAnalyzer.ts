@@ -27,6 +27,9 @@ import {
   stripAbbreviations,
   isCodeBlock,
 } from '../../utils/textCleaning';
+import { MASTER_CONSTANTS } from '../../config/master.constants';
+
+const PUNCTUATION_CONSTANTS = MASTER_CONSTANTS.punctuationAnalyzer;
 
 /**
  * Raw punctuation detection result
@@ -131,7 +134,10 @@ export class PunctuationAnalyzer {
 
   private detectEllipsis(text: string): RawPunctuationSignal[] {
     const signals: RawPunctuationSignal[] = [];
-    const regex = /\.{3,}/g;
+    const regex = new RegExp(
+      `\\.{${PUNCTUATION_CONSTANTS.thresholds.ellipsisMinDots},}`,
+      'g'
+    );
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(text))) {
@@ -158,7 +164,8 @@ export class PunctuationAnalyzer {
     while ((match = regex.exec(text))) {
       signals.push({
         type: 'mixed',
-        count: match[0].length / 2,
+        count:
+          match[0].length / PUNCTUATION_CONSTANTS.scoring.mixedPairDivisor,
         position: this.resolvePosition(text, match.index),
         index: match.index,
         rawMatch: match[0],
@@ -194,7 +201,7 @@ export class PunctuationAnalyzer {
 
       signals.push({
         type: 'period',
-        count: 1,
+        count: PUNCTUATION_CONSTANTS.scoring.periodCount,
         position: this.resolvePosition(text, i),
         index: i,
         rawMatch: '.',
@@ -208,8 +215,8 @@ export class PunctuationAnalyzer {
 
   private resolvePosition(text: string, index: number): 'start' | 'mid' | 'end' {
     const ratio = index / text.length;
-    if (ratio < 0.25) return 'start';
-    if (ratio > 0.75) return 'end';
+    if (ratio < PUNCTUATION_CONSTANTS.thresholds.positionStartRatio) return 'start';
+    if (ratio > PUNCTUATION_CONSTANTS.thresholds.positionEndRatio) return 'end';
     return 'mid';
   }
 
