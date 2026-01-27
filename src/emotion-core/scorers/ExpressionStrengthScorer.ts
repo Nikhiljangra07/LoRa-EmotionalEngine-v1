@@ -1,4 +1,5 @@
 import { ES_CONFIG } from "../config/es.config";
+import { MASTER_CONSTANTS } from "../config/master.constants";
 import {
   ExpressionStrengthFeatures,
   ExpressionStrengthResult,
@@ -6,6 +7,7 @@ import {
 
 export class ExpressionStrengthScorer {
   static compute(features: ExpressionStrengthFeatures): ExpressionStrengthResult {
+    const esConstants = MASTER_CONSTANTS.es;
     const {
       capsRatio,
       exclamationCount,
@@ -21,16 +23,31 @@ export class ExpressionStrengthScorer {
     const sat = ES_CONFIG.saturation;
     const w = ES_CONFIG.weights;
 
-    const capsScore = Math.min(1, 3 * capsRatio);
-    const exclScore = Math.min(1, exclamationCount / sat.exclamation);
+    const capsScore = Math.min(
+      esConstants.clip.max,
+      esConstants.scoring.capsRatioMultiplier * capsRatio
+    );
+    const exclScore = Math.min(
+      esConstants.clip.max,
+      exclamationCount / sat.exclamation
+    );
     const questScore =
-      Math.min(1, questionCount / sat.question) +
-      (hasMixedPunctuation ? 0.2 : 0);
+      Math.min(esConstants.clip.max, questionCount / sat.question) +
+      (hasMixedPunctuation ? esConstants.scoring.mixedPunctuationBoost : 0);
 
-    const emojiScore = Math.min(1, emojiCount / sat.emoji);
-    const lengthScore = Math.min(1, expressiveLengtheningCount / sat.lengthening);
-    const intensScore = Math.min(1, intensifierCount / sat.intensifier);
-    const interjScore = Math.min(1, interjectionCount / sat.interjection);
+    const emojiScore = Math.min(esConstants.clip.max, emojiCount / sat.emoji);
+    const lengthScore = Math.min(
+      esConstants.clip.max,
+      expressiveLengtheningCount / sat.lengthening
+    );
+    const intensScore = Math.min(
+      esConstants.clip.max,
+      intensifierCount / sat.intensifier
+    );
+    const interjScore = Math.min(
+      esConstants.clip.max,
+      interjectionCount / sat.interjection
+    );
 
     let esRaw =
       w.caps * capsScore +
@@ -43,7 +60,9 @@ export class ExpressionStrengthScorer {
 
     if (
       messageCharLength < ES_CONFIG.shortMessage.maxLength &&
-      (capsScore > 0.5 || exclScore > 0.5 || emojiScore > 0.5)
+      (capsScore > esConstants.shortMessage.scoreThreshold ||
+        exclScore > esConstants.shortMessage.scoreThreshold ||
+        emojiScore > esConstants.shortMessage.scoreThreshold)
     ) {
       esRaw += ES_CONFIG.shortMessage.boost;
     }
