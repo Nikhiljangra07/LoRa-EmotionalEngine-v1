@@ -4,13 +4,13 @@ import { NrcLexiconAnalyzer } from "../analyzers/content/NrcLexiconAnalyzer";
 import { PunctuationAnalyzer } from "../analyzers/content/PunctuationAnalyzer";
 import { RepetitionAnalyzer } from "../analyzers/content/RepetitionAnalyzer";
 import { NegationScopeAnalyzer } from "../analyzers/semantic/NegationScopeAnalyzer";
-import { computeES } from "../scorers/computeES";
+import { ExpressionStrengthScorer } from "../scorers/ExpressionStrengthScorer";
 import type { ExpressionStrengthFeatures } from "../types/ExpressionStrength";
 
 type Sample = {
   id: string;
   text: string;
-  features: Omit<ExpressionStrengthFeatures, "messageCharLength">;
+  features: Omit<ExpressionStrengthFeatures, "messageCharLength" | "hasText">;
 };
 
 const samples: Sample[] = [
@@ -306,6 +306,7 @@ const resolvedSamples = samples.map((sample) => ({
   features: {
     ...sample.features,
     messageCharLength: sample.text.length,
+    hasText: sample.text.trim().length > 0,
   },
 }));
 
@@ -316,7 +317,7 @@ resolvedSamples.forEach((sample) => {
   const repetitionResult = repetition.analyze(sample.text);
   const nrcResult = NrcLexiconAnalyzer.analyze(sample.text);
   const negationResult = NegationScopeAnalyzer.analyze(sample.text);
-  const esResult = computeES(sample.features);
+  const esResult = ExpressionStrengthScorer.compute(sample.features);
 
   const output = {
     id: sample.id,

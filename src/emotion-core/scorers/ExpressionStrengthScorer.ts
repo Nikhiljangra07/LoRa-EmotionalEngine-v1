@@ -1,4 +1,4 @@
-import { ES_CONFIG } from "../config/es.config";
+import { ES_BASELINE_FLOOR, ES_CONFIG } from "../config/es.config";
 import { MASTER_CONSTANTS } from "../config/master.constants";
 import {
   ExpressionStrengthFeatures,
@@ -67,9 +67,12 @@ export class ExpressionStrengthScorer {
       esRaw += ES_CONFIG.shortMessage.boost;
     }
 
+    const esRawWithFloor =
+      features.hasText && esRaw < ES_BASELINE_FLOOR ? ES_BASELINE_FLOOR : esRaw;
+
     const es = Math.max(
       ES_CONFIG.clipMin,
-      Math.min(ES_CONFIG.clipMax, esRaw)
+      Math.min(ES_CONFIG.clipMax, esRawWithFloor)
     );
 
     return {

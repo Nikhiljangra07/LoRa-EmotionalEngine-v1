@@ -2,6 +2,9 @@ import { MASTER_CONSTANTS } from "./master.constants";
 
 const es = MASTER_CONSTANTS.es;
 
+// Minimal expressivity for any non-empty human utterance.
+export const ES_BASELINE_FLOOR = 0.05;
+
 export const ES_CONFIG = {
   weights: es.weights,
   saturation: es.saturation,

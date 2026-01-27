@@ -13,6 +13,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 0,
       messageCharLength: 2,
+      hasText: true,
     },
   },
   {
@@ -27,6 +28,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 0,
       messageCharLength: 3,
+      hasText: true,
     },
   },
   {
@@ -41,6 +43,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 0,
       messageCharLength: 5,
+      hasText: true,
     },
   },
   {
@@ -55,6 +58,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 1,
       messageCharLength: 6,
+      hasText: true,
     },
   },
   {
@@ -69,6 +73,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 1,
       messageCharLength: 9,
+      hasText: true,
     },
   },
   {
@@ -83,6 +88,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 0,
       messageCharLength: 15,
+      hasText: true,
     },
   },
   {
@@ -97,6 +103,7 @@ const samples = [
       intensifierCount: 1,
       interjectionCount: 0,
       messageCharLength: 24,
+      hasText: true,
     },
   },
   {
@@ -111,6 +118,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 1,
       messageCharLength: 6,
+      hasText: true,
     },
   },
   {
@@ -125,6 +133,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 1,
       messageCharLength: 7,
+      hasText: true,
     },
   },
   {
@@ -139,6 +148,7 @@ const samples = [
       intensifierCount: 0,
       interjectionCount: 1,
       messageCharLength: 8,
+      hasText: true,
     },
   },
 ];
