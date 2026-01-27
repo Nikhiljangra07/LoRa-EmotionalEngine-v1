@@ -2,10 +2,27 @@ import { ES_CONFIG } from "../../config/es.config";
 import { computeES, type ESConfig } from "../../scorers/computeES";
 import type { ExpressionStrengthFeatures } from "../../types/ExpressionStrength";
 
+export interface ExpressionStrengthMetadata {
+  breakdown: {
+    capitalization: number;
+    exclamations: number;
+    questions: number;
+    emojis: number;
+    elongation: number;
+    intensifiers: number;
+    interjections: number;
+    shortBoost: number;
+  };
+  config: {
+    weights: Record<string, number>;
+    saturationLimits: Record<string, number>;
+  };
+}
+
 export type AnalyzerOutput<TMeta = unknown> = {
   score: number;
   dimension: "expression_strength";
-  metadata?: TMeta;
+  metadata: TMeta;
 };
 
 export class ExpressionStrengthAnalyzer {
@@ -24,18 +41,28 @@ export class ExpressionStrengthAnalyzer {
     };
   }
 
-  analyze(features: ExpressionStrengthFeatures): AnalyzerOutput {
+  analyze(
+    features: ExpressionStrengthFeatures
+  ): AnalyzerOutput<ExpressionStrengthMetadata> {
     const { es, breakdown } = computeES(features, this.cfg);
 
     return {
       score: es,
       dimension: "expression_strength",
       metadata: {
-        breakdown,
+        breakdown: {
+          capitalization: breakdown.capsScore,
+          exclamations: breakdown.exclScore,
+          questions: breakdown.questScore,
+          emojis: breakdown.emojiScore,
+          elongation: breakdown.lengthScore,
+          intensifiers: breakdown.intensScore,
+          interjections: breakdown.interjScore,
+          shortBoost: breakdown.shortBoost,
+        },
         config: {
           weights: this.cfg.weights,
-          saturation: this.cfg.saturation,
-          shortMessage: this.cfg.shortMessage,
+          saturationLimits: this.cfg.saturation,
         },
       },
     };
