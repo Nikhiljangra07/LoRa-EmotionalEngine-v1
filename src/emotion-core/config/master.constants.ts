@@ -86,4 +86,15 @@ export const MASTER_CONSTANTS = {
       minRepeatCount: 2,
     },
   },
+  nrcLexiconAnalyzer: {
+    thresholds: {
+      dominantGapMin: 0.6,
+      confidenceTokenLowMaxExclusive: 10,
+      confidenceTokenModerateMaxExclusive: 30,
+    },
+    normalization: {
+      precisionDigits: 4,
+      singleEmotionGap: 1,
+    },
+  },
 } as const;
