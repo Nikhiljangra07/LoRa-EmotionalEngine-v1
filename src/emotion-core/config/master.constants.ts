@@ -3,6 +3,8 @@
  *
  * Centralized numeric constants intended for reuse across analyzers and scorers.
  * Declarative only — no functions, no calculations.
+ *
+ * V1 frozen: do not change these values without updating tests and documentation.
  */
 
 export const MASTER_CONSTANTS = {
