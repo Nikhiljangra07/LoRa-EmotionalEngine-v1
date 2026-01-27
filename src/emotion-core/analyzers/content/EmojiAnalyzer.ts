@@ -1,6 +1,9 @@
 // src/emotion-core/analyzers/content/EmojiAnalyzer.ts
 
 import { AnalyzerResult, AnalyzerSignal } from '../../types/analysis.types';
+import { MASTER_CONSTANTS } from '../../config/master.constants';
+
+const EMOJI_CONSTANTS = MASTER_CONSTANTS.emojiAnalyzer;
 
 /**
  * EmojiAnalyzer
@@ -48,11 +51,14 @@ export class EmojiAnalyzer {
   }
 
   analyze(text: string): AnalyzerResult {
-    if (!text || text.trim().length === 0) {
+    if (
+      !text ||
+      text.trim().length === EMOJI_CONSTANTS.thresholds.emptyTextLength
+    ) {
       return {
         analyzerId: this.analyzerId,
         signals: [],
-        confidence: 0,
+        confidence: EMOJI_CONSTANTS.defaults.confidence,
       };
     }
 
@@ -62,11 +68,11 @@ export class EmojiAnalyzer {
     const sanitizedText = this.stripCodeBlocks(text);
     const emojis = this.extractEmojis(sanitizedText);
 
-    if (emojis.length === 0) {
+    if (emojis.length === EMOJI_CONSTANTS.thresholds.emptyEmojiCount) {
       return {
         analyzerId: this.analyzerId,
         signals: [],
-        confidence: 0,
+        confidence: EMOJI_CONSTANTS.defaults.confidence,
       };
     }
 
@@ -76,19 +82,22 @@ export class EmojiAnalyzer {
      */
     const counts = new Map<string, number>();
     for (const emoji of emojis) {
-      counts.set(emoji, (counts.get(emoji) ?? 0) + 1);
+      counts.set(
+        emoji,
+        (counts.get(emoji) ?? EMOJI_CONSTANTS.defaults.countSeed) + 1
+      );
     }
 
     const signals: AnalyzerSignal[] = [];
-    let index = 0;
+    let index = EMOJI_CONSTANTS.defaults.indexStart;
 
     for (const [emoji, count] of counts.entries()) {
       signals.push({
         type: 'emoji',
         value: count, // raw repetition count (NOT intensity)
-        position: index === 0 ? 'start' : 'mid',
+        position: index === EMOJI_CONSTANTS.defaults.indexStart ? 'start' : 'mid',
         weightSource: 'EMOJI',
-        confidence: 0, // explicitly deferred to math layer
+        confidence: EMOJI_CONSTANTS.defaults.confidence, // explicitly deferred to math layer
         metadata: {
           emoji,
         },
@@ -99,7 +108,7 @@ export class EmojiAnalyzer {
     return {
       analyzerId: this.analyzerId,
       signals,
-      confidence: 0, // analyzer-level confidence intentionally neutral
+      confidence: EMOJI_CONSTANTS.defaults.confidence, // analyzer-level confidence intentionally neutral
     };
   }
 }

@@ -70,4 +70,15 @@ export const MASTER_CONSTANTS = {
       periodCount: 1,
     },
   },
+  emojiAnalyzer: {
+    thresholds: {
+      emptyTextLength: 0,
+      emptyEmojiCount: 0,
+    },
+    defaults: {
+      confidence: 0,
+      countSeed: 0,
+      indexStart: 0,
+    },
+  },
 } as const;
