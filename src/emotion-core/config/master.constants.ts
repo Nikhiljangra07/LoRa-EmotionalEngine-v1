@@ -59,4 +59,15 @@ export const MASTER_CONSTANTS = {
       allCapsBoosted: 0.8,
     },
   },
+  punctuationAnalyzer: {
+    thresholds: {
+      positionStartRatio: 0.25,
+      positionEndRatio: 0.75,
+      ellipsisMinDots: 3,
+    },
+    scoring: {
+      mixedPairDivisor: 2,
+      periodCount: 1,
+    },
+  },
 } as const;
