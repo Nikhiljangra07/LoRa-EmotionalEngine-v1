@@ -4,7 +4,11 @@
  * NRC Emotion Categories (Discrete)
  * ---------------------------------
  * Matches NRC Emotion Lexicon v0.92
- */import { NRCEmotion } from '../../types';
+ */
+import { NRCEmotion } from '../../types';
+import { MASTER_CONSTANTS } from '../../config/master.constants';
+
+const NRC_CONSTANTS = MASTER_CONSTANTS.nrcLexiconAnalyzer;
 
 export interface NrcLexiconResult {
   distribution: Record<NRCEmotion, number>;
@@ -172,14 +176,21 @@ export class NrcLexiconAnalyzer {
     if (sorted.length < 2) {
       return {
         dominantEmotion: sorted[0]?.[0] as NRCEmotion | undefined,
-        confidenceGap: 1,
+        confidenceGap: NRC_CONSTANTS.normalization.singleEmotionGap,
       };
     }
 
-    const gap = Number((sorted[0][1] - sorted[1][1]).toFixed(4));
+    const gap = Number(
+      (sorted[0][1] - sorted[1][1]).toFixed(
+        NRC_CONSTANTS.normalization.precisionDigits
+      )
+    );
 
     return {
-      dominantEmotion: gap >= 0.6 ? (sorted[0][0] as NRCEmotion) : undefined,
+      dominantEmotion:
+        gap >= NRC_CONSTANTS.thresholds.dominantGapMin
+          ? (sorted[0][0] as NRCEmotion)
+          : undefined,
       confidenceGap: gap,
     };
   }
@@ -187,8 +198,15 @@ export class NrcLexiconAnalyzer {
   private static estimateConfidence(
     tokenLength: number
   ): 'LOW' | 'MODERATE' | 'HIGH' {
-    if (tokenLength < 10) return 'LOW';
-    if (tokenLength < 30) return 'MODERATE';
+    if (tokenLength < NRC_CONSTANTS.thresholds.confidenceTokenLowMaxExclusive) {
+      return 'LOW';
+    }
+    if (
+      tokenLength <
+      NRC_CONSTANTS.thresholds.confidenceTokenModerateMaxExclusive
+    ) {
+      return 'MODERATE';
+    }
     return 'HIGH';
   }
 }
