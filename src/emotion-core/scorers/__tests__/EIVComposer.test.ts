@@ -58,6 +58,68 @@ describe("EIVComposer", () => {
     expect(positive.base).toBeCloseTo(negative.base, 8);
   });
 
+  test("confidence sensitivity lowers base with weaker confidence", () => {
+    const highConf = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0.7, confidence: CONSTANTS.CONF.MAX },
+      arousal: { arousal: 0.7, confidence: CONSTANTS.CONF.MAX },
+    });
+    const lowConf = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0.7, confidence: CONSTANTS.CONF.MIN },
+      arousal: { arousal: 0.7, confidence: CONSTANTS.CONF.MIN },
+    });
+    expect(highConf.base).toBeGreaterThan(lowConf.base);
+  });
+
+  test("no leakage: arousal-only yields non-zero base", () => {
+    const result = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0, confidence: CONSTANTS.CONF.MIN },
+      arousal: { arousal: 0.8, confidence: CONSTANTS.CONF.MAX },
+    });
+    expect(result.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
+  });
+
+  test("no leakage: valence-only yields non-zero base", () => {
+    const result = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0.8, confidence: CONSTANTS.CONF.MAX },
+      arousal: { arousal: 0, confidence: CONSTANTS.CONF.MIN },
+    });
+    expect(result.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
+  });
+
+  test("no dominance: strong valence and arousal both contribute", () => {
+    const valenceStrong = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 1, confidence: CONSTANTS.CONF.MAX },
+      arousal: { arousal: 0.2, confidence: CONSTANTS.CONF.MAX },
+    });
+    const arousalStrong = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0.2, confidence: CONSTANTS.CONF.MAX },
+      arousal: { arousal: 1, confidence: CONSTANTS.CONF.MAX },
+    });
+    expect(valenceStrong.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
+    expect(arousalStrong.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
+    expect(Math.abs(valenceStrong.base - arousalStrong.base)).toBeLessThan(0.6);
+  });
+
+  test("stability: small perturbations do not cause jumps", () => {
+    const base = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0.4, confidence: 0.7 },
+      arousal: { arousal: 0.4, confidence: 0.7 },
+    });
+    const slightlyHigher = composeEIV({
+      es: { score: 0, confidence: 0.5 },
+      valence: { score: 0.42, confidence: 0.7 },
+      arousal: { arousal: 0.4, confidence: 0.7 },
+    });
+    expect(slightlyHigher.base - base.base).toBeLessThan(0.05);
+  });
+
   test("safe ES amplification never exceeds clamp", () => {
     const high = composeEIV({
       es: { score: 1, confidence: 1 },
