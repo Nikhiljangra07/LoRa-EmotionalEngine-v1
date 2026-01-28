@@ -127,6 +127,7 @@ const NEGATION_SCOPE_CONSTANTS = {
 const VALENCE_ANALYZER_CONSTANTS = {
   thresholds: {
     minMagnitude: 0.15,
+    dominanceEpsilon: 0.05,
   },
   confidence: {
     minAffectiveTokens: 2,

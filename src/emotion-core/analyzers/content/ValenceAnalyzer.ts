@@ -152,7 +152,10 @@ export class ValenceAnalyzer {
 
     const unnegatedPositiveWeight = positiveWeight - negatedPositiveWeight;
     const unnegatedNegativeWeight = negativeWeight - negatedNegativeWeight;
-    const isBalanced = magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
+    const dominanceDelta = Math.abs(positiveWeight - negativeWeight);
+    const isBalanced =
+      dominanceDelta < VALENCE_CONSTANTS.thresholds.dominanceEpsilon &&
+      magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
 
     // STEP 1 — Balanced Mixed Affect (NO negation)
     const hasAnyNegation = hasNegatedPositive || hasNegatedNegative;
