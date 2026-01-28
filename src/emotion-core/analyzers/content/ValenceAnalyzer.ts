@@ -78,6 +78,8 @@ export class ValenceAnalyzer {
 
     let positiveWeight = VALENCE_CONSTANTS.bounds.zero;
     let negativeWeight = VALENCE_CONSTANTS.bounds.zero;
+    let negatedPositiveWeight = VALENCE_CONSTANTS.bounds.zero;
+    let negatedNegativeWeight = VALENCE_CONSTANTS.bounds.zero;
     let affectiveTokenCount = VALENCE_CONSTANTS.bounds.zero;
 
     tokens.forEach((token, index) => {
@@ -102,11 +104,19 @@ export class ValenceAnalyzer {
         : VALENCE_CONSTANTS.bounds.one;
 
       if (positive > VALENCE_CONSTANTS.bounds.zero) {
-        positiveWeight += positive * attenuation;
+        const contribution = positive * attenuation;
+        positiveWeight += contribution;
+        if (attenuation !== VALENCE_CONSTANTS.bounds.one) {
+          negatedPositiveWeight += contribution;
+        }
       }
 
       if (negative > VALENCE_CONSTANTS.bounds.zero) {
-        negativeWeight += negative * attenuation;
+        const contribution = negative * attenuation;
+        negativeWeight += contribution;
+        if (attenuation !== VALENCE_CONSTANTS.bounds.one) {
+          negatedNegativeWeight += contribution;
+        }
       }
     });
 
@@ -141,6 +151,15 @@ export class ValenceAnalyzer {
       valence = "POSITIVE";
     } else if (score < VALENCE_CONSTANTS.bounds.zero) {
       valence = "NEGATIVE";
+    }
+
+    const unnegatedPositiveWeight = positiveWeight - negatedPositiveWeight;
+    const unnegatedNegativeWeight = negativeWeight - negatedNegativeWeight;
+
+    if (unnegatedNegativeWeight > negatedPositiveWeight) {
+      valence = "NEGATIVE";
+    } else if (unnegatedPositiveWeight > negatedNegativeWeight) {
+      valence = "POSITIVE";
     }
 
     const isBalanced = magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
