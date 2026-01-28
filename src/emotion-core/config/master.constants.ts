@@ -151,6 +151,14 @@ const VALENCE_ANALYZER_CONSTANTS = {
   },
 } as const;
 
+const VALENCE_AMBIGUITY_CONSTRAINTS = {
+  NEGATIVE_MIN_CONF: 0,
+  NEGATIVE_MAX_CONF: 0.7,
+  NEUTRAL_MIN_CONF: 0,
+  NEUTRAL_MAX_CONF: 0.6,
+  OVERCONFIDENT_MAX: 0.8,
+} as const;
+
 export const MASTER_CONSTANTS = {
   bounds: MASTER_BOUNDS,
   thresholds: MASTER_THRESHOLDS,
@@ -164,4 +172,7 @@ export const MASTER_CONSTANTS = {
   nrcLexiconAnalyzer: NRC_LEXICON_ANALYZER_CONSTANTS,
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
+  valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
 } as const;
+
+export { VALENCE_AMBIGUITY_CONSTRAINTS };
