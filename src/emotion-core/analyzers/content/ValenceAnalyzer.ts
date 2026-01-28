@@ -136,26 +136,24 @@ export class ValenceAnalyzer {
     );
     const magnitude = Math.abs(score);
 
+    let valence: Valence = "NEUTRAL";
+    if (score > VALENCE_CONSTANTS.bounds.zero) {
+      valence = "POSITIVE";
+    } else if (score < VALENCE_CONSTANTS.bounds.zero) {
+      valence = "NEGATIVE";
+    }
+
     const isBalanced = magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
     if (isBalanced) {
       neutralTriggers.push("balanced_signal");
     }
 
-    let valence: Valence = "NEUTRAL";
     if (
-      affectiveTokenCount >=
-        VALENCE_CONSTANTS.confidence.minAffectiveTokens &&
-      !isBalanced
+      magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude &&
+      affectiveTokenCount <
+        VALENCE_CONSTANTS.confidence.minAffectiveTokens
     ) {
-      if (score >= VALENCE_CONSTANTS.thresholds.minMagnitude) {
-        valence = "POSITIVE";
-      } else if (
-        score <=
-        VALENCE_CONSTANTS.bounds.negOne *
-          VALENCE_CONSTANTS.thresholds.minMagnitude
-      ) {
-        valence = "NEGATIVE";
-      }
+      valence = "NEUTRAL";
     }
 
     let confidence = Math.min(VALENCE_CONSTANTS.bounds.one, magnitude);
