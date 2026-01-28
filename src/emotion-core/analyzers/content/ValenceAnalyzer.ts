@@ -80,6 +80,8 @@ export class ValenceAnalyzer {
     let negativeWeight = VALENCE_CONSTANTS.bounds.zero;
     let negatedPositiveWeight = VALENCE_CONSTANTS.bounds.zero;
     let negatedNegativeWeight = VALENCE_CONSTANTS.bounds.zero;
+    let hasNegatedPositive = false;
+    let hasNegatedNegative = false;
     let affectiveTokenCount = VALENCE_CONSTANTS.bounds.zero;
 
     tokens.forEach((token, index) => {
@@ -108,6 +110,7 @@ export class ValenceAnalyzer {
         positiveWeight += contribution;
         if (attenuation !== VALENCE_CONSTANTS.bounds.one) {
           negatedPositiveWeight += contribution;
+          hasNegatedPositive = true;
         }
       }
 
@@ -116,6 +119,7 @@ export class ValenceAnalyzer {
         negativeWeight += contribution;
         if (attenuation !== VALENCE_CONSTANTS.bounds.one) {
           negatedNegativeWeight += contribution;
+          hasNegatedNegative = true;
         }
       }
     });
@@ -151,9 +155,11 @@ export class ValenceAnalyzer {
     const isBalanced = magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
 
     // STEP 1 — Balanced Mixed Affect (NO negation)
+    const hasAnyNegation = hasNegatedPositive || hasNegatedNegative;
     const isPureMixedAffect =
       positiveWeight > VALENCE_CONSTANTS.bounds.zero &&
       negativeWeight > VALENCE_CONSTANTS.bounds.zero &&
+      !hasAnyNegation &&
       negatedPositiveWeight === VALENCE_CONSTANTS.bounds.zero &&
       negatedNegativeWeight === VALENCE_CONSTANTS.bounds.zero;
 
