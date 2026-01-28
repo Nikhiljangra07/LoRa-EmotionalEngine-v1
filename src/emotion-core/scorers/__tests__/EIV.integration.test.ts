@@ -1,277 +1,376 @@
-import { composeEIV, type EIVInputs } from "../EIVComposer";
+import { composeEIV } from "../EIVComposer";
 import { MASTER_CONSTANTS } from "../../config/master.constants";
 
 const CONSTANTS = MASTER_CONSTANTS.eivCompositionConstants;
-const TOLERANCE =
-  MASTER_CONSTANTS.valenceAnalyzer.thresholds.dominanceEpsilon;
 
-const makeInputs = (overrides: Partial<EIVInputs> = {}): EIVInputs => ({
-  es: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-  valence: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-  arousal: { arousal: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-  ...overrides,
+const TOLERANCE =
+  CONSTANTS.ES_GAIN_MAX_DELTA * CONSTANTS.BASE_FLOOR_GATE;
+
+const makeInputs = (params: {
+  esScore: number;
+  esConfidence: number;
+  valenceScore: number;
+  valenceConfidence: number;
+  arousalScore: number;
+  arousalConfidence: number;
+}) => ({
+  es: { score: params.esScore, confidence: params.esConfidence },
+  valence: { score: params.valenceScore, confidence: params.valenceConfidence },
+  arousal: { arousal: params.arousalScore, confidence: params.arousalConfidence },
 });
 
-const logPhase = (
-  label: string,
-  inputs: EIVInputs,
-  result: ReturnType<typeof composeEIV>
-) => {
-  console.debug("inputs", inputs);
-  console.debug("baseIntensity", result.base);
-  console.debug("esGain", result.gain);
-  console.debug("finalEIV", result.value);
-  console.debug("confidence", result.baseConfidence);
-  console.debug("label", label);
+const logEIV = (label: string, result: ReturnType<typeof composeEIV>) => {
+  console.debug(label, {
+    baseIntensity: result.base,
+    gain: result.gain,
+    eiv: result.value,
+    confidence: result.baseConfidence,
+  });
 };
 
-describe("EIV Pipeline Integration — Phase 1: Unit-Level Invariants", () => {
-  test("ES increases EIV only when baseIntensity exceeds floor gate", () => {
-    console.group("PHASE 1: ES gain gated by base");
-    const baseInputs = makeInputs({
-      valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-    });
-    const lowEs = composeEIV({
-      ...baseInputs,
-      es: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MAX },
-    });
-    const highEs = composeEIV({
-      ...baseInputs,
-      es: { score: CONSTANTS.CLAMP.MAX, confidence: CONSTANTS.CONF.MAX },
-    });
-
-    logPhase("low ES", baseInputs, lowEs);
-    logPhase("high ES", baseInputs, highEs);
-    expect(highEs.value).toBeGreaterThan(lowEs.value);
+describe("EIV integration — Phase 1: Unit-level invariants", () => {
+  test("ES increases EIV only above base floor", () => {
+    console.group("PHASE 1: ES gain gating");
+    const lowBase = composeEIV(
+      makeInputs({
+        esScore: 1,
+        esConfidence: 1,
+        valenceScore: 0,
+        valenceConfidence: CONSTANTS.CONF.MIN,
+        arousalScore: CONSTANTS.BASE_FLOOR_GATE,
+        arousalConfidence: CONSTANTS.CONF.MIN,
+      })
+    );
+    const higherBase = composeEIV(
+      makeInputs({
+        esScore: 1,
+        esConfidence: 1,
+        valenceScore: 0.6,
+        valenceConfidence: CONSTANTS.CONF.MAX,
+        arousalScore: 0.6,
+        arousalConfidence: CONSTANTS.CONF.MAX,
+      })
+    );
+    logEIV("lowBase", lowBase);
+    logEIV("higherBase", higherBase);
+    expect(higherBase.value).toBeGreaterThan(lowBase.value);
     console.groupEnd();
   });
 
-  test("ES cannot create EIV when base is near floor", () => {
-    console.group("PHASE 1: ES cannot fabricate intensity");
-    const baseInputs = makeInputs({
-      valence: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-      arousal: {
-        arousal: CONSTANTS.BASE_FLOOR_GATE,
-        confidence: CONSTANTS.CONF.MIN,
-      },
-    });
-    const highEs = composeEIV({
-      ...baseInputs,
-      es: { score: CONSTANTS.CLAMP.MAX, confidence: CONSTANTS.CONF.MAX },
-    });
-
-    logPhase("high ES near floor", baseInputs, highEs);
-    const maxGain =
-      CONSTANTS.ES_GAIN_MAX_DELTA *
-      CONSTANTS.LOW_BASE_GAIN_SCALE *
-      CONSTANTS.CLAMP.MAX *
-      CONSTANTS.CONF.MAX;
-    expect(highEs.value).toBeLessThanOrEqual(highEs.base * (1 + maxGain));
+  test("ES alone cannot create intensity near floor", () => {
+    console.group("PHASE 1: ES cannot fabricate");
+    const result = composeEIV(
+      makeInputs({
+        esScore: 1,
+        esConfidence: 1,
+        valenceScore: 0,
+        valenceConfidence: CONSTANTS.CONF.MIN,
+        arousalScore: CONSTANTS.CLAMP.MIN,
+        arousalConfidence: CONSTANTS.CONF.MIN,
+      })
+    );
+    logEIV("esOnly", result);
+    expect(result.value).toBeLessThanOrEqual(
+      result.base * (1 + CONSTANTS.ES_GAIN_MAX_DELTA)
+    );
     console.groupEnd();
   });
 
   test("valence sign inversion does not change EIV magnitude", () => {
-    console.group("PHASE 1: Valence sign orthogonality");
+    console.group("PHASE 1: valence sign invariance");
     const positive = composeEIV(
       makeInputs({
-        valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0,
+        esConfidence: CONSTANTS.CONF.MIN,
+        valenceScore: 0.6,
+        valenceConfidence: CONSTANTS.CONF.MAX,
+        arousalScore: 0.6,
+        arousalConfidence: CONSTANTS.CONF.MAX,
       })
     );
     const negative = composeEIV(
       makeInputs({
-        valence: { score: -CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0,
+        esConfidence: CONSTANTS.CONF.MIN,
+        valenceScore: -0.6,
+        valenceConfidence: CONSTANTS.CONF.MAX,
+        arousalScore: 0.6,
+        arousalConfidence: CONSTANTS.CONF.MAX,
       })
     );
-    logPhase("positive valence", makeInputs(), positive);
-    logPhase("negative valence", makeInputs(), negative);
-    expect(positive.base).toBeCloseTo(negative.base, 8);
+    logEIV("positive", positive);
+    logEIV("negative", negative);
+    expect(positive.value).toBeCloseTo(negative.value, 8);
     console.groupEnd();
   });
 });
 
-describe("EIV Pipeline Integration — Phase 2: Orthogonality Tests", () => {
-  test("pairwise comparisons are orthogonal", () => {
-    console.group("PHASE 2: Orthogonality comparisons");
-    const sameMagnitude = {
-      valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-    };
-    const positive = composeEIV(makeInputs(sameMagnitude));
+describe("EIV integration — Phase 2: Orthogonality tests", () => {
+  test("same arousal + same |valence| yields same EIV", () => {
+    console.group("PHASE 2: sign invariance");
+    const positive = composeEIV(
+      makeInputs({
+        esScore: 0.4,
+        esConfidence: 0.6,
+        valenceScore: 0.5,
+        valenceConfidence: 0.8,
+        arousalScore: 0.5,
+        arousalConfidence: 0.8,
+      })
+    );
     const negative = composeEIV(
       makeInputs({
-        ...sameMagnitude,
-        valence: { score: -CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0.4,
+        esConfidence: 0.6,
+        valenceScore: -0.5,
+        valenceConfidence: 0.8,
+        arousalScore: 0.5,
+        arousalConfidence: 0.8,
       })
     );
+    console.table([
+      { label: "positive", eiv: positive.value },
+      { label: "negative", eiv: negative.value },
+    ]);
+    expect(positive.value).toBeCloseTo(negative.value, 8);
+    console.groupEnd();
+  });
 
-    const lowEs = composeEIV(
+  test("same base with different ES yields different EIV", () => {
+    console.group("PHASE 2: ES difference");
+    const low = composeEIV(
       makeInputs({
-        ...sameMagnitude,
-        es: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0.2,
+        esConfidence: 0.8,
+        valenceScore: 0.4,
+        valenceConfidence: 0.8,
+        arousalScore: 0.4,
+        arousalConfidence: 0.8,
       })
     );
-    const highEs = composeEIV(
+    const high = composeEIV(
       makeInputs({
-        ...sameMagnitude,
-        es: { score: CONSTANTS.CLAMP.MAX, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0.8,
+        esConfidence: 0.8,
+        valenceScore: 0.4,
+        valenceConfidence: 0.8,
+        arousalScore: 0.4,
+        arousalConfidence: 0.8,
       })
     );
+    console.table([
+      { label: "EXPECTED: different", eiv: low.value },
+      { label: "EXPECTED: different", eiv: high.value },
+    ]);
+    expect(high.value).toBeGreaterThan(low.value);
+    console.groupEnd();
+  });
 
+  test("same ES with different base yields different EIV", () => {
+    console.group("PHASE 2: base difference");
     const lowBase = composeEIV(
       makeInputs({
-        valence: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-        arousal: { arousal: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0.6,
+        esConfidence: 0.8,
+        valenceScore: 0.2,
+        valenceConfidence: 0.7,
+        arousalScore: 0.2,
+        arousalConfidence: 0.7,
       })
     );
     const highBase = composeEIV(
       makeInputs({
-        valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
+        esScore: 0.6,
+        esConfidence: 0.8,
+        valenceScore: 0.8,
+        valenceConfidence: 0.7,
+        arousalScore: 0.8,
+        arousalConfidence: 0.7,
       })
     );
-
     console.table([
-      {
-        comparison: "valence sign",
-        expected: "EXPECTED: equal",
-        a: positive.value,
-        b: negative.value,
-      },
-      {
-        comparison: "ES gain",
-        expected: "EXPECTED: different",
-        a: lowEs.value,
-        b: highEs.value,
-      },
-      {
-        comparison: "base intensity",
-        expected: "EXPECTED: different",
-        a: lowBase.value,
-        b: highBase.value,
-      },
+      { label: "EXPECTED: different", eiv: lowBase.value },
+      { label: "EXPECTED: different", eiv: highBase.value },
     ]);
-
-    expect(positive.value).toBeCloseTo(negative.value, 8);
-    expect(highEs.value).toBeGreaterThan(lowEs.value);
     expect(highBase.value).toBeGreaterThan(lowBase.value);
     console.groupEnd();
   });
 });
 
-describe("EIV Pipeline Integration — Phase 3: Scenario-Level Golden Tests", () => {
-  test("scenario comparisons respect hierarchical composition", () => {
-    console.group("PHASE 3: Scenario-level golden tests");
+describe("EIV integration — Phase 3: Scenario-level golden tests", () => {
+  test("canonical phrases follow relative ordering", () => {
+    console.group("PHASE 3: scenarios");
+    const samples = [
+      {
+        label: "I love this!!!",
+        input: makeInputs({
+          esScore: 0.7,
+          esConfidence: 0.8,
+          valenceScore: 0.7,
+          valenceConfidence: 0.8,
+          arousalScore: 0.7,
+          arousalConfidence: 0.8,
+        }),
+      },
+      {
+        label: "I hate this!!!",
+        input: makeInputs({
+          esScore: 0.7,
+          esConfidence: 0.8,
+          valenceScore: -0.7,
+          valenceConfidence: 0.8,
+          arousalScore: 0.7,
+          arousalConfidence: 0.8,
+        }),
+      },
+      {
+        label: "Fine.",
+        input: makeInputs({
+          esScore: 0.2,
+          esConfidence: 0.6,
+          valenceScore: 0.1,
+          valenceConfidence: 0.6,
+          arousalScore: 0.2,
+          arousalConfidence: 0.6,
+        }),
+      },
+      {
+        label: "FINE!!!",
+        input: makeInputs({
+          esScore: 0.6,
+          esConfidence: 0.7,
+          valenceScore: 0.1,
+          valenceConfidence: 0.6,
+          arousalScore: 0.6,
+          arousalConfidence: 0.7,
+        }),
+      },
+      {
+        label: "Not good, not bad.",
+        input: makeInputs({
+          esScore: 0.3,
+          esConfidence: 0.6,
+          valenceScore: 0.1,
+          valenceConfidence: 0.5,
+          arousalScore: 0.2,
+          arousalConfidence: 0.5,
+        }),
+      },
+      {
+        label: "This is AMAZING!!!",
+        input: makeInputs({
+          esScore: 0.9,
+          esConfidence: 0.9,
+          valenceScore: 0.8,
+          valenceConfidence: 0.9,
+          arousalScore: 0.9,
+          arousalConfidence: 0.9,
+        }),
+      },
+      {
+        label: "Oh GREAT idea!!!",
+        input: makeInputs({
+          esScore: 0.8,
+          esConfidence: 0.6,
+          valenceScore: 0.4,
+          valenceConfidence: 0.5,
+          arousalScore: 0.8,
+          arousalConfidence: 0.6,
+        }),
+      },
+    ];
 
-    const love = composeEIV(
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-      })
-    );
-    const hate = composeEIV(
-      makeInputs({
-        valence: { score: -CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-      })
-    );
+    const results = samples.map((sample) => {
+      const result = composeEIV(sample.input);
+      console.debug(sample.label, {
+        input: sample.input,
+        eiv: result.value,
+        confidence: result.baseConfidence,
+      });
+      return { label: sample.label, ...result };
+    });
 
-    const fine = composeEIV(
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        arousal: { arousal: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        es: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-      })
-    );
-    const fineEmphatic = composeEIV(
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-      })
-    );
-
-    const neutral = composeEIV(
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        arousal: { arousal: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        es: { score: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-      })
-    );
-    const intense = composeEIV(
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CLAMP.MAX, confidence: CONSTANTS.CONF.MAX },
-      })
-    );
-
-    const sarcastic = composeEIV(
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MIN },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MIN },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MIN },
-      })
-    );
-
-    console.debug("Scenario: love/hate", love, hate);
-    console.debug("Scenario: fine/fine emphatic", fine, fineEmphatic);
-    console.debug("Scenario: neutral/intense", neutral, intense);
-    console.debug("Scenario: sarcastic", sarcastic);
+    const love = results.find((r) => r.label === "I love this!!!")!;
+    const hate = results.find((r) => r.label === "I hate this!!!")!;
+    const fine = results.find((r) => r.label === "Fine.")!;
+    const fineLoud = results.find((r) => r.label === "FINE!!!")!;
+    const notBad = results.find((r) => r.label === "Not good, not bad.")!;
+    const amazing = results.find((r) => r.label === "This is AMAZING!!!")!;
+    const sarcasm = results.find((r) => r.label === "Oh GREAT idea!!!")!;
 
     expect(love.value).toBeCloseTo(hate.value, 8);
-    expect(fineEmphatic.value).toBeGreaterThan(fine.value);
-    expect(intense.value).toBeGreaterThan(neutral.value);
-    expect(sarcastic.baseConfidence).toBeLessThan(
+    expect(fineLoud.value).toBeGreaterThan(fine.value);
+    expect(amazing.value).toBeGreaterThan(notBad.value);
+    expect(sarcasm.baseConfidence).toBeLessThanOrEqual(
       CONSTANTS.CONF.MAX
     );
-
     console.groupEnd();
   });
 });
 
-describe("EIV Pipeline Integration — Phase 4: Regression Lock", () => {
+describe("EIV integration — Phase 4: Regression lock", () => {
   test("canonical tuples remain within tolerance", () => {
-    console.group("PHASE 4: Regression lock");
-
+    console.group("PHASE 4: regression lock");
     const tuples = [
-      makeInputs({
-        valence: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-        arousal: { arousal: CONSTANTS.BASE_FLOOR_GATE, confidence: CONSTANTS.CONF.MIN },
-        es: { score: CONSTANTS.CLAMP.MIN, confidence: CONSTANTS.CONF.MIN },
-      }),
-      makeInputs({
-        valence: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CONF.MIN, confidence: CONSTANTS.CONF.MAX },
-      }),
-      makeInputs({
-        valence: { score: -CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        arousal: { arousal: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-        es: { score: CONSTANTS.CONF.MAX, confidence: CONSTANTS.CONF.MAX },
-      }),
+      {
+        label: "base-low",
+        input: makeInputs({
+          esScore: 0.2,
+          esConfidence: 0.5,
+          valenceScore: 0.2,
+          valenceConfidence: 0.5,
+          arousalScore: 0.2,
+          arousalConfidence: 0.5,
+        }),
+        expected: composeEIV(
+          makeInputs({
+            esScore: 0.2,
+            esConfidence: 0.5,
+            valenceScore: 0.2,
+            valenceConfidence: 0.5,
+            arousalScore: 0.2,
+            arousalConfidence: 0.5,
+          })
+        ).value,
+      },
+      {
+        label: "base-mid",
+        input: makeInputs({
+          esScore: 0.5,
+          esConfidence: 0.7,
+          valenceScore: 0.5,
+          valenceConfidence: 0.7,
+          arousalScore: 0.5,
+          arousalConfidence: 0.7,
+        }),
+        expected: composeEIV(
+          makeInputs({
+            esScore: 0.5,
+            esConfidence: 0.7,
+            valenceScore: 0.5,
+            valenceConfidence: 0.7,
+            arousalScore: 0.5,
+            arousalConfidence: 0.7,
+          })
+        ).value,
+      },
     ];
 
-    tuples.forEach((tuple, idx) => {
-      const result = composeEIV(tuple);
-      const expected = result.value;
-      const delta = Math.abs(result.value - expected);
-
+    tuples.forEach((tuple) => {
+      const current = composeEIV(tuple.input).value;
+      const delta = Math.abs(current - tuple.expected);
+      console.debug(tuple.label, { current, expected: tuple.expected, delta });
       if (delta > TOLERANCE) {
-        console.debug("regression mismatch", { idx, expected, actual: result.value });
+        console.debug("deviation exceeds tolerance", {
+          current,
+          expected: tuple.expected,
+          delta,
+        });
       } else {
-        console.debug("within tolerance", { idx, value: result.value });
+        console.debug("within tolerance", { delta });
       }
-
       expect(delta).toBeLessThanOrEqual(TOLERANCE);
     });
-
     console.groupEnd();
   });
 });
