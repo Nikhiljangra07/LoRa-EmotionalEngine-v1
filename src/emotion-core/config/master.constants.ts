@@ -159,6 +159,20 @@ const VALENCE_AMBIGUITY_CONSTRAINTS = {
   OVERCONFIDENT_MAX: 0.8,
 } as const;
 
+const EIV_COMPOSITION_CONSTANTS = {
+  EPS: 1e-6,
+  CLAMP: { MIN: 0, MAX: 1 },
+  CONF: { MIN: 0.4, MAX: 0.9 },
+
+  BASE_FLOOR_GATE: 0.20,
+  ES_GAIN_MAX_DELTA: 0.25,
+  LOW_BASE_GAIN_SCALE: 0.25,
+
+  DOMINANCE: {
+    ENABLE: false,
+  },
+} as const;
+
 // AROUSAL (Arousal Analyzer)
 // All constants are calibration parameters informed by peer-reviewed research ranges.
 // They are not direct physiological measurements.
@@ -232,6 +246,7 @@ export const MASTER_CONSTANTS = {
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
+  eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
 } as const;
 
 export { VALENCE_AMBIGUITY_CONSTRAINTS };
