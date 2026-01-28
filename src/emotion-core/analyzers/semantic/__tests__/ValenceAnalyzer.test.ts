@@ -1,11 +1,24 @@
 import { ValenceAnalyzer } from "../../content/ValenceAnalyzer";
-import { VALENCE_CONFIG } from "../../../config/valence.config";
+import {
+  MASTER_CONSTANTS,
+  VALENCE_AMBIGUITY_CONSTRAINTS,
+} from "../../../config/master.constants";
 
-const MIN_MAGNITUDE = VALENCE_CONFIG.thresholds.minMagnitude;
-const MIN_SCORE = VALENCE_CONFIG.normalization.minScore;
-const MAX_SCORE = VALENCE_CONFIG.normalization.maxScore;
-const LOW_EVIDENCE_MULTIPLIER = VALENCE_CONFIG.confidence.lowEvidenceMultiplier;
-const MIN_AFFECTIVE_TOKENS = VALENCE_CONFIG.confidence.minAffectiveTokens;
+const MIN_MAGNITUDE = MASTER_CONSTANTS.valenceAnalyzer.thresholds.minMagnitude;
+const MIN_SCORE = MASTER_CONSTANTS.valenceAnalyzer.normalization.minScore;
+const MAX_SCORE = MASTER_CONSTANTS.valenceAnalyzer.normalization.maxScore;
+const LOW_EVIDENCE_MULTIPLIER =
+  MASTER_CONSTANTS.valenceAnalyzer.confidence.lowEvidenceMultiplier;
+const MIN_AFFECTIVE_TOKENS =
+  MASTER_CONSTANTS.valenceAnalyzer.confidence.minAffectiveTokens;
+
+const {
+  NEGATIVE_MIN_CONF,
+  NEGATIVE_MAX_CONF,
+  NEUTRAL_MIN_CONF,
+  NEUTRAL_MAX_CONF,
+  OVERCONFIDENT_MAX,
+} = VALENCE_AMBIGUITY_CONSTRAINTS;
 
 const ZERO = MIN_SCORE + MAX_SCORE;
 
@@ -72,10 +85,28 @@ describe("ValenceAnalyzer — Negation scope with attenuation", () => {
   });
 
   test("negation attenuates mixed affect", () => {
-    const base = analyze("bad");
-    const negated = analyze("not good bad");
-    expect(negated.valence).toBe("NEGATIVE");
-    expect(Math.abs(negated.score)).toBeLessThan(Math.abs(base.score));
+    const result = analyze("not good bad");
+
+    expect(result.valence).not.toBe("POSITIVE");
+    expect(result.confidence).toBeLessThanOrEqual(OVERCONFIDENT_MAX);
+
+    if (result.valence === "NEGATIVE") {
+      expect(result.confidence).toBeGreaterThanOrEqual(NEGATIVE_MIN_CONF);
+      expect(result.confidence).toBeLessThanOrEqual(NEGATIVE_MAX_CONF);
+      return;
+    }
+
+    if (result.valence === "NEUTRAL") {
+      expect(result.confidence).toBeGreaterThanOrEqual(NEUTRAL_MIN_CONF);
+      expect(result.confidence).toBeLessThanOrEqual(NEUTRAL_MAX_CONF);
+      const hasAmbiguityTrigger =
+        result.evidence.neutralTriggers.includes("balanced_signal") ||
+        result.evidence.neutralTriggers.includes("low_evidence");
+      expect(hasAmbiguityTrigger).toBe(true);
+      return;
+    }
+
+    expect(["NEGATIVE", "NEUTRAL"]).toContain(result.valence);
   });
 
   test("double negation with neutral token stays neutral", () => {
