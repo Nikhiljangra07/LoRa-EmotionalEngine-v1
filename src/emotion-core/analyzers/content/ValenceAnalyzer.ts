@@ -27,36 +27,6 @@ const NRC_LEXICON = lexicon as NrcLexicon;
 
 const VALENCE_CONSTANTS = MASTER_CONSTANTS.valenceAnalyzer;
 
-const ZERO = VALENCE_CONSTANTS.bounds.zero;
-const ONE = VALENCE_CONSTANTS.bounds.one;
-const NEG_ONE = VALENCE_CONSTANTS.bounds.negOne;
-
-const INDEX_STEP = VALENCE_CONSTANTS.iteration.indexStep;
-
-const EPSILON = VALENCE_CONSTANTS.normalization.epsilon;
-const MIN_SCORE = VALENCE_CONSTANTS.normalization.minScore;
-const MAX_SCORE = VALENCE_CONSTANTS.normalization.maxScore;
-
-const MIN_MAGNITUDE = VALENCE_CONSTANTS.thresholds.minMagnitude;
-const MIN_AFFECTIVE_TOKENS = VALENCE_CONSTANTS.confidence.minAffectiveTokens;
-const LOW_EVIDENCE_MULTIPLIER = VALENCE_CONSTANTS.confidence.lowEvidenceMultiplier;
-const NEGATION_ATTENUATION = VALENCE_CONSTANTS.negation.attenuation;
-
-const ZERO = 0;
-const ONE = 1;
-const NEG_ONE = -1;
-
-const INDEX_STEP = 1;
-
-const EPSILON = VALENCE_CONFIG.normalization.epsilon;
-const MIN_SCORE = VALENCE_CONFIG.normalization.minScore;
-const MAX_SCORE = VALENCE_CONFIG.normalization.maxScore;
-
-const MIN_MAGNITUDE = VALENCE_CONFIG.thresholds.minMagnitude;
-const MIN_AFFECTIVE_TOKENS = VALENCE_CONFIG.confidence.minAffectiveTokens;
-const LOW_EVIDENCE_MULTIPLIER = VALENCE_CONFIG.confidence.lowEvidenceMultiplier;
-const NEGATION_ATTENUATION = VALENCE_CONFIG.negation.attenuation;
-
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
@@ -78,15 +48,15 @@ export class ValenceAnalyzer {
     const neutralTriggers: string[] = [];
     const trimmed = text.trim();
 
-    if (trimmed.length === ZERO) {
+    if (trimmed.length === VALENCE_CONSTANTS.bounds.zero) {
       neutralTriggers.push("empty_input");
       return {
         valence: "NEUTRAL",
-        score: ZERO,
-        confidence: ZERO,
+        score: VALENCE_CONSTANTS.bounds.zero,
+        confidence: VALENCE_CONSTANTS.bounds.zero,
         evidence: {
-          positiveWeight: ZERO,
-          negativeWeight: ZERO,
+          positiveWeight: VALENCE_CONSTANTS.bounds.zero,
+          negativeWeight: VALENCE_CONSTANTS.bounds.zero,
           neutralTriggers,
         },
       };
@@ -100,15 +70,15 @@ export class ValenceAnalyzer {
       for (
         let i = scope.scopeStart;
         i <= scope.scopeEnd;
-        i += INDEX_STEP
+        i += VALENCE_CONSTANTS.iteration.indexStep
       ) {
         negatedIndexes.add(i);
       }
     }
 
-    let positiveWeight = ZERO;
-    let negativeWeight = ZERO;
-    let affectiveTokenCount = ZERO;
+    let positiveWeight = VALENCE_CONSTANTS.bounds.zero;
+    let negativeWeight = VALENCE_CONSTANTS.bounds.zero;
+    let affectiveTokenCount = VALENCE_CONSTANTS.bounds.zero;
 
     tokens.forEach((token, index) => {
       const normalized = normalizeToken(token);
@@ -117,57 +87,83 @@ export class ValenceAnalyzer {
       const entry = NRC_LEXICON[normalized];
       if (!entry) return;
 
-      const positive = entry.positive ?? ZERO;
-      const negative = entry.negative ?? ZERO;
-      const hasAffect = positive > ZERO || negative > ZERO;
+      const positive = entry.positive ?? VALENCE_CONSTANTS.bounds.zero;
+      const negative = entry.negative ?? VALENCE_CONSTANTS.bounds.zero;
+      const hasAffect =
+        positive > VALENCE_CONSTANTS.bounds.zero ||
+        negative > VALENCE_CONSTANTS.bounds.zero;
 
       if (!hasAffect) return;
 
-      affectiveTokenCount += ONE;
+      affectiveTokenCount += VALENCE_CONSTANTS.bounds.one;
 
       const attenuation = negatedIndexes.has(index)
-        ? NEGATION_ATTENUATION
-        : ONE;
+        ? VALENCE_CONSTANTS.negation.attenuation
+        : VALENCE_CONSTANTS.bounds.one;
 
-      if (positive > ZERO) {
+      if (positive > VALENCE_CONSTANTS.bounds.zero) {
         positiveWeight += positive * attenuation;
       }
 
-      if (negative > ZERO) {
+      if (negative > VALENCE_CONSTANTS.bounds.zero) {
         negativeWeight += negative * attenuation;
       }
     });
 
-    if (affectiveTokenCount < MIN_AFFECTIVE_TOKENS) {
+    if (
+      affectiveTokenCount <
+      VALENCE_CONSTANTS.confidence.minAffectiveTokens
+    ) {
       neutralTriggers.push("low_evidence");
     }
 
-    if (positiveWeight === ZERO && negativeWeight === ZERO) {
+    if (
+      positiveWeight === VALENCE_CONSTANTS.bounds.zero &&
+      negativeWeight === VALENCE_CONSTANTS.bounds.zero
+    ) {
       neutralTriggers.push("no_affective_tokens");
     }
 
-    const denominator = positiveWeight + negativeWeight + EPSILON;
+    const denominator =
+      positiveWeight +
+      negativeWeight +
+      VALENCE_CONSTANTS.normalization.epsilon;
     const raw = (positiveWeight - negativeWeight) / denominator;
-    const score = clamp(raw, MIN_SCORE, MAX_SCORE);
+    const score = clamp(
+      raw,
+      VALENCE_CONSTANTS.normalization.minScore,
+      VALENCE_CONSTANTS.normalization.maxScore
+    );
     const magnitude = Math.abs(score);
 
-    const isBalanced = magnitude < MIN_MAGNITUDE;
+    const isBalanced = magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
     if (isBalanced) {
       neutralTriggers.push("balanced_signal");
     }
 
     let valence: Valence = "NEUTRAL";
-    if (affectiveTokenCount >= MIN_AFFECTIVE_TOKENS && !isBalanced) {
-      if (score >= MIN_MAGNITUDE) {
+    if (
+      affectiveTokenCount >=
+        VALENCE_CONSTANTS.confidence.minAffectiveTokens &&
+      !isBalanced
+    ) {
+      if (score >= VALENCE_CONSTANTS.thresholds.minMagnitude) {
         valence = "POSITIVE";
-      } else if (score <= NEG_ONE * MIN_MAGNITUDE) {
+      } else if (
+        score <=
+        VALENCE_CONSTANTS.bounds.negOne *
+          VALENCE_CONSTANTS.thresholds.minMagnitude
+      ) {
         valence = "NEGATIVE";
       }
     }
 
-    let confidence = Math.min(ONE, magnitude);
-    if (affectiveTokenCount < MIN_AFFECTIVE_TOKENS) {
-      confidence *= LOW_EVIDENCE_MULTIPLIER;
+    let confidence = Math.min(VALENCE_CONSTANTS.bounds.one, magnitude);
+    if (
+      affectiveTokenCount <
+      VALENCE_CONSTANTS.confidence.minAffectiveTokens
+    ) {
+      confidence *= VALENCE_CONSTANTS.confidence.lowEvidenceMultiplier;
     }
 
     return {
