@@ -68,6 +68,30 @@ describe("EIVComposer", () => {
     expect(high.value).toBeGreaterThan(high.base);
   });
 
+  test("ES amplifies proportionally with higher score", () => {
+    const low = composeEIV({
+      ...baseInputs,
+      es: { score: 0.2, confidence: 0.8 },
+    });
+    const high = composeEIV({
+      ...baseInputs,
+      es: { score: 0.8, confidence: 0.8 },
+    });
+    expect(high.value).toBeGreaterThan(low.value);
+  });
+
+  test("ES confidence scales gain effect", () => {
+    const lowConf = composeEIV({
+      ...baseInputs,
+      es: { score: 0.8, confidence: 0.4 },
+    });
+    const highConf = composeEIV({
+      ...baseInputs,
+      es: { score: 0.8, confidence: 0.9 },
+    });
+    expect(highConf.value).toBeGreaterThan(lowConf.value);
+  });
+
   test("composer has no analyzer imports", () => {
     const filePath = path.resolve(
       __dirname,
