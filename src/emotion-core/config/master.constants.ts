@@ -159,6 +159,64 @@ const VALENCE_AMBIGUITY_CONSTRAINTS = {
   OVERCONFIDENT_MAX: 0.8,
 } as const;
 
+// AROUSAL (Arousal Analyzer)
+// All constants are calibration parameters informed by peer-reviewed research ranges.
+// They are not direct physiological measurements.
+const AROUSAL_CALIBRATION_CONSTANTS = {
+  SCALE: {
+    MIN: 0.20,
+    MAX: 1.00,
+  },
+
+  BASELINE: {
+    NEUTRAL_FLOOR: 0.20,
+  },
+
+  PUNCTUATION: {
+    EXCLAMATION_INCREMENT: 0.12,
+    EXCLAMATION_MAX: 0.30,
+    MIXED_PUNCTUATION_INCREMENT: 0.10,
+    HIGH_PUNCTUATION_THRESHOLD: 3,
+  },
+
+  CAPITALIZATION: {
+    CAPS_RATIO_MULTIPLIER: 0.25,
+    MAX_CAPS_CONTRIBUTION: 0.25,
+  },
+
+  EMOJI: {
+    HIGH_AROUSAL_INCREMENT: 0.18,
+    MAX_EMOJI_CONTRIBUTION: 0.30,
+  },
+
+  REPETITION: {
+    ELONGATION_MULTIPLIER: 0.85,
+    ELONGATION_MIN_REPEAT: 2,
+  },
+
+  CONFIDENCE: {
+    BASE: 0.80,
+    SARCASTIC_PENALTY: 0.25,
+    LOW_EVIDENCE_PENALTY: 0.20,
+    CONFLICT_PENALTY: 0.20,
+    MIN: 0.40,
+    MAX: 0.90,
+    VARIANCE_PENALTY: 0.20,
+  },
+
+  WINDOWING: {
+    WINDOW_SIZE: 75,
+    OVERLAP: 20,
+    VARIANCE_THRESHOLD: 0.02,
+  },
+
+  EVIDENCE: {
+    MIN_SIGNAL_COUNT: 1,
+    SHORT_TEXT_MAX_LENGTH: 12,
+    STRONG_SIGNAL_THRESHOLD: 0.25,
+  },
+} as const;
+
 export const MASTER_CONSTANTS = {
   bounds: MASTER_BOUNDS,
   thresholds: MASTER_THRESHOLDS,
@@ -173,6 +231,7 @@ export const MASTER_CONSTANTS = {
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
+  arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
 } as const;
 
 export { VALENCE_AMBIGUITY_CONSTRAINTS };
