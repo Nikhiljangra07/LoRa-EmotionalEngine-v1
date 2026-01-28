@@ -49,12 +49,17 @@ export const composeEIV = (inputs: EIVInputs) => {
     valence.confidence
   );
 
-  const gain = computeESGain(base, es.score, es.confidence);
-  const eiv = clamp(base * gain, CONSTANTS.CLAMP.MIN, CONSTANTS.CLAMP.MAX);
+  const baseIntensity = clamp(base, CONSTANTS.CLAMP.MIN, CONSTANTS.CLAMP.MAX);
+  const gain = computeESGain(baseIntensity, es.score, es.confidence);
+  const eiv = clamp(
+    baseIntensity * gain,
+    CONSTANTS.CLAMP.MIN,
+    CONSTANTS.CLAMP.MAX
+  );
 
   return {
     value: eiv,
-    base,
+    base: baseIntensity,
     baseConfidence: baseConf,
     gain,
   };
