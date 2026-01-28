@@ -146,33 +146,54 @@ export class ValenceAnalyzer {
     );
     const magnitude = Math.abs(score);
 
-    let valence: Valence = "NEUTRAL";
-    if (score > VALENCE_CONSTANTS.bounds.zero) {
-      valence = "POSITIVE";
-    } else if (score < VALENCE_CONSTANTS.bounds.zero) {
-      valence = "NEGATIVE";
-    }
-
     const unnegatedPositiveWeight = positiveWeight - negatedPositiveWeight;
     const unnegatedNegativeWeight = negativeWeight - negatedNegativeWeight;
-
-    if (unnegatedNegativeWeight > negatedPositiveWeight) {
-      valence = "NEGATIVE";
-    } else if (unnegatedPositiveWeight > negatedNegativeWeight) {
-      valence = "POSITIVE";
-    }
-
     const isBalanced = magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
-    if (isBalanced) {
-      neutralTriggers.push("balanced_signal");
-    }
 
-    if (
-      magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude &&
-      affectiveTokenCount <
-        VALENCE_CONSTANTS.confidence.minAffectiveTokens
-    ) {
-      valence = "NEUTRAL";
+    // STEP 1 — Balanced Mixed Affect (NO negation)
+    const isPureMixedAffect =
+      positiveWeight > VALENCE_CONSTANTS.bounds.zero &&
+      negativeWeight > VALENCE_CONSTANTS.bounds.zero &&
+      negatedPositiveWeight === VALENCE_CONSTANTS.bounds.zero &&
+      negatedNegativeWeight === VALENCE_CONSTANTS.bounds.zero;
+
+    let valence: Valence = "NEUTRAL";
+
+    if (isPureMixedAffect && isBalanced) {
+      neutralTriggers.push("balanced_signal");
+    } else {
+      // Initial polarity from score
+      if (score > VALENCE_CONSTANTS.bounds.zero) {
+        valence = "POSITIVE";
+      } else if (score < VALENCE_CONSTANTS.bounds.zero) {
+        valence = "NEGATIVE";
+      }
+
+      // STEP 2 — Negation Asymmetry Dominance
+      const hasNegatedContribution =
+        negatedPositiveWeight > VALENCE_CONSTANTS.bounds.zero ||
+        negatedNegativeWeight > VALENCE_CONSTANTS.bounds.zero;
+
+      if (hasNegatedContribution) {
+        if (unnegatedNegativeWeight > negatedPositiveWeight) {
+          valence = "NEGATIVE";
+        } else if (unnegatedPositiveWeight > negatedNegativeWeight) {
+          valence = "POSITIVE";
+        }
+      }
+
+      if (isBalanced) {
+        neutralTriggers.push("balanced_signal");
+      }
+
+      // STEP 3 — Neutral Collapse (fallback)
+      if (
+        isBalanced &&
+        affectiveTokenCount <
+          VALENCE_CONSTANTS.confidence.minAffectiveTokens
+      ) {
+        valence = "NEUTRAL";
+      }
     }
 
     let confidence = Math.min(VALENCE_CONSTANTS.bounds.one, magnitude);
