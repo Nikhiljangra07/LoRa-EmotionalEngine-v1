@@ -151,6 +151,45 @@ const VALENCE_ANALYZER_CONSTANTS = {
   },
 } as const;
 
+// AMBIGUITY (Ambiguity Analyzer)
+const AMBIGUITY_ANALYZER_CONSTANTS = {
+  baseline: {
+    score: 0.08,
+  },
+  weights: {
+    hedging: 0.16,
+    modal: 0.14,
+    contrast: 0.12,
+    rhetorical: 0.18,
+    contradiction: 0.22,
+    passive: 0.14,
+  },
+  saturation: {
+    hedgingCount: 2,
+    modalCount: 2,
+    contrastCount: 2,
+    rhetoricalCount: 1,
+    passiveCount: 2,
+    contradictionFlag: 1,
+  },
+  thresholds: {
+    minTokenLength: 2,
+  },
+  scoring: {
+    dampening: 0.85,
+  },
+  bounds: {
+    min: 0,
+    max: 1,
+  },
+  penaltyHint: {
+    scale: 0.9,
+    min: 0,
+    max: 1,
+    floor: 0.35,
+  },
+} as const;
+
 const VALENCE_AMBIGUITY_CONSTRAINTS = {
   NEGATIVE_MIN_CONF: 0,
   NEGATIVE_MAX_CONF: 0.7,
@@ -244,6 +283,7 @@ export const MASTER_CONSTANTS = {
   nrcLexiconAnalyzer: NRC_LEXICON_ANALYZER_CONSTANTS,
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
+  ambiguityAnalyzer: AMBIGUITY_ANALYZER_CONSTANTS,
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
   eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
