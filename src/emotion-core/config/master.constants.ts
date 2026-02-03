@@ -500,60 +500,129 @@ const EIV_COMPOSITION_CONSTANTS = {
 } as const;
 
 // AROUSAL (Arousal Analyzer)
-// All constants are calibration parameters informed by peer-reviewed research ranges.
-// They are not direct physiological measurements.
+// Structural / cognitive load only. No emotion or expressivity signals.
 const AROUSAL_CALIBRATION_CONSTANTS = {
-  SCALE: {
-    MIN: 0.20,
-    MAX: 1.00,
+  numbers: {
+    zero: 0,
+    one: 1,
   },
-
-  BASELINE: {
-    NEUTRAL_FLOOR: 0.20,
+  bounds: {
+    min: 0.20,
+    max: 1.0,
   },
-
-  PUNCTUATION: {
-    EXCLAMATION_INCREMENT: 0.12,
-    EXCLAMATION_MAX: 0.30,
-    MIXED_PUNCTUATION_INCREMENT: 0.10,
-    HIGH_PUNCTUATION_THRESHOLD: 3,
+  weights: {
+    // UNJUSTIFIED: calibrate signal weights on audit set.
+    sentenceLengthVariance: 0.25,
+    rareWordUsage: 0.18,
+    questionDensity: 0.12,
+    imperativePresence: 0.10,
+    clauseStacking: 0.20,
   },
-
-  CAPITALIZATION: {
-    CAPS_RATIO_MULTIPLIER: 0.25,
-    MAX_CAPS_CONTRIBUTION: 0.25,
+  saturation: {
+    // UNJUSTIFIED: calibrate saturation thresholds.
+    sentenceLengthVariance: 0.02,
+    rareWordRatio: 0.25,
+    questionDensity: 0.25,
+    imperativeDensity: 0.25,
+    clauseStackingRatio: 0.25,
   },
-
-  EMOJI: {
-    HIGH_AROUSAL_INCREMENT: 0.18,
-    MAX_EMOJI_CONTRIBUTION: 0.30,
+  thresholds: {
+    // UNJUSTIFIED: calibrate minimum token counts for variance.
+    minTokensForVariance: 12,
+    // UNJUSTIFIED: calibrate minimum token length for rarity.
+    rareTokenMinLength: 2,
+    minSignalCount: 1,
   },
-
-  REPETITION: {
-    ELONGATION_MULTIPLIER: 0.85,
-    ELONGATION_MIN_REPEAT: 2,
+  confidence: {
+    base: 0.8,
+    lowEvidencePenalty: 0.2,
+    min: 0.4,
+    max: 0.9,
   },
-
-  CONFIDENCE: {
-    BASE: 0.80,
-    SARCASTIC_PENALTY: 0.25,
-    LOW_EVIDENCE_PENALTY: 0.20,
-    CONFLICT_PENALTY: 0.20,
-    MIN: 0.40,
-    MAX: 0.90,
-    VARIANCE_PENALTY: 0.20,
+  question: {
+    starters: [
+      "who",
+      "what",
+      "when",
+      "where",
+      "why",
+      "how",
+      "do",
+      "does",
+      "did",
+      "is",
+      "are",
+      "can",
+      "could",
+      "should",
+      "would",
+      "will",
+    ],
   },
-
-  WINDOWING: {
-    WINDOW_SIZE: 75,
-    OVERLAP: 20,
-    VARIANCE_THRESHOLD: 0.02,
+  imperative: {
+    verbs: [
+      "do",
+      "tell",
+      "give",
+      "show",
+      "make",
+      "take",
+      "bring",
+      "send",
+      "go",
+      "stop",
+      "start",
+    ],
   },
-
-  EVIDENCE: {
-    MIN_SIGNAL_COUNT: 1,
-    SHORT_TEXT_MAX_LENGTH: 12,
-    STRONG_SIGNAL_THRESHOLD: 0.25,
+  clause: {
+    conjunctions: [
+      "and",
+      "or",
+      "but",
+      "so",
+      "because",
+      "although",
+      "though",
+      "yet",
+      "however",
+    ],
+  },
+  rarity: {
+    commonTokens: [
+      "the",
+      "a",
+      "an",
+      "and",
+      "or",
+      "but",
+      "of",
+      "to",
+      "in",
+      "on",
+      "for",
+      "with",
+      "is",
+      "are",
+      "was",
+      "were",
+      "be",
+      "been",
+      "this",
+      "that",
+      "these",
+      "those",
+      "it",
+      "they",
+      "we",
+      "you",
+      "i",
+      "he",
+      "she",
+      "them",
+    ],
+  },
+  regex: {
+    token: "[A-Za-z']+",
   },
 } as const;
 
