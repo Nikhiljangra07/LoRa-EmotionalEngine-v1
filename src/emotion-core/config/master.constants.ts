@@ -338,6 +338,8 @@ const SENTENCE_BOUNDARY_ANALYZER_CONSTANTS: SentenceBoundaryAnalyzerConstants = 
   confidence: {
     // UNJUSTIFIED: calibrate ordinal base via boundary audit set.
     base: 0.55,
+    // UNJUSTIFIED: hard minimum for routing fallback in downstream analyzers.
+    hardMinimum: 0.4,
     punctuationBoost: {
       // UNJUSTIFIED: calibrate punctuation ordinal boosts.
       period: 0.12,
