@@ -1,6 +1,4 @@
 import { MASTER_CONSTANTS } from "../../config/master.constants";
-import { NegationScopeAnalyzer } from "../semantic/NegationScopeAnalyzer";
-import lexicon from "../../resources/nrc/processed/nrc_lexicon.json";
 
 export type Valence = "POSITIVE" | "NEGATIVE" | "NEUTRAL";
 
@@ -15,21 +13,22 @@ export interface ValenceResult {
   };
 }
 
-type NrcLexiconEntry = {
-  positive?: number;
-  negative?: number;
-  [key: string]: number | undefined;
-};
-
-type NrcLexicon = Record<string, NrcLexiconEntry>;
-
-const NRC_LEXICON = lexicon as NrcLexicon;
-
 const VALENCE_CONSTANTS = MASTER_CONSTANTS.valenceAnalyzer;
+const NEGATION_TOKENS: ReadonlySet<string> = new Set(
+  VALENCE_CONSTANTS.negation.tokens as readonly string[]
+);
+const CONTRAST_MARKERS: ReadonlySet<string> = new Set(
+  VALENCE_CONSTANTS.contrast.markers as readonly string[]
+);
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
+/*
+CONSTRAINT:
+ValenceAnalyzer MUST NOT use emotion-labeled lexicons
+(e.g., anger, sadness, fear words).
+*/
 // Valence ignores expressivity by design.
 // Surface signals are handled by ES.
 const tokenize = (text: string): string[] =>
@@ -40,6 +39,68 @@ const tokenize = (text: string): string[] =>
     .filter(Boolean);
 
 const normalizeToken = (token: string): string => token.replace(/[^a-z]/g, "");
+
+type Span = { start: number; end: number };
+
+type PolarityMap = Record<string, number>;
+
+const FORBIDDEN_EMOTION_TOKENS = new Set([
+  "anger",
+  "sadness",
+  "fear",
+  "joy",
+  "disgust",
+  "surprise",
+  "trust",
+  "anticipation",
+]);
+
+const validatePolarityLexicon = (
+  lexicon: PolarityMap,
+  environment: string | undefined
+) => {
+  if (environment === "production") return;
+  Object.keys(lexicon).forEach((token) => {
+    if (FORBIDDEN_EMOTION_TOKENS.has(token)) {
+      throw new Error(
+        `Emotion-labeled token detected in polarity lexicon: ${token}`
+      );
+    }
+  });
+};
+
+const buildPolarityLexicon = (): PolarityMap => {
+  const lexicon: PolarityMap = {};
+  VALENCE_CONSTANTS.lexicon.polarity.positive.forEach((token) => {
+    lexicon[token] = VALENCE_CONSTANTS.bounds.one;
+  });
+  VALENCE_CONSTANTS.lexicon.polarity.negative.forEach((token) => {
+    lexicon[token] = VALENCE_CONSTANTS.bounds.negOne;
+  });
+  validatePolarityLexicon(lexicon, process.env.NODE_ENV);
+  return lexicon;
+};
+
+const buildNegationSpans = (tokens: string[]): Span[] => {
+  const spans: Span[] = [];
+  tokens.forEach((token, index) => {
+    if (!NEGATION_TOKENS.has(token)) {
+      return;
+    }
+    const scopeEnd = Math.min(
+      index + VALENCE_CONSTANTS.negation.scope,
+      tokens.length - VALENCE_CONSTANTS.iteration.indexStep
+    );
+    if (scopeEnd > index) {
+      spans.push({ start: index + VALENCE_CONSTANTS.iteration.indexStep, end: scopeEnd });
+    }
+  });
+  return spans;
+};
+
+const isNegatedIndex = (index: number, spans: Span[]): boolean =>
+  spans.some((span) => index >= span.start && index <= span.end);
+
 
 export class ValenceAnalyzer {
   readonly analyzerId = "valence";
@@ -63,69 +124,63 @@ export class ValenceAnalyzer {
     }
 
     const tokens = tokenize(trimmed);
-    const negationScopes = NegationScopeAnalyzer.analyze(trimmed).scopes;
-    const negatedIndexes = new Set<number>();
-
-    for (const scope of negationScopes) {
-      for (
-        let i = scope.scopeStart;
-        i <= scope.scopeEnd;
-        i += VALENCE_CONSTANTS.iteration.indexStep
-      ) {
-        negatedIndexes.add(i);
-      }
-    }
-
-    let positiveWeight = VALENCE_CONSTANTS.bounds.zero;
-    let negativeWeight = VALENCE_CONSTANTS.bounds.zero;
-    let negatedPositiveWeight = VALENCE_CONSTANTS.bounds.zero;
-    let negatedNegativeWeight = VALENCE_CONSTANTS.bounds.zero;
-    let hasNegatedPositive = false;
-    let hasNegatedNegative = false;
-    let affectiveTokenCount = VALENCE_CONSTANTS.bounds.zero;
+    const lexicon = buildPolarityLexicon();
+    const negationSpans = buildNegationSpans(tokens);
+    const contrastiveMarkers: string[] = [];
+    let lastContrastIndex: number | undefined;
 
     tokens.forEach((token, index) => {
       const normalized = normalizeToken(token);
       if (!normalized) return;
-
-      const entry = NRC_LEXICON[normalized];
-      if (!entry) return;
-
-      const positive = entry.positive ?? VALENCE_CONSTANTS.bounds.zero;
-      const negative = entry.negative ?? VALENCE_CONSTANTS.bounds.zero;
-      const hasAffect =
-        positive > VALENCE_CONSTANTS.bounds.zero ||
-        negative > VALENCE_CONSTANTS.bounds.zero;
-
-      if (!hasAffect) return;
-
-      affectiveTokenCount += VALENCE_CONSTANTS.bounds.one;
-
-      const attenuation = negatedIndexes.has(index)
-        ? VALENCE_CONSTANTS.negation.attenuation
-        : VALENCE_CONSTANTS.bounds.one;
-
-      if (positive > VALENCE_CONSTANTS.bounds.zero) {
-        const contribution = positive * attenuation;
-        positiveWeight += contribution;
-        if (attenuation !== VALENCE_CONSTANTS.bounds.one) {
-          negatedPositiveWeight += contribution;
-          hasNegatedPositive = true;
-        }
-      }
-
-      if (negative > VALENCE_CONSTANTS.bounds.zero) {
-        const contribution = negative * attenuation;
-        negativeWeight += contribution;
-        if (attenuation !== VALENCE_CONSTANTS.bounds.one) {
-          negatedNegativeWeight += contribution;
-          hasNegatedNegative = true;
-        }
+      if (CONTRAST_MARKERS.has(normalized)) {
+        contrastiveMarkers.push(normalized);
+        lastContrastIndex = index;
       }
     });
 
+    const polarityHits = {
+      positive: VALENCE_CONSTANTS.bounds.zero,
+      negative: VALENCE_CONSTANTS.bounds.zero,
+    };
+
+    let positiveWeight = VALENCE_CONSTANTS.bounds.zero;
+    let negativeWeight = VALENCE_CONSTANTS.bounds.zero;
+    tokens.forEach((token, index) => {
+      const normalized = normalizeToken(token);
+      if (!normalized) return;
+
+      const polarity = lexicon[normalized];
+      if (!polarity) return;
+
+      if (polarity === VALENCE_CONSTANTS.bounds.one) {
+        polarityHits.positive += VALENCE_CONSTANTS.bounds.one;
+      } else if (polarity === VALENCE_CONSTANTS.bounds.negOne) {
+        polarityHits.negative += VALENCE_CONSTANTS.bounds.one;
+      }
+
+      const isNegated = isNegatedIndex(index, negationSpans);
+      const effectivePolarity = isNegated
+        ? polarity * VALENCE_CONSTANTS.bounds.negOne
+        : polarity;
+
+      const contrastWeight =
+        lastContrastIndex !== undefined && index < lastContrastIndex
+          ? VALENCE_CONSTANTS.contrast.preWeight
+          : VALENCE_CONSTANTS.contrast.postWeight;
+
+      const contribution = effectivePolarity * contrastWeight;
+      if (contribution > VALENCE_CONSTANTS.bounds.zero) {
+        positiveWeight += contribution;
+      } else if (contribution < VALENCE_CONSTANTS.bounds.zero) {
+        negativeWeight += Math.abs(contribution);
+      }
+    });
+
+    const polarityTokenCount =
+      polarityHits.positive + polarityHits.negative;
+
     if (
-      affectiveTokenCount <
+      polarityTokenCount <
       VALENCE_CONSTANTS.confidence.minAffectiveTokens
     ) {
       neutralTriggers.push("low_evidence");
@@ -135,79 +190,49 @@ export class ValenceAnalyzer {
       positiveWeight === VALENCE_CONSTANTS.bounds.zero &&
       negativeWeight === VALENCE_CONSTANTS.bounds.zero
     ) {
-      neutralTriggers.push("no_affective_tokens");
+      neutralTriggers.push("no_polarity_tokens");
     }
+    void contrastiveMarkers;
 
-    const denominator =
-      positiveWeight +
-      negativeWeight +
-      VALENCE_CONSTANTS.normalization.epsilon;
-    const raw = (positiveWeight - negativeWeight) / denominator;
-    const score = clamp(
-      raw,
-      VALENCE_CONSTANTS.normalization.minScore,
-      VALENCE_CONSTANTS.normalization.maxScore
-    );
+    let score: number = VALENCE_CONSTANTS.bounds.zero;
+    if (
+      positiveWeight > VALENCE_CONSTANTS.bounds.zero &&
+      negativeWeight === VALENCE_CONSTANTS.bounds.zero
+    ) {
+      score = VALENCE_CONSTANTS.bounds.one;
+    } else if (
+      negativeWeight > VALENCE_CONSTANTS.bounds.zero &&
+      positiveWeight === VALENCE_CONSTANTS.bounds.zero
+    ) {
+      score = VALENCE_CONSTANTS.bounds.negOne;
+    } else {
+      const denominator =
+        positiveWeight +
+        negativeWeight +
+        VALENCE_CONSTANTS.normalization.epsilon;
+      const raw = (positiveWeight - negativeWeight) / denominator;
+      score = clamp(
+        raw,
+        VALENCE_CONSTANTS.normalization.minScore,
+        VALENCE_CONSTANTS.normalization.maxScore
+      );
+    }
     const magnitude = Math.abs(score);
 
-    const unnegatedPositiveWeight = positiveWeight - negatedPositiveWeight;
-    const unnegatedNegativeWeight = negativeWeight - negatedNegativeWeight;
-    const dominanceDelta = Math.abs(positiveWeight - negativeWeight);
-    const isBalanced =
-      dominanceDelta < VALENCE_CONSTANTS.thresholds.dominanceEpsilon &&
-      magnitude < VALENCE_CONSTANTS.thresholds.minMagnitude;
-
-    // STEP 1 — Balanced Mixed Affect (NO negation)
-    const hasAnyNegation = hasNegatedPositive || hasNegatedNegative;
-    const isPureMixedAffect =
-      positiveWeight > VALENCE_CONSTANTS.bounds.zero &&
-      negativeWeight > VALENCE_CONSTANTS.bounds.zero &&
-      !hasAnyNegation &&
-      negatedPositiveWeight === VALENCE_CONSTANTS.bounds.zero &&
-      negatedNegativeWeight === VALENCE_CONSTANTS.bounds.zero;
-
     let valence: Valence = "NEUTRAL";
-
-    if (isPureMixedAffect && isBalanced) {
-      neutralTriggers.push("balanced_signal");
-    } else {
-      // Initial polarity from score
+    if (magnitude >= VALENCE_CONSTANTS.thresholds.minMagnitude) {
       if (score > VALENCE_CONSTANTS.bounds.zero) {
         valence = "POSITIVE";
       } else if (score < VALENCE_CONSTANTS.bounds.zero) {
         valence = "NEGATIVE";
       }
-
-      // STEP 2 — Negation Asymmetry Dominance
-      const hasNegatedContribution =
-        negatedPositiveWeight > VALENCE_CONSTANTS.bounds.zero ||
-        negatedNegativeWeight > VALENCE_CONSTANTS.bounds.zero;
-
-      if (hasNegatedContribution) {
-        if (unnegatedNegativeWeight > negatedPositiveWeight) {
-          valence = "NEGATIVE";
-        } else if (unnegatedPositiveWeight > negatedNegativeWeight) {
-          valence = "POSITIVE";
-        }
-      }
-
-      if (isBalanced) {
-        neutralTriggers.push("balanced_signal");
-      }
-
-      // STEP 3 — Neutral Collapse (fallback)
-      if (
-        isBalanced &&
-        affectiveTokenCount <
-          VALENCE_CONSTANTS.confidence.minAffectiveTokens
-      ) {
-        valence = "NEUTRAL";
-      }
+    } else {
+      neutralTriggers.push("balanced_signal");
     }
 
     let confidence = Math.min(VALENCE_CONSTANTS.bounds.one, magnitude);
     if (
-      affectiveTokenCount <
+      polarityTokenCount <
       VALENCE_CONSTANTS.confidence.minAffectiveTokens
     ) {
       confidence *= VALENCE_CONSTANTS.confidence.lowEvidenceMultiplier;
