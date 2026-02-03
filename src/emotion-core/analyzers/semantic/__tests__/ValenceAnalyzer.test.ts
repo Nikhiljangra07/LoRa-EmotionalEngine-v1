@@ -1,169 +1,101 @@
 import { ValenceAnalyzer } from "../../content/ValenceAnalyzer";
-import {
-  MASTER_CONSTANTS,
-  VALENCE_AMBIGUITY_CONSTRAINTS,
-} from "../../../config/master.constants";
+import { MASTER_CONSTANTS } from "../../../config/master.constants";
 
-const MIN_MAGNITUDE = MASTER_CONSTANTS.valenceAnalyzer.thresholds.minMagnitude;
-const MIN_SCORE = MASTER_CONSTANTS.valenceAnalyzer.normalization.minScore;
-const MAX_SCORE = MASTER_CONSTANTS.valenceAnalyzer.normalization.maxScore;
-const LOW_EVIDENCE_MULTIPLIER =
-  MASTER_CONSTANTS.valenceAnalyzer.confidence.lowEvidenceMultiplier;
-const MIN_AFFECTIVE_TOKENS =
-  MASTER_CONSTANTS.valenceAnalyzer.confidence.minAffectiveTokens;
-
-const {
-  NEGATIVE_MIN_CONF,
-  NEGATIVE_MAX_CONF,
-  NEUTRAL_MIN_CONF,
-  NEUTRAL_MAX_CONF,
-  OVERCONFIDENT_MAX,
-} = VALENCE_AMBIGUITY_CONSTRAINTS;
-
-const ZERO = MIN_SCORE + MAX_SCORE;
+const VALENCE = MASTER_CONSTANTS.valenceAnalyzer;
+const ZERO = VALENCE.bounds.zero;
+const ONE = VALENCE.bounds.one;
+const MIN_SCORE = VALENCE.normalization.minScore;
+const MAX_SCORE = VALENCE.normalization.maxScore;
 
 const analyzer = new ValenceAnalyzer();
 
 const analyze = (text: string) => analyzer.analyze(text);
 
-describe("ValenceAnalyzer — Neutral as a distinct state", () => {
-  test("neutral informational statement remains neutral with zero score", () => {
-    const result = analyze("The meeting is tomorrow at 2 PM");
-    expect(result.valence).toBe("NEUTRAL");
-    expect(result.score).toBe(ZERO);
-    expect(result.confidence).toBeLessThanOrEqual(LOW_EVIDENCE_MULTIPLIER);
-    expect(result.evidence.neutralTriggers).toContain("no_affective_tokens");
-  });
-
-  test("empty input is neutral with zero confidence", () => {
-    const result = analyze("");
-    expect(result.valence).toBe("NEUTRAL");
-    expect(result.confidence).toBe(ZERO);
-    expect(result.evidence.neutralTriggers).toContain("empty_input");
-  });
-});
-
-describe("ValenceAnalyzer — Balanced positive/negative signals", () => {
-  test("mixed affect collapses to neutral", () => {
-    const result = analyze("I am happy but also bad");
-    expect(result.valence).toBe("NEUTRAL");
-    expect(Math.abs(result.score)).toBeLessThan(MIN_MAGNITUDE);
-  });
-
-  test("balanced signal reports balanced trigger", () => {
-    const result = analyze("good product but terrible service");
-    expect(result.valence).toBe("NEUTRAL");
-    expect(result.evidence.neutralTriggers).toContain("balanced_signal");
-  });
-});
-
-describe("ValenceAnalyzer — Semantic dominance over surface form", () => {
-  test("punctuation does not change valence direction", () => {
-    const plain = analyze("This is good");
-    const punct = analyze("This is good!!!");
-    expect(plain.valence).toBe("POSITIVE");
-    expect(punct.valence).toBe("POSITIVE");
-    expect(Math.abs(plain.score - punct.score)).toBeLessThan(MIN_MAGNITUDE);
-  });
-
-  test("positive vs negative meaning diverges strongly", () => {
-    const positive = analyze("This is good!!!");
-    const negative = analyze("This is bad.");
-    expect(positive.score).toBeGreaterThan(ZERO);
-    expect(negative.score).toBeLessThan(ZERO);
-    expect(Math.abs(positive.score - negative.score)).toBeGreaterThan(
-      MIN_MAGNITUDE
-    );
-  });
-});
-
-describe("ValenceAnalyzer — Negation scope with attenuation", () => {
-  test("negation does not flip polarity in isolation", () => {
-    const result = analyze("not good");
+describe("ValenceAnalyzer — polarity-only signals", () => {
+  test("positive polarity produces positive valence", () => {
+    const result = analyze("good");
     expect(result.valence).toBe("POSITIVE");
     expect(result.score).toBeGreaterThan(ZERO);
   });
 
-  test("negation attenuates mixed affect", () => {
-    const result = analyze("not good bad");
-
-    expect(result.valence).not.toBe("POSITIVE");
-    expect(result.confidence).toBeLessThanOrEqual(OVERCONFIDENT_MAX);
-
-    if (result.valence === "NEGATIVE") {
-      expect(result.confidence).toBeGreaterThanOrEqual(NEGATIVE_MIN_CONF);
-      expect(result.confidence).toBeLessThanOrEqual(NEGATIVE_MAX_CONF);
-      return;
-    }
-
-    if (result.valence === "NEUTRAL") {
-      expect(result.confidence).toBeGreaterThanOrEqual(NEUTRAL_MIN_CONF);
-      expect(result.confidence).toBeLessThanOrEqual(NEUTRAL_MAX_CONF);
-      const hasAmbiguityTrigger =
-        result.evidence.neutralTriggers.includes("balanced_signal") ||
-        result.evidence.neutralTriggers.includes("low_evidence");
-      expect(hasAmbiguityTrigger).toBe(true);
-      return;
-    }
-
-    expect(["NEGATIVE", "NEUTRAL"]).toContain(result.valence);
-  });
-
-  test("double negation with neutral token stays neutral", () => {
-    const result = analyze("not unlike");
-    expect(result.valence).toBe("NEUTRAL");
-    expect(result.score).toBe(ZERO);
+  test("negative polarity produces negative valence", () => {
+    const result = analyze("bad");
+    expect(result.valence).toBe("NEGATIVE");
+    expect(result.score).toBeLessThan(ZERO);
   });
 });
 
-describe("ValenceAnalyzer — Confidence decay under ambiguity", () => {
-  test("low-evidence neutral has lower confidence than clear affect", () => {
-    const neutral = analyze("okay...");
-    const clear = analyze("good");
-    expect(neutral.valence).toBe("NEUTRAL");
-    expect(clear.valence).toBe("POSITIVE");
-    expect(neutral.confidence).toBeLessThan(clear.confidence);
+describe("ValenceAnalyzer — negation scope", () => {
+  test("negation flips polarity within scope", () => {
+    const result = analyze("not good");
+    expect(result.valence).toBe("NEGATIVE");
+    expect(result.score).toBeLessThan(ZERO);
   });
 
-  test("single-token neutral remains low confidence", () => {
-    const result = analyze("fine");
-    expect(result.valence).toBe("NEUTRAL");
-    expect(result.confidence).toBeLessThanOrEqual(LOW_EVIDENCE_MULTIPLIER);
+  test("negation flips negative to positive", () => {
+    const result = analyze("not bad");
+    expect(result.valence).toBe("POSITIVE");
+    expect(result.score).toBeGreaterThan(ZERO);
   });
 });
 
-describe("ValenceAnalyzer — Non-affective robustness", () => {
-  test("numeric/system text remains neutral", () => {
-    const result = analyze("The file size is 5 MB");
+describe("ValenceAnalyzer — contrastive conjunctions", () => {
+  test("contrast markers rebalance polarity", () => {
+    const result = analyze("good but bad");
+    expect(result.valence).toBe("NEGATIVE");
+    expect(result.score).toBeLessThan(ZERO);
+  });
+});
+
+describe("ValenceAnalyzer — forbidden behavior", () => {
+  test("emotion-labeled words do not affect output", () => {
+    const result = analyze("anger");
     expect(result.valence).toBe("NEUTRAL");
     expect(result.score).toBe(ZERO);
   });
 
-  test("unknown tokens do not crash and stay neutral", () => {
-    const result = analyze("The quorvex protocol completed");
-    expect(result.valence).toBe("NEUTRAL");
+  test("ES-style signals do not affect valence", () => {
+    const plain = analyze("good");
+    const expressive = analyze("GOOD!!!");
+    expect(expressive.valence).toBe("POSITIVE");
+    expect(expressive.score).toBe(plain.score);
   });
 
-  test("neutral token remains neutral without context", () => {
-    const result = analyze("apple");
-    expect(result.valence).toBe("NEUTRAL");
+  test("no intensity scaling for repeated polarity tokens", () => {
+    const single = analyze("good");
+    const repeated = analyze("good good");
+    expect(repeated.score).toBe(single.score);
   });
 });
 
-describe("ValenceAnalyzer — Numerical stability & boundedness", () => {
-  test("long neutral document stays bounded and neutral", () => {
-    const longNeutral = new Array(1000).fill("quorvex").join(" ");
-    const result = analyze(longNeutral);
-    expect(result.valence).toBe("NEUTRAL");
-    expect(result.score).toBeGreaterThanOrEqual(MIN_SCORE);
-    expect(result.score).toBeLessThanOrEqual(MAX_SCORE);
+describe("ValenceAnalyzer — determinism and audit safety", () => {
+  test("same input produces identical output", () => {
+    const a = analyze("good but bad");
+    const b = analyze("good but bad");
+    expect(a.score).toBe(b.score);
+    expect(a.valence).toBe(b.valence);
   });
 
-  test("long document with one positive paragraph stays bounded", () => {
-    const neutralBlock = new Array(990).fill("quorvex").join(" ");
-    const positiveBlock = new Array(MIN_AFFECTIVE_TOKENS).fill("good").join(" ");
-    const result = analyze(`${neutralBlock} ${positiveBlock}`);
+  test("emotion-labeled lexicon injection fails fast", () => {
+    const positive =
+      VALENCE.lexicon.polarity.positive as unknown as string[];
+    const original = [...positive];
+    try {
+      positive.push("anger");
+      expect(() => analyze("anger")).toThrow();
+    } finally {
+      positive.length = ZERO;
+      positive.push(...original);
+    }
+  });
+});
+
+describe("ValenceAnalyzer — bounds", () => {
+  test("scores remain bounded", () => {
+    const result = analyze("good bad good bad");
     expect(result.score).toBeGreaterThanOrEqual(MIN_SCORE);
     expect(result.score).toBeLessThanOrEqual(MAX_SCORE);
+    expect(result.confidence).toBeGreaterThanOrEqual(ZERO);
+    expect(result.confidence).toBeLessThanOrEqual(ONE);
   });
 });
