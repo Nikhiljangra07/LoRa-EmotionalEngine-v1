@@ -12,16 +12,22 @@ export class ExpressionStrengthScorer {
       capsRatio,
       exclamationCount,
       questionCount,
-      hasMixedPunctuation,
       emojiCount,
       expressiveLengtheningCount,
-      intensifierCount,
-      interjectionCount,
       messageCharLength,
     } = features;
 
     const sat = ES_CONFIG.saturation;
     const w = ES_CONFIG.weights;
+    const { zero: ZERO } = ES_CONFIG.numbers;
+    const totalChars = Math.max(
+      messageCharLength,
+      ES_CONFIG.density.minTotalChars
+    );
+    const exclamationDensity = exclamationCount / totalChars;
+    const questionDensity = questionCount / totalChars;
+    const emojiDensity = emojiCount / totalChars;
+    const elongationDensity = expressiveLengtheningCount / totalChars;
 
     const capsScore = Math.min(
       esConstants.clip.max,
@@ -29,25 +35,23 @@ export class ExpressionStrengthScorer {
     );
     const exclScore = Math.min(
       esConstants.clip.max,
-      exclamationCount / sat.exclamation
+      exclamationDensity * sat.exclamation
     );
-    const questScore =
-      Math.min(esConstants.clip.max, questionCount / sat.question) +
-      (hasMixedPunctuation ? esConstants.scoring.mixedPunctuationBoost : 0);
+    const questScore = Math.min(
+      esConstants.clip.max,
+      questionDensity * sat.question
+    );
 
-    const emojiScore = Math.min(esConstants.clip.max, emojiCount / sat.emoji);
+    const emojiScore = Math.min(
+      esConstants.clip.max,
+      emojiDensity * sat.emoji
+    );
     const lengthScore = Math.min(
       esConstants.clip.max,
-      expressiveLengtheningCount / sat.lengthening
+      elongationDensity * sat.lengthening
     );
-    const intensScore = Math.min(
-      esConstants.clip.max,
-      intensifierCount / sat.intensifier
-    );
-    const interjScore = Math.min(
-      esConstants.clip.max,
-      interjectionCount / sat.interjection
-    );
+    const intensScore = ZERO;
+    const interjScore = ZERO;
 
     let esRaw =
       w.caps * capsScore +
@@ -58,14 +62,7 @@ export class ExpressionStrengthScorer {
       w.intensifier * intensScore +
       w.interjection * interjScore;
 
-    if (
-      messageCharLength < ES_CONFIG.shortMessage.maxLength &&
-      (capsScore > esConstants.shortMessage.scoreThreshold ||
-        exclScore > esConstants.shortMessage.scoreThreshold ||
-        emojiScore > esConstants.shortMessage.scoreThreshold)
-    ) {
-      esRaw += ES_CONFIG.shortMessage.boost;
-    }
+    esRaw += ZERO;
 
     const esRawWithFloor =
       features.hasText && esRaw < ES_BASELINE_FLOOR ? ES_BASELINE_FLOOR : esRaw;

@@ -29,11 +29,8 @@ export function computeES(
     capsRatio,
     exclamationCount,
     questionCount,
-    hasMixedPunctuation,
     emojiCount,
     expressiveLengtheningCount,
-    intensifierCount,
-    interjectionCount,
     messageCharLength,
   } = features;
 
@@ -41,19 +38,21 @@ export function computeES(
   const w = config.weights;
   const clipMax = config.clipMax;
   const scoring = config.scoring;
+  const { zero: ZERO, one: ONE } = config.numbers;
+
+  const totalChars = Math.max(messageCharLength, config.density.minTotalChars);
+  const exclamationDensity = exclamationCount / totalChars;
+  const questionDensity = questionCount / totalChars;
+  const emojiDensity = emojiCount / totalChars;
+  const elongationDensity = expressiveLengtheningCount / totalChars;
 
   const capsScore = Math.min(clipMax, scoring.capsRatioMultiplier * capsRatio);
-  const exclScore = Math.min(clipMax, exclamationCount / sat.exclamation);
-  const questScore = Math.min(
-    clipMax,
-    Math.min(clipMax, questionCount / sat.question) +
-      (hasMixedPunctuation ? scoring.mixedPunctuationBoost : 0)
-  );
-
-  const emojiScore = Math.min(clipMax, emojiCount / sat.emoji);
-  const lengthScore = Math.min(clipMax, expressiveLengtheningCount / sat.lengthening);
-  const intensScore = Math.min(clipMax, intensifierCount / sat.intensifier);
-  const interjScore = Math.min(clipMax, interjectionCount / sat.interjection);
+  const exclScore = Math.min(clipMax, exclamationDensity * sat.exclamation);
+  const questScore = Math.min(clipMax, questionDensity * sat.question);
+  const emojiScore = Math.min(clipMax, emojiDensity * sat.emoji);
+  const lengthScore = Math.min(clipMax, elongationDensity * sat.lengthening);
+  const intensScore = ZERO;
+  const interjScore = ZERO;
 
   let esRaw =
     w.caps * capsScore +
@@ -64,13 +63,7 @@ export function computeES(
     w.intensifier * intensScore +
     w.interjection * interjScore;
 
-  const shortBoost =
-    messageCharLength < config.shortMessage.maxLength &&
-    (capsScore > config.shortMessage.scoreThreshold ||
-      exclScore > config.shortMessage.scoreThreshold ||
-      emojiScore > config.shortMessage.scoreThreshold)
-      ? config.shortMessage.boost
-      : 0;
+  const shortBoost = ZERO;
 
   esRaw += shortBoost;
 
