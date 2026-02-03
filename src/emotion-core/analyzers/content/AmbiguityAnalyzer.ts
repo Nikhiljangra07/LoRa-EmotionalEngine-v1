@@ -79,11 +79,21 @@ export class AmbiguityAnalyzer {
   analyze(text: string): AmbiguitySignal {
     const constants = MASTER_CONSTANTS.ambiguityAnalyzer;
     const lexicon = constants.lexicon;
-    const hedgingTokens = new Set(lexicon.hedgingTokens);
-    const modalTokens = new Set(lexicon.modalTokens);
-    const contrastTokens = new Set(lexicon.contrastTokens);
-    const positiveTokens = new Set(lexicon.polarity.positive);
-    const negativeTokens = new Set(lexicon.polarity.negative);
+    const hedgingTokens: ReadonlySet<string> = new Set(
+      lexicon.hedgingTokens as readonly string[]
+    );
+    const modalTokens: ReadonlySet<string> = new Set(
+      lexicon.modalTokens as readonly string[]
+    );
+    const contrastTokens: ReadonlySet<string> = new Set(
+      lexicon.contrastTokens as readonly string[]
+    );
+    const positiveTokens: ReadonlySet<string> = new Set(
+      lexicon.polarity.positive as readonly string[]
+    );
+    const negativeTokens: ReadonlySet<string> = new Set(
+      lexicon.polarity.negative as readonly string[]
+    );
     const sourceSet = new Set<string>();
     const input = text ?? "";
     const normalized = input.toLowerCase();
