@@ -186,6 +186,9 @@ interface AmbiguityAnalyzerConstants {
     contradictionTokenWindow: number;
     contradictionDistantMultiplier: number;
   };
+  passiveVoice: {
+    irregularParticiples: readonly string[];
+  };
   scoring: {
     dampening: number;
   };
@@ -285,6 +288,20 @@ const AMBIGUITY_ANALYZER_CONSTANTS: AmbiguityAnalyzerConstants = {
     minTokenLength: 2,
     contradictionTokenWindow: 3,
     contradictionDistantMultiplier: 0.45,
+  },
+  passiveVoice: {
+    irregularParticiples: [
+      "made",
+      "done",
+      "seen",
+      "known",
+      "given",
+      "taken",
+      "gone",
+      "left",
+      "set",
+      "hurt",
+    ],
   },
   scoring: {
     dampening: 0.85,

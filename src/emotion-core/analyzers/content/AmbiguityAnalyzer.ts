@@ -28,8 +28,21 @@ const RHETORICAL_PATTERNS = [
   /\bseriously\b/g,
 ];
 
-const PASSIVE_VOICE_PATTERN =
-  /\b(am|is|are|was|were|be|been|being)\b(?:\s+\w+){0,3}\s+\b(\w+(?:ed|en)|made|done|seen|known|given|taken|gone|left|set|hurt)\b/g;
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const IRREGULAR_PARTICIPLES = MASTER_CONSTANTS.ambiguityAnalyzer.passiveVoice
+  .irregularParticiples;
+const IRREGULAR_PARTICIPLES_PATTERN = IRREGULAR_PARTICIPLES.map(escapeRegex).join(
+  "|"
+);
+
+const PASSIVE_VOICE_PATTERN = new RegExp(
+  `\\b(am|is|are|was|were|be|been|being)\\b(?:\\s+\\w+){0,3}\\s+\\b(\\w+(?:ed|en)${
+    IRREGULAR_PARTICIPLES_PATTERN ? `|${IRREGULAR_PARTICIPLES_PATTERN}` : ""
+  })\\b`,
+  "g"
+);
 
 const WORD_PATTERN = /[a-z']+/g;
 
