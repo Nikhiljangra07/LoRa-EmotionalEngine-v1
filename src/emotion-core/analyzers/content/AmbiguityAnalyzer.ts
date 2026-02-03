@@ -4,22 +4,9 @@ export interface AmbiguitySignal {
   ambiguityScore: number;
   ambiguitySources: string[];
   contradictionDetected: boolean;
-  sarcasmPossible: boolean;
+  tonalInversionPatternDetected: boolean;
   confidencePenaltyHint: number;
 }
-
-const HEDGING_TOKENS = new Set([
-  "maybe",
-  "perhaps",
-  "guess",
-  "kinda",
-  "kind",
-  "sort",
-  "probably",
-  "possibly",
-  "roughly",
-  "around",
-]);
 
 const HEDGING_PHRASES = [
   /\bkind\s+of\b/g,
@@ -27,44 +14,6 @@ const HEDGING_PHRASES = [
   /\bi\s+guess\b/g,
   /\bi\s+think\b/g,
 ];
-
-const MODAL_TOKENS = new Set(["might", "could", "may", "would", "should"]);
-
-const CONTRAST_TOKENS = new Set([
-  "but",
-  "however",
-  "though",
-  "yet",
-  "whereas",
-  "nevertheless",
-]);
-
-const POSITIVE_TOKENS = new Set([
-  "good",
-  "great",
-  "love",
-  "like",
-  "amazing",
-  "happy",
-  "excited",
-  "nice",
-  "wonderful",
-  "awesome",
-]);
-
-const NEGATIVE_TOKENS = new Set([
-  "bad",
-  "hate",
-  "awful",
-  "terrible",
-  "sad",
-  "angry",
-  "upset",
-  "annoyed",
-  "horrible",
-  "worse",
-  "worst",
-]);
 
 const RHETORICAL_PATTERNS = [
   /\bwho\s+knows\b/g,
@@ -92,9 +41,49 @@ const countMatches = (text: string, pattern: RegExp): number => {
   return matches ? matches.length : 0;
 };
 
+const hasNearbyPolarity = (
+  positiveIndices: number[],
+  negativeIndices: number[],
+  window: number
+): boolean => {
+  for (const positiveIndex of positiveIndices) {
+    for (const negativeIndex of negativeIndices) {
+      if (Math.abs(positiveIndex - negativeIndex) <= window) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
+const hasContrastBetweenPolarity = (
+  positiveIndices: number[],
+  negativeIndices: number[],
+  contrastIndices: number[]
+): boolean => {
+  for (const positiveIndex of positiveIndices) {
+    for (const negativeIndex of negativeIndices) {
+      const start = Math.min(positiveIndex, negativeIndex);
+      const end = Math.max(positiveIndex, negativeIndex);
+      for (const contrastIndex of contrastIndices) {
+        if (contrastIndex > start && contrastIndex < end) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+};
+
 export class AmbiguityAnalyzer {
   analyze(text: string): AmbiguitySignal {
     const constants = MASTER_CONSTANTS.ambiguityAnalyzer;
+    const lexicon = constants.lexicon;
+    const hedgingTokens = new Set(lexicon.hedgingTokens);
+    const modalTokens = new Set(lexicon.modalTokens);
+    const contrastTokens = new Set(lexicon.contrastTokens);
+    const positiveTokens = new Set(lexicon.polarity.positive);
+    const negativeTokens = new Set(lexicon.polarity.negative);
     const sourceSet = new Set<string>();
     const input = text ?? "";
     const normalized = input.toLowerCase();
@@ -109,13 +98,25 @@ export class AmbiguityAnalyzer {
     let contrastCount = 0;
     let positiveCount = 0;
     let negativeCount = 0;
+    const positiveIndices: number[] = [];
+    const negativeIndices: number[] = [];
+    const contrastIndices: number[] = [];
 
-    for (const token of tokens) {
-      if (HEDGING_TOKENS.has(token)) hedgingCount += 1;
-      if (MODAL_TOKENS.has(token)) modalCount += 1;
-      if (CONTRAST_TOKENS.has(token)) contrastCount += 1;
-      if (POSITIVE_TOKENS.has(token)) positiveCount += 1;
-      if (NEGATIVE_TOKENS.has(token)) negativeCount += 1;
+    for (const [index, token] of tokens.entries()) {
+      if (hedgingTokens.has(token)) hedgingCount += 1;
+      if (modalTokens.has(token)) modalCount += 1;
+      if (contrastTokens.has(token)) {
+        contrastCount += 1;
+        contrastIndices.push(index);
+      }
+      if (positiveTokens.has(token)) {
+        positiveCount += 1;
+        positiveIndices.push(index);
+      }
+      if (negativeTokens.has(token)) {
+        negativeCount += 1;
+        negativeIndices.push(index);
+      }
     }
 
     for (const phrase of HEDGING_PHRASES) {
@@ -133,13 +134,21 @@ export class AmbiguityAnalyzer {
     const passiveCount = countMatches(normalized, PASSIVE_VOICE_PATTERN);
 
     const contradictionDetected = positiveCount > 0 && negativeCount > 0;
+    const polarityNearby = hasNearbyPolarity(
+      positiveIndices,
+      negativeIndices,
+      constants.thresholds.contradictionTokenWindow
+    );
+    const contrastSeparated = hasContrastBetweenPolarity(
+      positiveIndices,
+      negativeIndices,
+      contrastIndices
+    );
 
-    if (hedgingCount > 0) sourceSet.add("hedging");
-    if (modalCount > 0) sourceSet.add("modal");
-    if (contrastCount > 0) sourceSet.add("contrast");
-    if (rhetoricalCount > 0) sourceSet.add("rhetorical");
-    if (contradictionDetected) sourceSet.add("contradiction");
-    if (passiveCount > 0) sourceSet.add("passive");
+    if (hedgingCount > 0 || modalCount > 0) sourceSet.add("semantic");
+    if (rhetoricalCount > 0) sourceSet.add("pragmatic");
+    if (contrastCount > 0 || contradictionDetected) sourceSet.add("structural");
+    if (passiveCount > 0) sourceSet.add("narrative");
 
     const normalizeCount = (count: number, saturation: number): number =>
       Math.min(count / saturation, constants.bounds.max);
@@ -160,9 +169,15 @@ export class AmbiguityAnalyzer {
     score +=
       constants.weights.passive *
       normalizeCount(passiveCount, constants.saturation.passiveCount);
+    const contradictionMultiplier =
+      contradictionDetected && !(polarityNearby || contrastSeparated)
+        ? constants.thresholds.contradictionDistantMultiplier
+        : 1;
     score +=
       constants.weights.contradiction *
-      (contradictionDetected ? constants.saturation.contradictionFlag : 0);
+      (contradictionDetected
+        ? constants.saturation.contradictionFlag * contradictionMultiplier
+        : 0);
 
     score =
       constants.baseline.score +
@@ -176,19 +191,23 @@ export class AmbiguityAnalyzer {
       constants.penaltyHint.max
     );
 
+    // NOTE: This is a multiplicative confidence cap, not a meaning inference.
+    // It can only reduce downstream confidence; it never increases it.
     const confidencePenaltyHint = Math.max(
       penaltyHint,
       constants.penaltyHint.floor
     );
 
-    const sarcasmPossible =
+    // Surface-level rhetorical + contrast marker pattern only.
+    // This does NOT infer sarcasm, intent, or emotion.
+    const tonalInversionPatternDetected =
       rhetoricalCount > 0 && (contrastCount > 0 || contradictionDetected);
 
     return {
       ambiguityScore: score,
       ambiguitySources: Array.from(sourceSet),
       contradictionDetected,
-      sarcasmPossible,
+      tonalInversionPatternDetected,
       confidencePenaltyHint,
     };
   }

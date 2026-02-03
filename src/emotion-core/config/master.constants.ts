@@ -153,6 +153,56 @@ const VALENCE_ANALYZER_CONSTANTS = {
 
 // AMBIGUITY (Ambiguity Analyzer)
 const AMBIGUITY_ANALYZER_CONSTANTS = {
+  lexicon: {
+    hedgingTokens: [
+      "maybe",
+      "perhaps",
+      "guess",
+      "kinda",
+      "kind",
+      "sort",
+      "probably",
+      "possibly",
+      "roughly",
+      "around",
+    ],
+    modalTokens: ["might", "could", "may", "would", "should"],
+    contrastTokens: [
+      "but",
+      "however",
+      "though",
+      "yet",
+      "whereas",
+      "nevertheless",
+    ],
+    polarity: {
+      positive: [
+        "good",
+        "great",
+        "love",
+        "like",
+        "amazing",
+        "happy",
+        "excited",
+        "nice",
+        "wonderful",
+        "awesome",
+      ],
+      negative: [
+        "bad",
+        "hate",
+        "awful",
+        "terrible",
+        "sad",
+        "angry",
+        "upset",
+        "annoyed",
+        "horrible",
+        "worse",
+        "worst",
+      ],
+    },
+  },
   baseline: {
     score: 0.08,
   },
@@ -174,6 +224,8 @@ const AMBIGUITY_ANALYZER_CONSTANTS = {
   },
   thresholds: {
     minTokenLength: 2,
+    contradictionTokenWindow: 3,
+    contradictionDistantMultiplier: 0.45,
   },
   scoring: {
     dampening: 0.85,
