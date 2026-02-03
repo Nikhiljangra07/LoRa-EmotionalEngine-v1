@@ -279,6 +279,7 @@ const AMBIGUITY_ANALYZER_CONSTANTS: AmbiguityAnalyzerConstants = {
   scoring: {
     dampening: 0.85,
   },
+  minSignalDelta: 0.01,
   bounds: {
     min: 0,
     max: 1,
