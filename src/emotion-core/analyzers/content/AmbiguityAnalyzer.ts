@@ -29,7 +29,7 @@ const RHETORICAL_PATTERNS = [
 ];
 
 const PASSIVE_VOICE_PATTERN =
-  /\b(am|is|are|was|were|be|been|being)\b(?:\s+\w+){0,3}\s+\b(\w+(?:ed|en)|made|done|seen|known|given|taken|gone|left|set)\b/g;
+  /\b(am|is|are|was|were|be|been|being)\b(?:\s+\w+){0,3}\s+\b(\w+(?:ed|en)|made|done|seen|known|given|taken|gone|left|set|hurt)\b/g;
 
 const WORD_PATTERN = /[a-z']+/g;
 
