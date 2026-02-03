@@ -1,3 +1,5 @@
+import type { SentenceBoundaryAnalyzerConstants } from "../types/SentenceBoundary.types";
+
 /**
  * Layer 0: MASTER CONSTANTS
  *
@@ -322,6 +324,75 @@ const AMBIGUITY_ANALYZER_CONSTANTS: AmbiguityAnalyzerConstants = {
   },
 } as const;
 
+// SENTENCE BOUNDARY (Sentence Boundary Analyzer)
+const SENTENCE_BOUNDARY_ANALYZER_CONSTANTS: SentenceBoundaryAnalyzerConstants = {
+  enableChatHeuristics: true,
+  numbers: {
+    zero: 0,
+    one: 1,
+  },
+  bounds: {
+    min: 0,
+    max: 1,
+  },
+  confidence: {
+    // UNJUSTIFIED: calibrate ordinal base via boundary audit set.
+    base: 0.55,
+    punctuationBoost: {
+      // UNJUSTIFIED: calibrate punctuation ordinal boosts.
+      period: 0.12,
+      exclamation: 0.16,
+      question: 0.16,
+      newline: 0.08,
+    },
+    // UNJUSTIFIED: capitalization heuristic boost.
+    capitalizationBoost: 0.08,
+    // UNJUSTIFIED: abbreviation ambiguity penalty.
+    abbreviationPenalty: 0.18,
+    // UNJUSTIFIED: decimal proximity penalty.
+    decimalPenalty: 0.2,
+    // UNJUSTIFIED: URL/email proximity penalty.
+    urlOrEmailPenalty: 0.22,
+    // UNJUSTIFIED: emoji adjacency penalty.
+    emojiAdjacencyPenalty: 0.16,
+    // UNJUSTIFIED: ellipsis context penalty.
+    ellipsisPenalty: 0.14,
+    // UNJUSTIFIED: chat fragment penalty.
+    chatFragmentPenalty: 0.12,
+    // UNJUSTIFIED: code-like context penalty.
+    codeBlockPenalty: 0.2,
+    // UNJUSTIFIED: Punkt LLR support boost.
+    llrBoost: 0.1,
+  },
+  punkt: {
+    abbreviations: [
+      "dr",
+      "mr",
+      "mrs",
+      "ms",
+      "prof",
+      "sr",
+      "jr",
+      "st",
+      "vs",
+      "etc",
+      "e.g",
+      "i.e",
+    ],
+    llr: {},
+    // UNJUSTIFIED: requires Punkt calibration set (>=500k tokens).
+    llrThreshold: 0,
+  },
+  heuristics: {
+    // UNJUSTIFIED: calibrate ellipsis minimum length.
+    ellipsisMinLength: 3,
+    // UNJUSTIFIED: adjacency window for emoji + boundary.
+    emojiAdjacencyWindow: 1,
+    // UNJUSTIFIED: max chars for chat fragment line.
+    chatFragmentMaxLength: 40,
+  },
+} as const;
+
 const VALENCE_AMBIGUITY_CONSTRAINTS = {
   NEGATIVE_MIN_CONF: 0,
   NEGATIVE_MAX_CONF: 0.7,
@@ -416,6 +487,7 @@ export const MASTER_CONSTANTS = {
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
   ambiguityAnalyzer: AMBIGUITY_ANALYZER_CONSTANTS,
+  sentenceBoundaryAnalyzer: SENTENCE_BOUNDARY_ANALYZER_CONSTANTS,
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
   eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
