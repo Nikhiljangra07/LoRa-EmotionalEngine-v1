@@ -139,6 +139,30 @@ const NEGATION_SCOPE_CONSTANTS = {
 
 // VALENCE (Valence Analyzer)
 const VALENCE_ANALYZER_CONSTANTS = {
+  lexicon: {
+    polarity: {
+      positive: [
+        "good",
+        "great",
+        "excellent",
+        "nice",
+        "pleasant",
+        "favorable",
+        "awesome",
+        "wonderful",
+      ],
+      negative: [
+        "bad",
+        "terrible",
+        "awful",
+        "poor",
+        "horrible",
+        "worse",
+        "worst",
+        "unpleasant",
+      ],
+    },
+  },
   thresholds: {
     minMagnitude: 0.15,
     dominanceEpsilon: 0.05,
@@ -149,6 +173,13 @@ const VALENCE_ANALYZER_CONSTANTS = {
   },
   negation: {
     attenuation: 0.5,
+    scope: 5,
+    tokens: ["not", "never", "no", "none", "cannot"],
+  },
+  contrast: {
+    markers: ["but", "however", "although", "though", "yet"],
+    preWeight: 0.5,
+    postWeight: 1,
   },
   normalization: {
     epsilon: 1e-6,
