@@ -189,6 +189,10 @@ interface AmbiguityAnalyzerConstants {
   scoring: {
     dampening: number;
   };
+  /**
+   * Minimum upward deviation applied when at least one ambiguity signal is detected.
+   */
+  minSignalDelta: number;
   bounds: {
     min: number;
     max: number;
