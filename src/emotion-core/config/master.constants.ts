@@ -16,6 +16,10 @@ const MASTER_LIMITS = {} as const;
 
 // ES (Expression Strength)
 const ES_CONSTANTS = {
+  numbers: {
+    zero: 0,
+    one: 1,
+  },
   weights: {
     caps: 0.25,
     exclamation: 0.22,
@@ -24,6 +28,13 @@ const ES_CONSTANTS = {
     lengthening: 0.17,
     intensifier: 0.12,
     interjection: 0.10,
+  },
+  elongation: {
+    // UNJUSTIFIED: calibrate minimum repeat threshold for elongation.
+    minRepeat: 3,
+  },
+  density: {
+    minTotalChars: 1,
   },
   saturation: {
     exclamation: 3,
@@ -46,6 +57,7 @@ const ES_CONSTANTS = {
     min: 0,
     max: 1,
   },
+  baselineFloor: 0.05,
 } as const;
 
 // CAPS (Capitalization Analyzer)
@@ -520,6 +532,7 @@ export const MASTER_CONSTANTS = {
   weights: MASTER_WEIGHTS,
   limits: MASTER_LIMITS,
   es: ES_CONSTANTS,
+  expressionStrength: ES_CONSTANTS,
   capitalization: CAPITALIZATION_CONSTANTS,
   punctuationAnalyzer: PUNCTUATION_ANALYZER_CONSTANTS,
   emojiAnalyzer: EMOJI_ANALYZER_CONSTANTS,
