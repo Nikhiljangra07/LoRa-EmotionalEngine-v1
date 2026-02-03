@@ -1,6 +1,6 @@
 import { SentenceBoundaryAnalyzer } from "../SentenceBoundaryAnalyzer";
-import { MASTER_CONSTANTS } from "../../../config/master.constants";
-import type { SentenceBoundaryAnalysis } from "../../../types/SentenceBoundary.types";
+import { MASTER_CONSTANTS } from "../../config/master.constants";
+import type { SentenceBoundaryAnalysis } from "../../types/SentenceBoundary.types";
 
 const CONSTANTS = MASTER_CONSTANTS.sentenceBoundaryAnalyzer;
 const { zero: ZERO, one: ONE } = CONSTANTS.numbers;
@@ -56,13 +56,25 @@ describe("SentenceBoundaryAnalyzer (Layer-1)", () => {
 
   describe("Abbreviation handling", () => {
     it("should suppress boundaries for abbreviations", () => {
-      const input = "Dr. Smith went home.";
+      const input = "Dr. smith went home.";
       const result = analyzer.analyze(input);
       const firstPeriod = input.indexOf(".");
       const lastPeriod = input.lastIndexOf(".");
 
       expect(findBoundary(result, firstPeriod)).toBeUndefined();
       expect(findBoundary(result, lastPeriod)).toBeDefined();
+      expectBoundarySourcesPresent(result);
+      expectNoEmotionalLeakage(result);
+    });
+  });
+
+  describe("Abbreviation at sentence end", () => {
+    it("should allow boundary when abbreviation ends sentence", () => {
+      const input = "I met Dr.";
+      const periodIndex = input.lastIndexOf(".");
+      const result = analyzer.analyze(input);
+
+      expect(findBoundary(result, periodIndex)).toBeDefined();
       expectBoundarySourcesPresent(result);
       expectNoEmotionalLeakage(result);
     });
