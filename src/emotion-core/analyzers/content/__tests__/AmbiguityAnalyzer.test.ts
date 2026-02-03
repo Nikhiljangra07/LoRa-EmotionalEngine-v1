@@ -89,6 +89,14 @@ describe("AmbiguityAnalyzer V1 signals", () => {
         expect(result.ambiguitySources).toContain("narrative");
       });
     }
+
+    it("should detect irregular participles like 'hurt'", () => {
+      const result = analyzer.analyze("I was hurt");
+      expectAboveBaseline(result.ambiguityScore);
+      expectWithinBounds(result.ambiguityScore);
+      expect(result.ambiguitySources).toContain("narrative");
+      // If "hurt" were removed from config, this would not trigger passive.
+    });
   });
 
   describe("Rhetorical Question Patterns", () => {
