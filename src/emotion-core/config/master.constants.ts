@@ -152,7 +152,56 @@ const VALENCE_ANALYZER_CONSTANTS = {
 } as const;
 
 // AMBIGUITY (Ambiguity Analyzer)
-const AMBIGUITY_ANALYZER_CONSTANTS = {
+interface AmbiguityAnalyzerConstants {
+  lexicon: {
+    hedgingTokens: readonly string[];
+    modalTokens: readonly string[];
+    contrastTokens: readonly string[];
+    polarity: {
+      positive: readonly string[];
+      negative: readonly string[];
+    };
+  };
+  baseline: {
+    score: number;
+  };
+  weights: {
+    hedging: number;
+    modal: number;
+    contrast: number;
+    rhetorical: number;
+    contradiction: number;
+    passive: number;
+  };
+  saturation: {
+    hedgingCount: number;
+    modalCount: number;
+    contrastCount: number;
+    rhetoricalCount: number;
+    passiveCount: number;
+    contradictionFlag: number;
+  };
+  thresholds: {
+    minTokenLength: number;
+    contradictionTokenWindow: number;
+    contradictionDistantMultiplier: number;
+  };
+  scoring: {
+    dampening: number;
+  };
+  bounds: {
+    min: number;
+    max: number;
+  };
+  penaltyHint: {
+    scale: number;
+    min: number;
+    max: number;
+    floor: number;
+  };
+}
+
+const AMBIGUITY_ANALYZER_CONSTANTS: AmbiguityAnalyzerConstants = {
   lexicon: {
     hedgingTokens: [
       "maybe",
