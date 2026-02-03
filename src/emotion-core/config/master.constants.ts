@@ -391,6 +391,45 @@ const SENTENCE_BOUNDARY_ANALYZER_CONSTANTS: SentenceBoundaryAnalyzerConstants = 
     // UNJUSTIFIED: max chars for chat fragment line.
     chatFragmentMaxLength: 40,
   },
+  regex: {
+    urlOrEmail: {
+      pattern: "\\bhttps?:\\/\\/\\S+|\\bwww\\.\\S+|\\b\\S+@\\S+\\b",
+      flags: "g",
+    },
+    codeLike: {
+      pattern:
+        "(^|\\n)\\s*(const|let|var|function|if|for|while|return|class)\\b",
+      flags: "",
+    },
+    wordChar: {
+      pattern: "[A-Za-z]",
+      flags: "",
+    },
+    digit: {
+      pattern: "\\d",
+      flags: "",
+    },
+    emoji: {
+      pattern: "\\p{Extended_Pictographic}",
+      flags: "gu",
+    },
+    codeBlock: {
+      pattern: "```[\\s\\S]*?```",
+      flags: "g",
+    },
+    newlineWindows: {
+      pattern: "\\r\\n",
+      flags: "g",
+    },
+    newlineClassic: {
+      pattern: "\\r",
+      flags: "g",
+    },
+    chatFragmentPrefix: {
+      pattern: "^[-*>]",
+      flags: "",
+    },
+  },
 } as const;
 
 const VALENCE_AMBIGUITY_CONSTRAINTS = {
