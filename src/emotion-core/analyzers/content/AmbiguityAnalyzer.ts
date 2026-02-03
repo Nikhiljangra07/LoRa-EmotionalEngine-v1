@@ -192,15 +192,12 @@ export class AmbiguityAnalyzer {
     score =
       constants.baseline.score +
       (score - constants.baseline.score) * constants.scoring.dampening;
-    score = clamp(score, constants.bounds.min, constants.bounds.max);
-    if (sourceSet.size > 0 && score <= constants.baseline.score) {
+    if (sourceSet.size > 0 && score === constants.baseline.score) {
       // Ensure detectable signals stay above baseline after dampening.
-      score = clamp(
-        constants.baseline.score + constants.minSignalDelta,
-        constants.bounds.min,
-        constants.bounds.max
-      );
+      score =
+        constants.baseline.score + constants.invariants.minExistenceDelta;
     }
+    score = clamp(score, constants.bounds.min, constants.bounds.max);
 
     const rawHint = 1 - score * constants.penaltyHint.scale;
     const penaltyHint = clamp(

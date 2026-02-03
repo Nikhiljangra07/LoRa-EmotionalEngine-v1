@@ -193,6 +193,12 @@ interface AmbiguityAnalyzerConstants {
    * Minimum upward deviation applied when at least one ambiguity signal is detected.
    */
   minSignalDelta: number;
+  invariants: {
+    /**
+     * Minimum upward deviation applied when at least one ambiguity signal is detected.
+     */
+    minExistenceDelta: number;
+  };
   bounds: {
     min: number;
     max: number;
@@ -284,6 +290,9 @@ const AMBIGUITY_ANALYZER_CONSTANTS: AmbiguityAnalyzerConstants = {
     dampening: 0.85,
   },
   minSignalDelta: 0.01,
+  invariants: {
+    minExistenceDelta: 0.01,
+  },
   bounds: {
     min: 0,
     max: 1,
