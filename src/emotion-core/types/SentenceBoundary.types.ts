@@ -54,4 +54,42 @@ export interface SentenceBoundaryAnalyzerConstants {
     emojiAdjacencyWindow: number;
     chatFragmentMaxLength: number;
   };
+  regex: {
+    urlOrEmail: {
+      pattern: string;
+      flags: string;
+    };
+    codeLike: {
+      pattern: string;
+      flags: string;
+    };
+    wordChar: {
+      pattern: string;
+      flags: string;
+    };
+    digit: {
+      pattern: string;
+      flags: string;
+    };
+    emoji: {
+      pattern: string;
+      flags: string;
+    };
+    codeBlock: {
+      pattern: string;
+      flags: string;
+    };
+    newlineWindows: {
+      pattern: string;
+      flags: string;
+    };
+    newlineClassic: {
+      pattern: string;
+      flags: string;
+    };
+    chatFragmentPrefix: {
+      pattern: string;
+      flags: string;
+    };
+  };
 }

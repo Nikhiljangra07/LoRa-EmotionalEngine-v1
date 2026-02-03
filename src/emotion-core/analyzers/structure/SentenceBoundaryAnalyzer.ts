@@ -8,13 +8,42 @@ import type {
 const CONSTANTS = MASTER_CONSTANTS.sentenceBoundaryAnalyzer;
 const { zero: ZERO, one: ONE } = CONSTANTS.numbers;
 
-const EMOJI_REGEX = /\p{Extended_Pictographic}/gu;
-const URL_OR_EMAIL_REGEX =
-  /\bhttps?:\/\/\S+|\bwww\.\S+|\b\S+@\S+\b/g;
-const CODE_LIKE_REGEX =
-  /(^|\n)\s*(const|let|var|function|if|for|while|return|class)\b/;
-const WORD_CHAR_REGEX = /[A-Za-z]/;
-const DIGIT_REGEX = /\d/;
+const EMOJI_REGEX = new RegExp(
+  CONSTANTS.regex.emoji.pattern,
+  CONSTANTS.regex.emoji.flags
+);
+const URL_OR_EMAIL_REGEX = new RegExp(
+  CONSTANTS.regex.urlOrEmail.pattern,
+  CONSTANTS.regex.urlOrEmail.flags
+);
+const CODE_LIKE_REGEX = new RegExp(
+  CONSTANTS.regex.codeLike.pattern,
+  CONSTANTS.regex.codeLike.flags
+);
+const WORD_CHAR_REGEX = new RegExp(
+  CONSTANTS.regex.wordChar.pattern,
+  CONSTANTS.regex.wordChar.flags
+);
+const DIGIT_REGEX = new RegExp(
+  CONSTANTS.regex.digit.pattern,
+  CONSTANTS.regex.digit.flags
+);
+const CODE_BLOCK_REGEX = new RegExp(
+  CONSTANTS.regex.codeBlock.pattern,
+  CONSTANTS.regex.codeBlock.flags
+);
+const NEWLINE_WINDOWS_REGEX = new RegExp(
+  CONSTANTS.regex.newlineWindows.pattern,
+  CONSTANTS.regex.newlineWindows.flags
+);
+const NEWLINE_CLASSIC_REGEX = new RegExp(
+  CONSTANTS.regex.newlineClassic.pattern,
+  CONSTANTS.regex.newlineClassic.flags
+);
+const CHAT_FRAGMENT_PREFIX_REGEX = new RegExp(
+  CONSTANTS.regex.chatFragmentPrefix.pattern,
+  CONSTANTS.regex.chatFragmentPrefix.flags
+);
 const ELLIPSIS_PATTERN = new RegExp(
   `\\.{${CONSTANTS.heuristics.ellipsisMinLength},}`,
   "g"
@@ -23,7 +52,9 @@ const ELLIPSIS_PATTERN = new RegExp(
 type Span = { start: number; end: number };
 
 const normalizeNewlines = (text: string): string =>
-  text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  text
+    .replace(NEWLINE_WINDOWS_REGEX, "\n")
+    .replace(NEWLINE_CLASSIC_REGEX, "\n");
 
 const collectSpans = (pattern: RegExp, text: string): Span[] => {
   const spans: Span[] = [];
@@ -63,17 +94,38 @@ const getPreviousToken = (text: string, index: number): string | null => {
   return text.slice(start, end).toLowerCase();
 };
 
-const getNextLetter = (text: string, index: number): string | null => {
+const getNextTokenInfo = (
+  text: string,
+  index: number
+): {
+  letter: string | null;
+  isUppercase: boolean;
+  isLowercase: boolean;
+  isNewlineBefore: boolean;
+} => {
   let cursor = index + ONE;
+  let sawNewline = false;
   while (cursor < text.length && !WORD_CHAR_REGEX.test(text[cursor])) {
+    if (text[cursor] === "\n") {
+      sawNewline = true;
+    }
     cursor += ONE;
   }
-  if (cursor >= text.length) return null;
-  return text[cursor];
+  if (cursor >= text.length) {
+    return {
+      letter: null,
+      isUppercase: false,
+      isLowercase: false,
+      isNewlineBefore: sawNewline,
+    };
+  }
+  const letter = text[cursor];
+  const isUppercase =
+    letter.toUpperCase() === letter && letter.toLowerCase() !== letter;
+  const isLowercase =
+    letter.toLowerCase() === letter && letter.toUpperCase() !== letter;
+  return { letter, isUppercase, isLowercase, isNewlineBefore: sawNewline };
 };
-
-const isUppercaseLetter = (value: string): boolean =>
-  value.toUpperCase() === value && value.toLowerCase() !== value;
 
 const isDecimalPoint = (text: string, index: number): boolean => {
   const prev = index - ONE;
@@ -97,7 +149,7 @@ const getLineAroundIndex = (text: string, index: number): string => {
 const isChatFragment = (line: string): boolean => {
   const trimmed = line.trim();
   if (trimmed.length <= CONSTANTS.heuristics.chatFragmentMaxLength) {
-    return /^[-*>]/.test(trimmed);
+    return CHAT_FRAGMENT_PREFIX_REGEX.test(trimmed);
   }
   return false;
 };
@@ -143,7 +195,7 @@ export class SentenceBoundaryAnalyzer {
       normalizedText
     );
     const codeBlockSpans = CONSTANTS.enableChatHeuristics
-      ? collectSpans(/```[\s\S]*?```/g, normalizedText)
+      ? collectSpans(CODE_BLOCK_REGEX, normalizedText)
       : [];
     const ellipsisMatches = CONSTANTS.enableChatHeuristics
       ? collectSpans(ELLIPSIS_PATTERN, normalizedText)
@@ -216,8 +268,9 @@ export class SentenceBoundaryAnalyzer {
       const previousToken = isPunctuation
         ? getPreviousToken(normalizedText, index)
         : null;
-      const nextLetter = getNextLetter(normalizedText, index);
-      const nextIsUppercase = nextLetter ? isUppercaseLetter(nextLetter) : false;
+      const nextTokenInfo = getNextTokenInfo(normalizedText, index);
+      const nextLetter = nextTokenInfo.letter;
+      const nextIsUppercase = nextTokenInfo.isUppercase;
 
       if (nextIsUppercase) {
         sources.push("next_token_capitalized");
@@ -236,10 +289,16 @@ export class SentenceBoundaryAnalyzer {
           confidence += CONSTANTS.confidence.llrBoost;
         }
 
-        if (nextLetter !== null) {
+        if (
+          nextTokenInfo.letter !== null &&
+          !nextTokenInfo.isNewlineBefore &&
+          nextTokenInfo.isLowercase
+        ) {
+          sources.push("punkt_abbreviation_continuation");
           index += ONE;
           continue;
         }
+        sources.push("punkt_abbreviation_sentence_end");
       }
 
       if (isNewline) {
