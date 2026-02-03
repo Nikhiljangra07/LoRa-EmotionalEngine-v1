@@ -5,6 +5,8 @@ export interface SentenceBoundary {
   boundaryChar: SentenceBoundaryChar;
   /**
    * Monotonic confidence score (ordinal), not a calibrated probability.
+   * Invariant: if below `confidence.hardMinimum`, downstream sentence-level
+   * analyzers MUST fall back to message-level computation.
    */
   boundaryConfidence: number;
   boundarySources: string[];
@@ -28,6 +30,7 @@ export interface SentenceBoundaryAnalyzerConstants {
   };
   confidence: {
     base: number;
+    hardMinimum: number;
     punctuationBoost: {
       period: number;
       exclamation: number;
