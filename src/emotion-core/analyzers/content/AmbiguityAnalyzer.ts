@@ -197,8 +197,8 @@ export class AmbiguityAnalyzer {
     const rawHint = 1 - score * constants.penaltyHint.scale;
     const penaltyHint = clamp(
       rawHint,
-      constants.penaltyHint.min,
-      constants.penaltyHint.max
+      Number(constants.penaltyHint.min),
+      Number(constants.penaltyHint.max)
     );
 
     // NOTE: This is a multiplicative confidence cap, not a meaning inference.
