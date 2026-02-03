@@ -1,223 +1,223 @@
 import { MASTER_CONSTANTS } from "../../config/master.constants";
+import { SentenceBoundaryAnalyzer } from "../SentenceBoundaryAnalyzer";
 
 const AROUSAL_CONSTANTS = MASTER_CONSTANTS.arousalCalibrationConstants;
+const { zero: ZERO, one: ONE } = AROUSAL_CONSTANTS.numbers;
+
+/*
+CONSTRAINT:
+ArousalAnalyzer MUST NOT use:
+- punctuation-based signals
+- capitalization
+- elongation
+- emoji
+- sentiment or emotion lexicons
+
+Violation of this rule invalidates Layer-1 separation.
+*/
+
+const TOKEN_REGEX = new RegExp(AROUSAL_CONSTANTS.regex.token, "g");
+const COMMON_TOKENS: ReadonlySet<string> = new Set(
+  AROUSAL_CONSTANTS.rarity.commonTokens as readonly string[]
+);
+const QUESTION_STARTERS: ReadonlySet<string> = new Set(
+  AROUSAL_CONSTANTS.question.starters as readonly string[]
+);
+const IMPERATIVE_VERBS: ReadonlySet<string> = new Set(
+  AROUSAL_CONSTANTS.imperative.verbs as readonly string[]
+);
+const CLAUSE_CONJUNCTIONS: ReadonlySet<string> = new Set(
+  AROUSAL_CONSTANTS.clause.conjunctions as readonly string[]
+);
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);
 
-const countExclamationMarks = (text: string): number =>
-  (text.match(/!/g) ?? []).length;
-
-const detectMixedPunctuation = (text: string): boolean =>
-  /(\?!|!\?)/.test(text);
-
-const calculateCapsRatio = (text: string): number => {
-  const letters = text.match(/[A-Za-z]/g) ?? [];
-  if (letters.length === 0) {
-    return 0;
-  }
-  const upper = letters.filter((char) => char === char.toUpperCase()).length;
-  return upper / letters.length;
-};
-
-const HIGH_AROUSAL_EMOJI = [
-  "😱",
-  "😨",
-  "😰",
-  "🤯",
-  "🔥",
-  "💥",
-  "⚡",
-  "🎉",
-  "💣",
-  "💫",
-];
-
-const detectHighArousalEmoji = (text: string): number =>
-  HIGH_AROUSAL_EMOJI.reduce((count, emoji) => {
-    const matches = text.split(emoji).length - 1;
-    return count + matches;
-  }, 0);
-
-const detectElongation = (text: string): boolean => {
-  const minRepeat = AROUSAL_CONSTANTS.REPETITION.ELONGATION_MIN_REPEAT;
-  const elongationPattern = new RegExp(`(.)\\1{${minRepeat},}`, "i");
-  return elongationPattern.test(text);
-};
-
-const buildWindows = (text: string): string[] => {
-  const { WINDOW_SIZE, OVERLAP } = AROUSAL_CONSTANTS.WINDOWING;
-  if (text.length <= WINDOW_SIZE) {
-    return [text];
-  }
-  const windows: string[] = [];
-  const step = WINDOW_SIZE - OVERLAP;
-  for (let start = 0; start < text.length; start += step) {
-    const window = text.slice(start, start + WINDOW_SIZE);
-    windows.push(window);
-    if (start + WINDOW_SIZE >= text.length) {
-      break;
-    }
-  }
-  return windows;
-};
+type ArousalSources =
+  | "sentence_length_variance"
+  | "rare_word_usage"
+  | "question_density"
+  | "imperative_presence"
+  | "clause_stacking";
 
 export type ArousalAnalysis = {
   arousal: number;
   confidence: number;
-  flags: string[];
+  sources: ArousalSources[];
 };
 
-type ArousalWindowAnalysis = ArousalAnalysis & {
-  signalCount: number;
+const tokenize = (text: string): string[] =>
+  (text.match(TOKEN_REGEX) ?? []).map((token) => token.toLowerCase());
+
+const countRareTokens = (tokens: string[]): number => {
+  return tokens.reduce<number>((count, token) => {
+    if (
+      token.length < AROUSAL_CONSTANTS.thresholds.rareTokenMinLength ||
+      COMMON_TOKENS.has(token)
+    ) {
+      return count;
+    }
+    return count + ONE;
+  }, Number(ZERO));
 };
 
-const analyzeWindow = (text: string): ArousalWindowAnalysis => {
-  const flags: string[] = [];
-  const counts = {
-    exclamations: countExclamationMarks(text),
-    mixedPunctuation: detectMixedPunctuation(text),
-    capsRatio: calculateCapsRatio(text),
-    emojiCount: detectHighArousalEmoji(text),
-    elongation: detectElongation(text),
-  };
-
-  let arousal: number = AROUSAL_CONSTANTS.BASELINE.NEUTRAL_FLOOR;
-  let confidence: number = AROUSAL_CONSTANTS.CONFIDENCE.BASE;
-
-  const exclamationContribution = Math.min(
-    counts.exclamations * AROUSAL_CONSTANTS.PUNCTUATION.EXCLAMATION_INCREMENT,
-    AROUSAL_CONSTANTS.PUNCTUATION.EXCLAMATION_MAX
-  );
-  arousal += exclamationContribution;
-
-  if (counts.mixedPunctuation) {
-    arousal += AROUSAL_CONSTANTS.PUNCTUATION.MIXED_PUNCTUATION_INCREMENT;
+const splitSentences = (text: string): string[] => {
+  const analyzer = new SentenceBoundaryAnalyzer();
+  const { boundaries, normalizedText } = analyzer.analyze(text);
+  if (boundaries.length === 0) {
+    return [normalizedText];
   }
 
-  const capsContribution = Math.min(
-    counts.capsRatio * AROUSAL_CONSTANTS.CAPITALIZATION.CAPS_RATIO_MULTIPLIER,
-    AROUSAL_CONSTANTS.CAPITALIZATION.MAX_CAPS_CONTRIBUTION
-  );
-  arousal += capsContribution;
-
-  const emojiContribution = Math.min(
-    counts.emojiCount * AROUSAL_CONSTANTS.EMOJI.HIGH_AROUSAL_INCREMENT,
-    AROUSAL_CONSTANTS.EMOJI.MAX_EMOJI_CONTRIBUTION
-  );
-  arousal += emojiContribution;
-
-  const signalCount =
-    (exclamationContribution > 0 ? 1 : 0) +
-    (counts.mixedPunctuation ? 1 : 0) +
-    (capsContribution > 0 ? 1 : 0) +
-    (emojiContribution > 0 ? 1 : 0) +
-    (counts.elongation ? 1 : 0);
-
-  if (counts.elongation) {
-    arousal *= AROUSAL_CONSTANTS.REPETITION.ELONGATION_MULTIPLIER;
-    confidence -= AROUSAL_CONSTANTS.CONFIDENCE.LOW_EVIDENCE_PENALTY;
+  const sentences: string[] = [];
+  let start: number = ZERO;
+  boundaries.forEach((boundary) => {
+    const end = boundary.boundaryIndex + ONE;
+    sentences.push(normalizedText.slice(start, end));
+    start = end;
+  });
+  if (start < normalizedText.length) {
+    sentences.push(normalizedText.slice(start));
   }
-
-  if (signalCount <= AROUSAL_CONSTANTS.EVIDENCE.MIN_SIGNAL_COUNT) {
-    flags.push("low_evidence");
-    confidence -= AROUSAL_CONSTANTS.CONFIDENCE.LOW_EVIDENCE_PENALTY;
-  }
-
-  if (
-    text.length <= AROUSAL_CONSTANTS.EVIDENCE.SHORT_TEXT_MAX_LENGTH &&
-    counts.exclamations >= AROUSAL_CONSTANTS.PUNCTUATION.HIGH_PUNCTUATION_THRESHOLD
-  ) {
-    flags.push("low_evidence");
-    confidence -= AROUSAL_CONSTANTS.CONFIDENCE.LOW_EVIDENCE_PENALTY;
-  }
-
-  const strongSignals =
-    (exclamationContribution >=
-      AROUSAL_CONSTANTS.EVIDENCE.STRONG_SIGNAL_THRESHOLD
-      ? 1
-      : 0) +
-    (capsContribution >= AROUSAL_CONSTANTS.EVIDENCE.STRONG_SIGNAL_THRESHOLD
-      ? 1
-      : 0) +
-    (emojiContribution >= AROUSAL_CONSTANTS.EVIDENCE.STRONG_SIGNAL_THRESHOLD
-      ? 1
-      : 0);
-
-  if (strongSignals >= 2) {
-    flags.push("conflicting_activation");
-    confidence -= AROUSAL_CONSTANTS.CONFIDENCE.CONFLICT_PENALTY;
-  }
-
-  if (
-    counts.mixedPunctuation ||
-    (counts.exclamations >=
-      AROUSAL_CONSTANTS.PUNCTUATION.HIGH_PUNCTUATION_THRESHOLD &&
-      capsContribution > 0)
-  ) {
-    flags.push("potential_sarcasm");
-    confidence -= AROUSAL_CONSTANTS.CONFIDENCE.SARCASTIC_PENALTY;
-  }
-
-  arousal = clamp(
-    arousal,
-    AROUSAL_CONSTANTS.SCALE.MIN,
-    AROUSAL_CONSTANTS.SCALE.MAX
-  );
-  confidence = clamp(
-    confidence,
-    AROUSAL_CONSTANTS.CONFIDENCE.MIN,
-    AROUSAL_CONSTANTS.CONFIDENCE.MAX
-  );
-
-  return { arousal, confidence, flags, signalCount };
+  return sentences.filter((sentence) => sentence.trim().length > ZERO);
 };
+
+const sentenceLengthVariance = (counts: number[]): number => {
+  if (counts.length <= ONE) {
+    return ZERO;
+  }
+  const mean =
+    counts.reduce<number>((sum, value) => sum + value, Number(ZERO)) /
+    counts.length;
+  const variance =
+    counts.reduce<number>((sum, value) => {
+      const diff = value - mean;
+      return sum + diff * diff;
+    }, Number(ZERO)) / counts.length;
+  return variance;
+};
+
+const normalizedRatio = (numerator: number, denominator: number): number =>
+  denominator > ZERO ? numerator / denominator : ZERO;
+
+const isQuestionSentence = (tokens: string[]): boolean => {
+  const first = tokens[ZERO];
+  if (!first) return false;
+  return QUESTION_STARTERS.has(first);
+};
+
+const isImperativeSentence = (tokens: string[]): boolean => {
+  const first = tokens[ZERO];
+  if (!first) return false;
+  return IMPERATIVE_VERBS.has(first);
+};
+
+const countClauses = (tokens: string[]): number =>
+  tokens.reduce<number>((count, token) => {
+    if (CLAUSE_CONJUNCTIONS.has(token)) {
+      return count + ONE;
+    }
+    return count;
+  }, Number(ZERO));
+
+const computeSignalScore = (
+  value: number,
+  saturation: number
+): number => Math.min(value / saturation, AROUSAL_CONSTANTS.bounds.max);
 
 export class ArousalAnalyzer {
   analyze(text: string): ArousalAnalysis {
-    const windows = buildWindows(text);
-    const analyses = windows.map((window) => analyzeWindow(window));
-    const signalWindows = analyses.filter(
-      (analysis) => analysis.signalCount > 0
+    const sentences = splitSentences(text);
+    const sentenceTokens = sentences.map((sentence) => tokenize(sentence));
+    const sentenceLengths = sentenceTokens.map((tokens) => tokens.length);
+    const totalTokens = sentenceLengths.reduce<number>(
+      (sum, value) => sum + value,
+      Number(ZERO)
     );
-    const effectiveWindows =
-      signalWindows.length > 0 ? signalWindows : analyses;
-
-    const meanArousal =
-      effectiveWindows.reduce((sum, result) => sum + result.arousal, 0) /
-      effectiveWindows.length;
-    const meanConfidence =
-      effectiveWindows.reduce((sum, result) => sum + result.confidence, 0) /
-      effectiveWindows.length;
 
     const variance =
-      effectiveWindows.reduce((sum, result) => {
-        const diff = result.arousal - meanArousal;
-        return sum + diff * diff;
-      }, 0) / effectiveWindows.length;
-
-    let confidence = meanConfidence;
-    const flags = Array.from(
-      new Set(analyses.flatMap((result) => result.flags))
+      totalTokens >= AROUSAL_CONSTANTS.thresholds.minTokensForVariance
+        ? sentenceLengthVariance(sentenceLengths)
+        : ZERO;
+    const varianceScore = computeSignalScore(
+      variance,
+      AROUSAL_CONSTANTS.saturation.sentenceLengthVariance
     );
 
-    if (variance > AROUSAL_CONSTANTS.WINDOWING.VARIANCE_THRESHOLD) {
-      flags.push("conflicting_activation");
-      confidence -= AROUSAL_CONSTANTS.CONFIDENCE.VARIANCE_PENALTY;
+    const flattenedTokens = sentenceTokens.flat();
+    const rareCount = countRareTokens(flattenedTokens);
+    const rareRatio = normalizedRatio(rareCount, totalTokens);
+    const rareScore = computeSignalScore(
+      rareRatio,
+      AROUSAL_CONSTANTS.saturation.rareWordRatio
+    );
+
+    const questionCount = sentenceTokens.reduce<number>((count, tokens) => {
+      if (isQuestionSentence(tokens)) {
+        return count + ONE;
+      }
+      return count;
+    }, Number(ZERO));
+    const questionDensity = normalizedRatio(questionCount, sentences.length);
+    const questionScore = computeSignalScore(
+      questionDensity,
+      AROUSAL_CONSTANTS.saturation.questionDensity
+    );
+
+    const imperativeCount = sentenceTokens.reduce<number>((count, tokens) => {
+      if (isImperativeSentence(tokens)) {
+        return count + ONE;
+      }
+      return count;
+    }, Number(ZERO));
+    const imperativeDensity = normalizedRatio(imperativeCount, sentences.length);
+    const imperativeScore = computeSignalScore(
+      imperativeDensity,
+      AROUSAL_CONSTANTS.saturation.imperativeDensity
+    );
+
+    const clauseCount = sentenceTokens.reduce<number>(
+      (count, tokens) => count + countClauses(tokens),
+      Number(ZERO)
+    );
+    const clauseRatio = normalizedRatio(clauseCount, totalTokens);
+    const clauseScore = computeSignalScore(
+      clauseRatio,
+      AROUSAL_CONSTANTS.saturation.clauseStackingRatio
+    );
+
+    const sources: ArousalSources[] = [];
+    if (varianceScore > ZERO) sources.push("sentence_length_variance");
+    if (rareScore > ZERO) sources.push("rare_word_usage");
+    if (questionScore > ZERO) sources.push("question_density");
+    if (imperativeScore > ZERO) sources.push("imperative_presence");
+    if (clauseScore > ZERO) sources.push("clause_stacking");
+
+    const arousalRaw =
+      AROUSAL_CONSTANTS.weights.sentenceLengthVariance * varianceScore +
+      AROUSAL_CONSTANTS.weights.rareWordUsage * rareScore +
+      AROUSAL_CONSTANTS.weights.questionDensity * questionScore +
+      AROUSAL_CONSTANTS.weights.imperativePresence * imperativeScore +
+      AROUSAL_CONSTANTS.weights.clauseStacking * clauseScore;
+
+    const arousal = clamp(
+      arousalRaw,
+      AROUSAL_CONSTANTS.bounds.min,
+      AROUSAL_CONSTANTS.bounds.max
+    );
+
+    let confidence = AROUSAL_CONSTANTS.confidence.base;
+    if (sources.length < AROUSAL_CONSTANTS.thresholds.minSignalCount) {
+      confidence -= AROUSAL_CONSTANTS.confidence.lowEvidencePenalty;
     }
 
     return {
-      arousal: clamp(
-        meanArousal,
-        AROUSAL_CONSTANTS.SCALE.MIN,
-        AROUSAL_CONSTANTS.SCALE.MAX
-      ),
+      arousal,
       confidence: clamp(
         confidence,
-        AROUSAL_CONSTANTS.CONFIDENCE.MIN,
-        AROUSAL_CONSTANTS.CONFIDENCE.MAX
+        AROUSAL_CONSTANTS.confidence.min,
+        AROUSAL_CONSTANTS.confidence.max
       ),
-      flags,
+      sources,
     };
   }
 }

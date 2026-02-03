@@ -2,6 +2,7 @@ import { ArousalAnalyzer } from "./ArousalAnalyzer";
 import { MASTER_CONSTANTS } from "../../config/master.constants";
 
 const AROUSAL = MASTER_CONSTANTS.arousalCalibrationConstants;
+const { zero: ZERO, one: ONE } = AROUSAL.numbers;
 
 const analyzer = new ArousalAnalyzer();
 
@@ -10,51 +11,76 @@ const expectInRange = (value: number, min: number, max: number) => {
   expect(value).toBeLessThanOrEqual(max);
 };
 
-describe("ArousalAnalyzer V1", () => {
-  test("neutral baseline stays within expected floor range", () => {
-    const result = analyzer.analyze("The chair is blue.");
-    expectInRange(result.arousal, AROUSAL.SCALE.MIN, AROUSAL.SCALE.MIN + 0.1);
+const expectNoEmotionalLeakage = (sources: string[]) => {
+  const forbidden = [
+    "emotion",
+    "sentiment",
+    "valence",
+    "arousal",
+    "sarcasm",
+    "intensity",
+    "affect",
+  ];
+  const haystack = sources.join("|").toLowerCase();
+  forbidden.forEach((token) => {
+    expect(haystack).not.toContain(token);
   });
+};
 
-  test("orthogonality: arousal ignores valence direction", () => {
-    const love = analyzer.analyze("I LOVE THIS!!!");
-    const hate = analyzer.analyze("I HATE THIS!!!");
-    expect(Math.abs(love.arousal - hate.arousal)).toBeLessThan(0.1);
-  });
-
-  test("punctuation increases arousal without polarity", () => {
-    const calm = analyzer.analyze("Okay.");
-    const excited = analyzer.analyze("Okay!!!");
-    expect(excited.arousal).toBeGreaterThan(calm.arousal);
-  });
-
-  test("caps without sentiment increases arousal modestly", () => {
-    const result = analyzer.analyze("THIS IS IMPORTANT");
-    expect(result.arousal).toBeGreaterThan(AROUSAL.SCALE.MIN);
-  });
-
-  test("emoji activation increases arousal for both polarities", () => {
-    const positive = analyzer.analyze("Great 🎉");
-    const negative = analyzer.analyze("Awful 😱");
-    expect(positive.arousal).toBeGreaterThan(AROUSAL.SCALE.MIN);
-    expect(negative.arousal).toBeGreaterThan(AROUSAL.SCALE.MIN);
-  });
-
-  test("sarcasm cue lowers confidence under high arousal", () => {
-    const result = analyzer.analyze("Oh BRILLIANT idea!!!");
-    expect(result.arousal).toBeGreaterThan(AROUSAL.SCALE.MIN);
-    expect(result.confidence).toBeLessThan(AROUSAL.CONFIDENCE.BASE);
-    expect(result.flags).toContain("potential_sarcasm");
-  });
-
-  test("long text windowing normalizes clustered emphasis", () => {
-    const clustered = analyzer.analyze(
-      new Array(3).fill("WOW!!!").join(" ")
+describe("ArousalAnalyzer V1 (structural load only)", () => {
+  test("sentence length variance raises arousal", () => {
+    const result = analyzer.analyze(
+      "the the the. the the the the the the the the the the the"
     );
-    const distributed = analyzer.analyze(
-      new Array(3).fill("WOW!!!").join(" ") + " " +
-        new Array(100).fill("note").join(" ")
+    expect(result.sources).toContain("sentence_length_variance");
+    expectInRange(result.arousal, AROUSAL.bounds.min, AROUSAL.bounds.max);
+    expectNoEmotionalLeakage(result.sources);
+  });
+
+  test("rare word usage raises arousal", () => {
+    const result = analyzer.analyze("quorvex quorvex quorvex");
+    expect(result.sources).toContain("rare_word_usage");
+    expectInRange(result.arousal, AROUSAL.bounds.min, AROUSAL.bounds.max);
+  });
+
+  test("question density uses interrogative structures only", () => {
+    const result = analyzer.analyze("What is this");
+    expect(result.sources).toContain("question_density");
+  });
+
+  test("imperative presence is detected structurally", () => {
+    const result = analyzer.analyze("Do this now");
+    expect(result.sources).toContain("imperative_presence");
+  });
+
+  test("clause stacking raises arousal", () => {
+    const result = analyzer.analyze("this and that and those");
+    expect(result.sources).toContain("clause_stacking");
+  });
+
+  test("punctuation does not change arousal", () => {
+    const base = analyzer.analyze("do this");
+    const punct = analyzer.analyze("do this!!!");
+    expect(punct.arousal).toBe(base.arousal);
+  });
+
+  test("determinism (same input → same output)", () => {
+    const a = analyzer.analyze("do this now");
+    const b = analyzer.analyze("do this now");
+    expect(a.arousal).toBe(b.arousal);
+    expect(a.confidence).toBe(b.confidence);
+  });
+
+  test("confidence stays within bounds", () => {
+    const result = analyzer.analyze("do this now");
+    expectInRange(
+      result.confidence,
+      AROUSAL.confidence.min,
+      AROUSAL.confidence.max
     );
-    expect(Math.abs(clustered.arousal - distributed.arousal)).toBeLessThan(0.2);
+    const maxSignals =
+      Object.keys(AROUSAL.weights).length;
+    expect(result.sources.length).toBeGreaterThanOrEqual(ZERO);
+    expect(result.sources.length).toBeLessThanOrEqual(maxSignals);
   });
 });
