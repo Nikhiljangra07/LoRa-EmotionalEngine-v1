@@ -1,4 +1,5 @@
 import { EIVScorer } from '../scorers/EIVScorer';
+import { getEIVTier } from '../scorers/eivTiers';
 import { ETVEngine } from './ETVEngine';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
@@ -102,7 +103,7 @@ export class EngineOrchestrator {
 
       eiv: {
         value: eivResult.value,
-        tier: this.mapEIVToTier(eivResult.value),
+        tier: getEIVTier(eivResult.value),
       },
 
       emotionalState: {
@@ -199,33 +200,6 @@ export class EngineOrchestrator {
     this.messageCount = 0;
 
     return { newETV };
-  }
-
-  // ---------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------
-  private mapEIVToTier(
-    value: number
-  ): 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME' {
-    if (
-      value <
-      MASTER_CONSTANTS.stateClassification.eivTier.lowMaxExclusive
-    ) {
-      return 'LOW';
-    }
-    if (
-      value <
-      MASTER_CONSTANTS.stateClassification.eivTier.mediumMaxExclusive
-    ) {
-      return 'MEDIUM';
-    }
-    if (
-      value <
-      MASTER_CONSTANTS.stateClassification.eivTier.highMaxExclusive
-    ) {
-      return 'HIGH';
-    }
-    return 'EXTREME';
   }
 
   // ---------------------------------------------------
