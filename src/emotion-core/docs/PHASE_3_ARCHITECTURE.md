@@ -1,43 +1,47 @@
+# LoRa Emotion Core — Phase-3 Architecture Lock
+
 This document is normative. Code must conform to it.
 
 ## Scope
-- Phase-3 covers Layer-1 signal extraction, Layer-2 composition and semantics, and the EngineOrchestrator boundary.
-- LLMs are non-authoritative and do not define system truth or outcomes.
+- Applies to LoRa v1.x.
+- Defines runtime behavior, system contracts, and test-enforced invariants.
+- Future v2 paths are explicitly out of scope and listed only as deferred concepts.
 
-## Core Principles (Design Law)
-- Signal purity.
-- Determinism.
-- Single Source of Truth via `MASTER_CONSTANTS`.
-- No interpretive leakage in Layer-1.
-- Crash-early invariants over silent fallback.
+## Layer-1 Definition
+- Pure signal extraction only.
+- No interpretation.
+- No mutation.
+- Deterministic for identical inputs.
 
-## Layer Responsibilities
-- Layer-1: Signal extraction only.
-- Layer-2: Composition and semantics only.
-- Orchestrator: Routing, degradation, and logging only.
+## EIV Definition
+- EIV = f(ES gain × base(|valence|, arousal)).
+- Valence sign does not affect magnitude.
+- ES cannot fabricate intensity.
+- Direct component aggregation is explicitly disallowed in v1.
 
-## Invariants (MUST reference tests)
-- `EIVScorer.invariants.test.ts`: Ensures EIV stays within [0,1], rejects invalid components, and enforces tiering via `getEIVTier`; prevents out-of-bounds math and tier drift.
-- `InputProcessor.invariants.test.ts`: Ensures analyzer outputs are immutable and constants are centralized; prevents mutation and hardcoded configuration.
-- `AmbiguityAnalyzer.invariants.test.ts`: Ensures Layer-1 ambiguity stays surface-marker only and excludes intent or emotion labels; prevents interpretive leakage.
-- `EngineOrchestrator.invariants.test.ts`: Ensures deterministic outcomes, safe session termination, and bounded ETV; prevents nondeterminism and unsafe session handling.
+## Invariants As Law
+- Bounds, determinism, Single Source of Truth, and Layer-1 purity are enforced.
+- `EIVScorer.invariants.test.ts`: bounds, invalid component rejection, tier SSoT.
+- `InputProcessor.invariants.test.ts`: immutability and centralized constants.
+- `AmbiguityAnalyzer.invariants.test.ts`: Layer-1 purity (no intent/emotion leakage).
+- `EngineOrchestrator.invariants.test.ts`: deterministic execution and safe session end.
+- `EngineOrchestrator.llm.invariants.test.ts`: LLM isolation from emotional outcomes and bounded retries.
 
-## Degradation Contract
-- Degradation is confidence-based and triggers when any Layer-1 confidence falls below the configured threshold in `MASTER_CONSTANTS.layer1.degradation.confidenceThreshold`.
-- When degradation triggers, analyzer presence is suppressed to a conservative signal state for logging and routing; no new scores or meanings are inferred.
+## Degradation Rules
+- Driven by Layer-1 confidence only.
+- No flat score access allowed.
+- Thresholds are centralized and referenced from `MASTER_CONSTANTS` only.
 
-## What Phase-3 EXPLICITLY EXCLUDES
-- Sarcasm.
-- Intent inference.
-- Relationship modeling.
-- LLM correctness.
+## LLM Boundary
+- LLM is downstream of emotion.
+- LLM failure must not affect emotional state.
+- Fallback is required behavior, not error recovery.
 
-## Audit & Reproducibility
-- Results are reproducible without OpenAI access because core scoring, tiering, and orchestration are deterministic and driven by local constants.
-- The system can be peer-reviewed because boundaries, invariants, and constants are documented and enforced by tests.
+## Explicit Non-Goals
+- No learning.
+- No feedback loops.
+- No adaptive semantics.
+- No hidden state mutation.
 
-## Phase-4 Runtime Hardening
-- LLM invocation is lazy and only occurs when a response is required.
-- LLM availability is tracked explicitly and is isolated from emotional scoring, EIV tiering, and degradation.
-- Response generation enforces bounded retries, cooldown, and timeout with deterministic fallback.
-- These changes do not alter emotional intelligence or semantic interpretation.
+## Forward Compatibility Note
+- Component aggregation, interpretive intent inference, and adaptive semantics are deferred to v2 experimental paths.
