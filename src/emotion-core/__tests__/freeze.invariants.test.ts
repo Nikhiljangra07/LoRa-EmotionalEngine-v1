@@ -10,10 +10,6 @@ import { DecisionLogger } from "../logging/DecisionLogger";
 import { EngineOrchestrator } from "../engines/EngineOrchestrator";
 import type { EmotionalState } from "../types/analysis.types";
 
-jest.mock("../debug/sessionTrace", () => ({
-  writeSessionTrace: jest.fn(),
-}));
-
 const readSource = (relativePath: string): string =>
   readFileSync(
     path.resolve(__dirname, "..", relativePath),

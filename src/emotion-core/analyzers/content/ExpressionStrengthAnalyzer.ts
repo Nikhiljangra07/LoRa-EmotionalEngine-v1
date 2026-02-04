@@ -1,6 +1,6 @@
 import { ES_CONFIG } from "../../config/es.config";
 import { MASTER_CONSTANTS } from "../../config/master.constants";
-import { computeES, type ESConfig } from "../../scorers/computeES";
+import { computeES, type ESConfig } from "../../math/computeES";
 import type { ExpressionStrengthFeatures } from "../../types/ExpressionStrength";
 
 const ES_CONSTANTS = MASTER_CONSTANTS.expressionStrength;
