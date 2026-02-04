@@ -31,8 +31,20 @@ export class EmotionalStateInterpreter {
   // Arousal = PURELY from EIV
   // -----------------------------
   private static classifyArousal(eiv: number): ArousalLevel {
-    if (eiv >= 0.75) return 'HIGH';
-    if (eiv >= 0.35) return 'MEDIUM';
+    if (
+      eiv >=
+      MASTER_CONSTANTS.stateClassification.arousalFromEiv
+        .highMinInclusive
+    ) {
+      return 'HIGH';
+    }
+    if (
+      eiv >=
+      MASTER_CONSTANTS.stateClassification.arousalFromEiv
+        .mediumMinInclusive
+    ) {
+      return 'MEDIUM';
+    }
     return 'LOW';
   }
 

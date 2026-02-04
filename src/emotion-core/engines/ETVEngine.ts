@@ -1,13 +1,17 @@
 // src/emotion-core/engines/ETVEngine.ts
 
+import { MASTER_CONSTANTS } from "../config/master.constants";
+
 export class ETVEngine {
   static updateETV(
     currentETV: number,
     sessionEIV: number,
     hasViolation: boolean
   ): number {
-    const BASE_RECOVERY_RATE = 0.015; // conservative
-    const VIOLATION_PENALTY = 0.08;
+    const BASE_RECOVERY_RATE =
+      MASTER_CONSTANTS.etvRecovery.baseRate; // conservative
+    const VIOLATION_PENALTY =
+      MASTER_CONSTANTS.penalties.etvViolation;
 
     let newETV = currentETV;
 
@@ -21,11 +25,19 @@ export class ETVEngine {
     // -----------------------------
     // Recovery logic (with bias)
     // -----------------------------
-    if (!hasViolation && sessionEIV >= 0.55) {
+    if (
+      !hasViolation &&
+      sessionEIV >=
+        MASTER_CONSTANTS.etvRecovery.minSessionEivForRecovery
+    ) {
       const recoveryBias =
-        sessionEIV >= 0.75 ? 1.25 :
-        sessionEIV >= 0.65 ? 1.15 :
-        1.1;
+        sessionEIV >=
+        MASTER_CONSTANTS.etvRecovery.bias.highMinInclusive
+          ? MASTER_CONSTANTS.etvRecovery.bias.high
+          : sessionEIV >=
+            MASTER_CONSTANTS.etvRecovery.bias.midMinInclusive
+          ? MASTER_CONSTANTS.etvRecovery.bias.mid
+          : MASTER_CONSTANTS.etvRecovery.bias.low;
 
       const recoveryAmount =
         BASE_RECOVERY_RATE * sessionEIV * recoveryBias;
@@ -36,9 +48,14 @@ export class ETVEngine {
     // -----------------------------
     // Clamp (safety rail)
     // -----------------------------
-    newETV = Math.max(0, Math.min(1, newETV));
+    newETV = Math.max(
+      MASTER_CONSTANTS.etvBounds.min,
+      Math.min(MASTER_CONSTANTS.etvBounds.max, newETV)
+    );
 
-    return Number(newETV.toFixed(3));
+    return Number(
+      newETV.toFixed(MASTER_CONSTANTS.etvBounds.roundingDecimals)
+    );
   }
 
   // ----------------------------------
@@ -50,7 +67,8 @@ export class ETVEngine {
   ): number {
     if (currentETV >= targetETV) return 0;
 
-    const avgRecoveryPerSession = 0.02;
+    const avgRecoveryPerSession =
+      MASTER_CONSTANTS.etvRecovery.avgRecoveryPerSession;
     return Math.ceil(
       (targetETV - currentETV) / avgRecoveryPerSession
     );
