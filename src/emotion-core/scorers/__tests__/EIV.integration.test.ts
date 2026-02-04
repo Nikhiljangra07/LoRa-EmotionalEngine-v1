@@ -16,7 +16,7 @@ const makeInputs = (params: {
 }) => ({
   es: { score: params.esScore, confidence: params.esConfidence },
   valence: { score: params.valenceScore, confidence: params.valenceConfidence },
-  arousal: { arousal: params.arousalScore, confidence: params.arousalConfidence },
+  arousal: { score: params.arousalScore, confidence: params.arousalConfidence },
 });
 
 const logEIV = (label: string, result: ReturnType<typeof composeEIV>) => {

@@ -28,14 +28,24 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
    * We ONLY set fields the builder is expected to read; everything else is irrelevant.
    */
   function makeEmotionalState(
-    intensity: 'LOW' | 'MEDIUM' | 'HIGH',
-    tone: 'NEUTRAL' | 'POSITIVE' | 'NEGATIVE'
+    arousal: 'LOW' | 'MEDIUM' | 'HIGH',
+    valence: 'NEUTRAL' | 'POSITIVE' | 'NEGATIVE'
   ): EmotionalState {
-    return { intensity, tone } as unknown as EmotionalState;
+    return {
+      dominant: 'NEUTRAL',
+      arousal,
+      valence,
+      confidence: 1,
+    };
   }
 
   function makeETVState(value: number): ETVState {
-    return { value } as unknown as ETVState;
+    return {
+      value,
+      sessionEIVs: [],
+      messageCount: 0,
+      lastUpdated: 0,
+    };
   }
 
   /**
@@ -83,7 +93,7 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
 
     expect(prompt).toMatch(/calm/i);
-    expect(prompt).toMatch(/neutral/i);
+    expect(prompt).toMatch(/validate/i);
     expect(prompt).toMatch(/do not escalate/i);
 
     expectNoNumericLeak(prompt);

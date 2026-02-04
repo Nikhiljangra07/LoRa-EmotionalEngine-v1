@@ -1,22 +1,22 @@
 // src/emotion-core/scorers/EIVScorer.ts
 
-import { composeEIV, type EIVInputs } from "./EIVComposer";
+import { composeEIV } from "./EIVComposer";
 import { EIVComponents, EIVResult } from "../types/eiv.types";
 import { getEIVTier } from "./eivTiers";
+import { mapEIVComponentsToInputs } from "./mapEIVComponentsToInputs";
 
 export class EIVScorer {
   static calculate(components: EIVComponents): EIVResult {
-    const inputs = components as unknown as EIVInputs;
+    const inputs = mapEIVComponentsToInputs(components);
     const composition = composeEIV(inputs);
     const tier = getEIVTier(composition.value);
 
     const breakdown = {
       rawComponents: { ...components },
       weightedComponents: {
-        linguistic: 0,
-        emoji: 0,
-        capitalization: 0,
-        punctuation: 0,
+        expressionStrength: 0,
+        valence: 0,
+        arousal: 0,
       },
       dominantSignals: [],
       tier,
