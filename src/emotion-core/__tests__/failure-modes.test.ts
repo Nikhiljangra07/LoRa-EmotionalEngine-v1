@@ -5,6 +5,15 @@ import { EngineOrchestrator } from "../engines/EngineOrchestrator";
 import type { EmotionalState } from "../types/analysis.types";
 
 /**
+ * NOTE:
+ * Failure-mode tests must assert ONLY the public EIVResult contract.
+ * Internal fields (e.g., baseConfidence) are intentionally inaccessible
+ * and must not be tested here.
+ *
+ * This preserves architectural encapsulation.
+ */
+
+/**
 	•	FAILURE-MODE INVARIANTS
 	•	
 	•	This suite asserts that the LoRa v1 Emotion Core:
