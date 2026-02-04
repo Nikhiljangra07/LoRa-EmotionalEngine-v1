@@ -1,29 +1,18 @@
 /**
- * InvariantLogger (Phase-3, Dev-Only)
+ * DEV-ONLY INSTRUMENTATION
+ * -----------------------
+ * This logger is gated by process.env.LORA_DEBUG.
+ * It must never affect production behavior or logic flow.
  *
- * Purpose:
- * - Observability for invariant verification
- * - Zero behavioral impact on runtime
- *
- * Activation:
- * - Enabled ONLY when process.env.LORA_DEBUG === 'true'
- *
- * Guarantees:
- * - Read-only logging
- * - No emotion inference
- * - No scoring influence
- * - Safe to strip from production builds
+ * Required by Phase-3 Opus verification.
  */
-
-const INVARIANT_LOGGING_ENABLED =
-  process.env.LORA_DEBUG === 'true';
 
 export class InvariantLogger {
   static logInvariant(
     name: string,
     payload: Record<string, unknown>
   ): void {
-    if (!INVARIANT_LOGGING_ENABLED) {
+    if (!process.env.LORA_DEBUG) {
       return;
     }
 
