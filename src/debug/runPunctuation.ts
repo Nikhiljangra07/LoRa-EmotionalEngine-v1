@@ -1,5 +1,5 @@
 // src/debug/runPunctuation.ts
-import { PunctuationAnalyzer } from '../emotion-core/analyzers/content/PunctuationAnalyzer.ts';
+import { PunctuationAnalyzer } from '../emotion-core/analyzers/content/PunctuationAnalyzer';
 
 const analyzer = new PunctuationAnalyzer();
 

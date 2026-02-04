@@ -1,5 +1,6 @@
 import { EngineOrchestrator } from './emotion-core/engines/EngineOrchestrator';
 import { InputProcessor } from './emotion-core/processors/InputProcessor';
+import { EmotionalState } from './emotion-core/types/analysis.types';
 
 console.log('\n=== LoRa Emotional Engine V1 — REAL MESSAGE TEST ===\n');
 
@@ -14,7 +15,13 @@ const messages = [
 
 for (const msg of messages) {
   const analyzerOutputs = InputProcessor.process(msg);
-  engine.processMessage(analyzerOutputs);
+  const emotionalState: EmotionalState = {
+    dominant: 'NEUTRAL',
+    arousal: 'LOW',
+    valence: 'NEUTRAL',
+    confidence: 0.5,
+  };
+  engine.processMessage(analyzerOutputs, emotionalState);
 }
 
 const sessionResult = engine.endSession();

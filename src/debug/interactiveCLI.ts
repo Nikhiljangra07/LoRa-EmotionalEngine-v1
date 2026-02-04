@@ -3,22 +3,40 @@ require('dotenv').config({ path: '.env.local' });
 import readline from 'readline';
 import { EngineOrchestrator } from '../emotion-core/engines/EngineOrchestrator';
 import { EmotionalState } from '../emotion-core/types/analysis.types';
+import { AnalyzerOutputs } from '../emotion-core/processors/EIVComponentAssembler';
 
 /* --------------------------------------------------
  * Simple V1 analyzer mapper (INTENTIONAL)
  * This is NOT final NLP — just signal scaffolding
  * -------------------------------------------------- */
-function analyzeInput(text: string) {
+function analyzeInput(text: string): AnalyzerOutputs {
   const hasCaps = text !== text.toLowerCase();
   const hasEmoji = /[\u{1F300}-\u{1F6FF}]/u.test(text);
   const punctuationCount = (text.match(/[!?]/g) || []).length;
   const repetition = /(.)\1{2,}/.test(text);
 
+  const expressionStrength = Math.min(
+    (punctuationCount * 0.15) + (repetition ? 0.2 : 0),
+    1
+  );
+  const arousal = Math.min(
+    (hasCaps ? 0.2 : 0) + (hasEmoji ? 0.2 : 0) + expressionStrength * 0.6,
+    1
+  );
+
   return {
-    linguisticScore: repetition ? 0.4 : 0.2,
-    emojiScore: hasEmoji ? 0.6 : 0,
-    capitalizationScore: hasCaps ? 0.4 : 0,
-    punctuationScore: Math.min(punctuationCount * 0.15, 1),
+    expressionStrength: {
+      score: expressionStrength,
+      confidence: 0.6,
+    },
+    valence: {
+      score: hasEmoji ? 0.2 : 0,
+      confidence: 0.5,
+    },
+    arousal: {
+      score: arousal,
+      confidence: 0.6,
+    },
   };
 }
 
