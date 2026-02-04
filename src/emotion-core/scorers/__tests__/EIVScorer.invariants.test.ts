@@ -1,44 +1,69 @@
+import { buildEIVComponents } from '../../processors/EIVComponentAssembler';
+import type { AnalyzerOutputs } from '../../processors/EIVComponentAssembler';
 import { EIVScorer } from '../EIVScorer';
-import { EIVComponents } from '../../types/eiv.types';
 import { getEIVTier } from '../eivTiers';
 
 describe('EIVScorer — Architectural Invariants', () => {
   test('EIV is always within [0,1]', () => {
-    const samples: EIVComponents[] = [
-      { linguistic: 0, punctuation: 0, capitalization: 0, emoji: 0 },
-      { linguistic: 1, punctuation: 1, capitalization: 1, emoji: 1 },
-      { linguistic: 0.4, punctuation: 0.7, capitalization: 0.2, emoji: 0.1 },
+    const samples: AnalyzerOutputs[] = [
+      {
+        expressionStrength: { score: 0, confidence: 1 },
+        valence: { score: 0, confidence: 1 },
+        arousal: { score: 0, confidence: 1 },
+      },
+      {
+        expressionStrength: { score: 1, confidence: 1 },
+        valence: { score: 1, confidence: 1 },
+        arousal: { score: 1, confidence: 1 },
+      },
+      {
+        expressionStrength: { score: 0.5, confidence: 0.8 },
+        valence: { score: 0.2, confidence: 0.7 },
+        arousal: { score: 0.4, confidence: 0.7 },
+      },
     ];
 
-    samples.forEach(c => {
-      const { value } = EIVScorer.calculate(c);
+    samples.forEach(sample => {
+      const components = buildEIVComponents(sample);
+      const { value } = EIVScorer.calculate(components);
       expect(value).toBeGreaterThanOrEqual(0);
       expect(value).toBeLessThanOrEqual(1);
     });
   });
 
-  test('invalid components throw (NaN / Infinity / out-of-bounds)', () => {
-    const bad: EIVComponents[] = [
-      { linguistic: NaN, punctuation: 0, capitalization: 0, emoji: 0 },
-      { linguistic: Infinity, punctuation: 0, capitalization: 0, emoji: 0 },
-      { linguistic: -0.1, punctuation: 0, capitalization: 0, emoji: 0 },
-      { linguistic: 1.1, punctuation: 0, capitalization: 0, emoji: 0 },
+  test('invalid components throw (NaN / Infinity)', () => {
+    const bad: AnalyzerOutputs[] = [
+      {
+        expressionStrength: { score: NaN, confidence: 1 },
+        valence: { score: 0, confidence: 1 },
+        arousal: { score: 0, confidence: 1 },
+      },
+      {
+        expressionStrength: { score: Infinity, confidence: 1 },
+        valence: { score: 0, confidence: 1 },
+        arousal: { score: 0, confidence: 1 },
+      },
+      {
+        expressionStrength: { score: 0.5, confidence: NaN },
+        valence: { score: 0.2, confidence: 0.7 },
+        arousal: { score: 0.4, confidence: 0.7 },
+      },
     ];
 
-    bad.forEach(c =>
-      expect(() => EIVScorer.calculate(c)).toThrow()
-    );
+    bad.forEach(sample => {
+      const components = buildEIVComponents(sample);
+      expect(() => EIVScorer.calculate(components)).toThrow();
+    });
   });
 
   test('tier comes from getEIVTier only (SSoT)', () => {
-    const c: EIVComponents = {
-      linguistic: 0.5,
-      punctuation: 0.5,
-      capitalization: 0.5,
-      emoji: 0.5,
-    };
+    const components = buildEIVComponents({
+      expressionStrength: { score: 0.5, confidence: 0.8 },
+      valence: { score: 0.2, confidence: 0.7 },
+      arousal: { score: 0.4, confidence: 0.7 },
+    });
 
-    const result = EIVScorer.calculate(c);
+    const result = EIVScorer.calculate(components);
     expect(result.breakdown.tier).toBe(getEIVTier(result.value));
   });
 });
