@@ -22,7 +22,7 @@ export class EngineOrchestrator {
   private messageCount = 0;
 
   // 🔹 LLM boundary (single responsibility)
-  private responder = new OpenAIResponder();
+  private responder?: OpenAIResponder;
 
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV
@@ -69,7 +69,7 @@ export class EngineOrchestrator {
     // 5. Generate LLM response (FAIL-SAFE)
     let llmOutput = '';
     try {
-      llmOutput = await this.responder.generateResponse(prompt);
+      llmOutput = await this.getResponder().generateResponse(prompt);
     } catch (err) {
       llmOutput =
         'I’m here with you. Let’s take this one step at a time.';
@@ -207,5 +207,12 @@ export class EngineOrchestrator {
   // ---------------------------------------------------
   getState() {
     return { ...this.etvState };
+  }
+
+  private getResponder(): OpenAIResponder {
+    if (!this.responder) {
+      this.responder = new OpenAIResponder();
+    }
+    return this.responder;
   }
 }
