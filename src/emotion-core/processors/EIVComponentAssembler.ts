@@ -31,3 +31,7 @@ export class EIVComponentAssembler {
     };
   }
 }
+
+export const buildEIVComponents = (
+  outputs: AnalyzerOutputs
+): EIVComponents => EIVComponentAssembler.assemble(outputs);
