@@ -40,6 +40,14 @@ const computeESGain = (
   return 1 + CONSTANTS.ES_GAIN_MAX_DELTA * scale * esScore * esConfidence;
 };
 
+/**
+ * NOTE (LoRa v1):
+ * EIV is composed from ES + Valence + Arousal:
+ * EIV = base(arousal, |valence|) × ES_gain, with confidence weighting.
+ *
+ * Do NOT replace this with direct aggregation from EIVComponents.
+ * Component-aggregation is a separate experimental path deferred to v2.
+ */
 export const composeEIV = (inputs: EIVInputs) => {
   const { es, valence, arousal } = inputs;
   const { base, baseConf } = confidenceWeightedBase(
