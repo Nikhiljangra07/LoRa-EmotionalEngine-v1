@@ -68,7 +68,19 @@ type NrcLexicon = Record<string, Partial<Record<NRCEmotion, 1>>>;
  */
 import lexicon from '../../resources/nrc/processed/nrc_lexicon.json';
 
-const NRC_LEXICON = lexicon as NrcLexicon;
+// NOTE: 'sarcasm' entries are explicitly excluded.
+// Reason: sarcasm is pragmatic intent inference and forbidden in Layer-1.
+const NRC_LEXICON = Object.fromEntries(
+  Object.entries(lexicon as NrcLexicon).flatMap(([token, entry]) => {
+    if (token.startsWith('_')) return [];
+    if (token === 'sarcasm') return [];
+    if (!entry) return [];
+    const sanitized = Object.fromEntries(
+      Object.entries(entry).filter(([emotion]) => emotion !== 'sarcasm')
+    ) as Partial<Record<NRCEmotion, 1>>;
+    return [[token, sanitized]];
+  })
+) as NrcLexicon;
 
 /**
  * NRC Lexicon Analyzer

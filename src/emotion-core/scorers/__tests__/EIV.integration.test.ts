@@ -296,12 +296,16 @@ describe("EIV integration — Phase 3: Scenario-level golden tests", () => {
     const fineLoud = results.find((r) => r.label === "FINE!!!")!;
     const notBad = results.find((r) => r.label === "Not good, not bad.")!;
     const amazing = results.find((r) => r.label === "This is AMAZING!!!")!;
-    const sarcasm = results.find((r) => r.label === "Oh GREAT idea!!!")!;
+    // NOTE: This test validates surface polarity inversion under high ES,
+    // NOT sarcasm detection. No intent inference is implied.
+    const surfaceInversion = results.find(
+      (r) => r.label === "Oh GREAT idea!!!"
+    )!;
 
     expect(love.value).toBeCloseTo(hate.value, 8);
     expect(fineLoud.value).toBeGreaterThan(fine.value);
     expect(amazing.value).toBeGreaterThan(notBad.value);
-    expect(sarcasm.baseConfidence).toBeLessThanOrEqual(
+    expect(surfaceInversion.baseConfidence).toBeLessThanOrEqual(
       CONSTANTS.CONF.MAX
     );
     console.groupEnd();

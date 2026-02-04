@@ -6,7 +6,24 @@ Ambiguity is a surface-only structural signal. **Ambiguity ≠ emotion.**
 ## Explicit Non-Goals
 - No emotion or sentiment inference
 - No intent or pragmatic inference
-- No sarcasm labeling
+
+### Explicit Exclusion: Sarcasm
+
+Sarcasm is a pragmatic, intent-level phenomenon requiring
+speaker belief modeling and contextual contradiction resolution.
+
+Layer-1 analyzers operate on **observable surface signals only**.
+
+Therefore:
+- Sarcasm is NOT detected
+- Sarcasm is NOT inferred
+- Sarcasm is NOT modeled
+
+Any apparent sarcasm-related behavior in tests refers solely to
+surface-level polarity inversion or expression strength patterns,
+without intent attribution.
+
+This is critical for audit defense.
 
 ## Control Signal Contract
 `confidencePenaltyHint` is a control signal, not metadata.

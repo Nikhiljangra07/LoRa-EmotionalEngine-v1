@@ -335,7 +335,7 @@ User C: ETV = 0.1 (Professional mode)
 - [ ] Collect 500+ human-rated EIV labels
 - [ ] Backward-solve weights via regression
 - [ ] Fine-tune α, violation penalties
-- [ ] Test on edge cases (sarcasm, negation, emoji ambiguity)
+- [ ] Test on edge cases (surface polarity inversion, negation, emoji ambiguity)
 
 ### Phase 5: Public Beta & Iteration (Ongoing)
 - [ ] Deploy to 1,000 users
@@ -364,7 +364,7 @@ Every component has been validated against peer-reviewed research:
 
 | Limitation | Impact | Solution |
 |---|---|---|
-| Sarcasm: "I'm THRILLED 😒" | False high EIV | Add emoji-text contradiction detector |
+| Surface polarity inversion: "I'm THRILLED 😒" | False high EIV | Add emoji-text contradiction detector |
 | Negation: "not angry" | Flipped sign | 2-word lookback for "not", "never", "don't" |
 | Non-English | Feature mismatch | Start English-only; add localization V1.5 |
 | Emoji ambiguity | Misclassification | Future: attention-based context weighting |
