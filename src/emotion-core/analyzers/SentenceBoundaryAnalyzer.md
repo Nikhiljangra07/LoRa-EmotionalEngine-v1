@@ -4,10 +4,28 @@
 Segments text into syntactic sentence units using punctuation and clause boundaries. Does not infer meaning.
 
 ## Explicit Non-Goals
-- No emotion, sentiment, valence, arousal, sarcasm, or affect inference
+- No emotion, sentiment, valence, arousal, or affect inference
 - No intent or meaning inference
 - No discourse-level interpretation
 - No probabilistic or ML-based segmentation
+
+### Explicit Exclusion: Sarcasm
+
+Sarcasm is a pragmatic, intent-level phenomenon requiring
+speaker belief modeling and contextual contradiction resolution.
+
+Layer-1 analyzers operate on **observable surface signals only**.
+
+Therefore:
+- Sarcasm is NOT detected
+- Sarcasm is NOT inferred
+- Sarcasm is NOT modeled
+
+Any apparent sarcasm-related behavior in tests refers solely to
+surface-level polarity inversion or expression strength patterns,
+without intent attribution.
+
+This is critical for audit defense.
 
 ## boundaryConfidence (Routing / Safety Signal)
 `boundaryConfidence` is an ordinal control signal, not a calibrated probability.

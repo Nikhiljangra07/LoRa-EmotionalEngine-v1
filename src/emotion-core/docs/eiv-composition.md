@@ -41,7 +41,7 @@ Gain is bounded and final EIV is clamped:
 - Purpose: protect stability and prevent runaway amplification.
 - Problem solved: extreme surface expressivity causing outliers.
 - Failure mode avoided: saturation from punctuation or style.
-Grounding: emphasis discounting and sarcasm literature highlights unreliability of surface cues without semantic support.
+Grounding: emphasis discounting and pragmatic intent literature highlights unreliability of surface cues without semantic support.
 
 ## Limits and Non-Claims
 - These formulas are engineering aggregators, not physiological measurements.

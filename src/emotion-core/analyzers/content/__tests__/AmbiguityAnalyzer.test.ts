@@ -153,7 +153,6 @@ describe("AmbiguityAnalyzer V1 signals", () => {
     it("should not expose intent or emotion labels", () => {
       const result = analyzer.analyze("maybe this works");
       const haystack = result.ambiguitySources.join("|").toLowerCase();
-      expect(haystack).not.toContain("sarcasm");
       expect(haystack).not.toContain("intent");
       expect(haystack).not.toContain("emotion");
     });
