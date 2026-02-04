@@ -7,6 +7,7 @@ import { mapEIVComponentsToInputs } from "./mapEIVComponentsToInputs";
 
 export class EIVScorer {
   static calculate(components: EIVComponents): EIVResult {
+    // Intentional v1 mapping; components are not composed directly.
     const inputs = mapEIVComponentsToInputs(components);
     const composition = composeEIV(inputs);
     const tier = getEIVTier(composition.value);
