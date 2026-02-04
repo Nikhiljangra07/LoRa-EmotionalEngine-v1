@@ -149,7 +149,9 @@ export class AmbiguityAnalyzer {
 
     const passiveCount = countMatches(normalized, PASSIVE_VOICE_PATTERN);
 
-    const contradictionDetected = positiveCount > 0 && negativeCount > 0;
+    const contradictionDetected =
+      positiveCount > MASTER_CONSTANTS.bounds.zero &&
+      negativeCount > MASTER_CONSTANTS.bounds.zero;
     const polarityNearby = hasNearbyPolarity(
       positiveIndices,
       negativeIndices,
@@ -161,10 +163,24 @@ export class AmbiguityAnalyzer {
       contrastIndices
     );
 
-    if (hedgingCount > 0 || modalCount > 0) sourceSet.add("semantic");
-    if (rhetoricalCount > 0) sourceSet.add("pragmatic");
-    if (contrastCount > 0 || contradictionDetected) sourceSet.add("structural");
-    if (passiveCount > 0) sourceSet.add("narrative");
+    if (
+      hedgingCount > MASTER_CONSTANTS.bounds.zero ||
+      modalCount > MASTER_CONSTANTS.bounds.zero
+    ) {
+      sourceSet.add("semantic");
+    }
+    if (rhetoricalCount > MASTER_CONSTANTS.bounds.zero) {
+      sourceSet.add("pragmatic");
+    }
+    if (
+      contrastCount > MASTER_CONSTANTS.bounds.zero ||
+      contradictionDetected
+    ) {
+      sourceSet.add("structural");
+    }
+    if (passiveCount > MASTER_CONSTANTS.bounds.zero) {
+      sourceSet.add("narrative");
+    }
 
     const normalizeCount = (count: number, saturation: number): number =>
       Math.min(count / saturation, constants.bounds.max);
@@ -198,7 +214,10 @@ export class AmbiguityAnalyzer {
     score =
       constants.baseline.score +
       (score - constants.baseline.score) * constants.scoring.dampening;
-    if (sourceSet.size > 0 && score === constants.baseline.score) {
+    if (
+      sourceSet.size > MASTER_CONSTANTS.bounds.zero &&
+      score === constants.baseline.score
+    ) {
       // Ensure detectable signals stay above baseline after dampening.
       score =
         constants.baseline.score + constants.invariants.minExistenceDelta;

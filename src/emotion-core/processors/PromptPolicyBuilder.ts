@@ -1,6 +1,7 @@
 // src/emotion-core/processors/PromptPolicyBuilder.ts
 
 import { EmotionalState } from './EmotionalStateInterpreter';
+import { MASTER_CONSTANTS } from '../config/master.constants';
 
 export interface PromptPolicy {
   energy: 'LOW' | 'MATCH' | 'HIGH';
@@ -44,8 +45,20 @@ export class PromptPolicyBuilder {
   // Formality from ETV
   // -----------------------------
   private static mapFormality(etv: number) {
-    if (etv < 0.35) return 'PROFESSIONAL';
-    if (etv < 0.65) return 'FRIENDLY';
+    if (
+      etv <
+      MASTER_CONSTANTS.promptPolicy.etvThresholds
+        .professionalMaxExclusive
+    ) {
+      return 'PROFESSIONAL';
+    }
+    if (
+      etv <
+      MASTER_CONSTANTS.promptPolicy.etvThresholds
+        .friendlyMaxExclusive
+    ) {
+      return 'FRIENDLY';
+    }
     return 'CASUAL';
   }
 

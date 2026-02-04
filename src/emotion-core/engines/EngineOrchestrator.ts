@@ -77,10 +77,20 @@ export class EngineOrchestrator {
 
     // 6. Analyzer presence summary (CORRECTED)
     const analyzerSummary = {
-      emojiUsed: (analyzerOutputs.emojiScore ?? 0) > 0,
-      capsUsed: (analyzerOutputs.capitalizationScore ?? 0) > 0,
-      punctuationUsed: (analyzerOutputs.punctuationScore ?? 0) > 0,
-      repetitionDetected: (analyzerOutputs.linguisticScore ?? 0) > 0,
+      emojiUsed:
+        (analyzerOutputs.emojiScore ?? MASTER_CONSTANTS.bounds.zero) >
+        MASTER_CONSTANTS.bounds.zero,
+      capsUsed:
+        (analyzerOutputs.capitalizationScore ??
+          MASTER_CONSTANTS.bounds.zero) >
+        MASTER_CONSTANTS.bounds.zero,
+      punctuationUsed:
+        (analyzerOutputs.punctuationScore ??
+          MASTER_CONSTANTS.bounds.zero) >
+        MASTER_CONSTANTS.bounds.zero,
+      repetitionDetected:
+        (analyzerOutputs.linguisticScore ?? MASTER_CONSTANTS.bounds.zero) >
+        MASTER_CONSTANTS.bounds.zero,
     };
 
     // 7. Message-level decision logging
