@@ -171,8 +171,7 @@ Outputs:
   ambiguityScore: number,        // 0–1
   ambiguitySources: string[],
   contradictionDetected: boolean,
-  tonalInversionPatternDetected: boolean, // surface rhetorical + contrast markers only
-  confidencePenaltyHint: number  // advisory only
+  confidencePenaltyHint: number  // control signal for downstream confidence
 }
 
 

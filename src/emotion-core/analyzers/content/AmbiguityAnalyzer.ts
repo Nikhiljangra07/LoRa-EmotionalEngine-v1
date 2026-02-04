@@ -1,12 +1,5 @@
 import { MASTER_CONSTANTS } from "../../config/master.constants";
-
-export interface AmbiguitySignal {
-  ambiguityScore: number;
-  ambiguitySources: string[];
-  contradictionDetected: boolean;
-  tonalInversionPatternDetected: boolean;
-  confidencePenaltyHint: number;
-}
+import type { AmbiguitySignal } from "../../types/Ambiguity.types";
 
 const HEDGING_PHRASES = [
   /\bkind\s+of\b/g,
@@ -226,16 +219,10 @@ export class AmbiguityAnalyzer {
       constants.penaltyHint.floor
     );
 
-    // Surface-level rhetorical + contrast marker pattern only.
-    // This does NOT infer sarcasm, intent, or emotion.
-    const tonalInversionPatternDetected =
-      rhetoricalCount > 0 && (contrastCount > 0 || contradictionDetected);
-
     return {
       ambiguityScore: score,
       ambiguitySources: Array.from(sourceSet),
       contradictionDetected,
-      tonalInversionPatternDetected,
       confidencePenaltyHint,
     };
   }
