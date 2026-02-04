@@ -3,6 +3,8 @@
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { EIVTier } from '../types/eiv.types';
 
+export type { EIVTier };
+
 /**
  * Tier boundaries are psychologically calibrated:
  * - < minimalMaxExclusive  : negligible emotional activation

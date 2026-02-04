@@ -1,3 +1,5 @@
+import type { EIVTier } from '../scorers/eivTiers';
+
 export interface MessageDecisionLog {
   messageId: string;
   timestamp: number;
@@ -11,7 +13,7 @@ export interface MessageDecisionLog {
 
   eiv: {
     value: number;
-    tier: 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
+    tier: EIVTier;
   };
 
   emotionalState: {
