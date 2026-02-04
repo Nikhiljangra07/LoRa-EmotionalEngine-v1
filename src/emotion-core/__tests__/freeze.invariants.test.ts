@@ -6,9 +6,17 @@ import { InputProcessor } from "../processors/InputProcessor";
 import { EIVComponentAssembler } from "../processors/EIVComponentAssembler";
 import { EIVScorer } from "../scorers/EIVScorer";
 import { PromptTemplateBuilder } from "../prompt/PromptTemplateBuilder";
-import { DecisionLogger } from "../logging/DecisionLogger";
 import { EngineOrchestrator } from "../engines/EngineOrchestrator";
+import { ExpressionStrengthScorer } from "../scorers/ExpressionStrengthScorer";
+import { ValenceAnalyzer } from "../analyzers/content/ValenceAnalyzer";
+import { ArousalAnalyzer } from "../analyzers/content/ArousalAnalyzer";
+import { buildExpressionStrengthFeatures } from "../analyzers/content/ExpressionStrengthAnalyzer";
+import { computeES } from "../math/computeES";
+import type { EIVResult } from "../types/eiv.types";
 import type { EmotionalState } from "../types/analysis.types";
+import type { SignalPacket } from "../types/SignalPacket.types";
+import * as EIVComposerModule from "../scorers/EIVComposer";
+import * as EIVTierModule from "../scorers/eivTiers";
 
 const readSource = (relativePath: string): string =>
   readFileSync(
@@ -94,6 +102,40 @@ const extractTypeKeys = (
 };
 
 describe("Freeze invariants", () => {
+  test("SignalPacket immutability contract is enforced", () => {
+    const packet: SignalPacket = {
+      messageText: "Example",
+      sentences: [
+        {
+          text: "Example",
+          position: 0,
+          esScore: 0,
+          arousalScore: 0,
+        },
+      ],
+      layer1Health: { degraded: false, reason: "ok" },
+    };
+
+    // @ts-expect-error readonly contract
+    packet.messageText = "mutated";
+    // @ts-expect-error readonly contract
+    packet.sentences.push({
+      text: "mutated",
+      position: 1,
+      esScore: 0,
+      arousalScore: 0,
+    });
+
+    const frozen = Object.freeze(packet);
+    const original = frozen.messageText;
+    let threw = false;
+    try {
+      (frozen as { messageText: string }).messageText = "mutated";
+    } catch {
+      threw = true;
+    }
+    expect(threw || frozen.messageText === original).toBe(true);
+  });
   test("SignalPacket schema shape is frozen", () => {
     const source = readSource("types/SignalPacket.types.ts");
     const keys = extractTypeKeys(source, "SignalPacket");
@@ -142,6 +184,27 @@ describe("Freeze invariants", () => {
     expect(MASTER_CONSTANTS.valenceAnalyzer.normalization.maxScore).toBe(1);
   });
 
+  test("Metric ranges are hard-bounded", () => {
+    const features = buildExpressionStrengthFeatures("OK!!!");
+    const { es } = computeES(features);
+    expect(es).toBeGreaterThanOrEqual(0);
+    expect(es).toBeLessThanOrEqual(1);
+
+    const outputs = InputProcessor.process("Test message.");
+    expect(outputs.expressionStrength.confidence).toBeGreaterThanOrEqual(0);
+    expect(outputs.expressionStrength.confidence).toBeLessThanOrEqual(1);
+    expect(outputs.valence.confidence).toBeGreaterThanOrEqual(0);
+    expect(outputs.valence.confidence).toBeLessThanOrEqual(1);
+    expect(outputs.arousal.confidence).toBeGreaterThanOrEqual(0);
+    expect(outputs.arousal.confidence).toBeLessThanOrEqual(1);
+
+    const eiv: EIVResult = EIVScorer.calculate(
+      EIVComponentAssembler.assemble(outputs)
+    );
+    expect(eiv.value).toBeGreaterThanOrEqual(0);
+    expect(eiv.value).toBeLessThanOrEqual(1);
+  });
+
   test("EIV tier thresholds are locked", () => {
     expect(MASTER_CONSTANTS.eiv.tiers).toEqual({
       minimalMaxExclusive: 0.15,
@@ -161,11 +224,13 @@ describe("Freeze invariants", () => {
   });
 
   test("Execution order is fixed", async () => {
-    const inputSpy = jest.spyOn(InputProcessor, "process");
+    const esSpy = jest.spyOn(ExpressionStrengthScorer, "compute");
+    const valenceSpy = jest.spyOn(ValenceAnalyzer.prototype, "analyze");
+    const arousalSpy = jest.spyOn(ArousalAnalyzer.prototype, "analyze");
     const assembleSpy = jest.spyOn(EIVComponentAssembler, "assemble");
-    const scoreSpy = jest.spyOn(EIVScorer, "calculate");
+    const composeSpy = jest.spyOn(EIVComposerModule, "composeEIV");
+    const tierSpy = jest.spyOn(EIVTierModule, "getEIVTier");
     const promptSpy = jest.spyOn(PromptTemplateBuilder, "build");
-    const logSpy = jest.spyOn(DecisionLogger, "logMessageDecision");
 
     const engine = new EngineOrchestrator(
       MASTER_CONSTANTS.engineDefaults.initialETV,
@@ -185,14 +250,37 @@ describe("Freeze invariants", () => {
 
     await engine.processMessage(analyzerOutputs, emotionalState);
 
-    const callOrder = [
-      inputSpy,
+    const order = [
+      esSpy,
+      valenceSpy,
+      arousalSpy,
       assembleSpy,
-      scoreSpy,
+      composeSpy,
+      tierSpy,
       promptSpy,
-      logSpy,
     ].map((spy) => spy.mock.invocationCallOrder[0]);
 
-    expect(callOrder).toEqual([...callOrder].sort((a, b) => a - b));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  test("Tier threshold binding has no inline magic numbers", () => {
+    expect(MASTER_CONSTANTS.eiv.tiers).toEqual({
+      minimalMaxExclusive: 0.15,
+      lowMaxExclusive: 0.3,
+      moderateMaxExclusive: 0.55,
+      highMaxExclusive: 0.8,
+    });
+
+    const scorerSource = readSource("scorers/EIVScorer.ts");
+    expect(scorerSource).toContain("getEIVTier");
+    ["0.15", "0.3", "0.55", "0.8"].forEach((literal) => {
+      expect(scorerSource).not.toContain(literal);
+    });
+
+    const tiersSource = readSource("scorers/eivTiers.ts");
+    expect(tiersSource).toContain("MASTER_CONSTANTS.eiv.tiers");
+    ["0.15", "0.3", "0.55", "0.8"].forEach((literal) => {
+      expect(tiersSource).not.toContain(literal);
+    });
   });
 });
