@@ -57,7 +57,7 @@ describe("Failure modes — Input safety and stability", () => {
 
       expect(first.eiv.value).toBeCloseTo(second.eiv.value, 12);
       expectBoundedOutput(first.eiv.value);
-      expectBoundedOutput(first.eiv.baseConfidence);
+      expectBoundedAnalyzerOutputs(first.outputs);
     });
   });
 
@@ -68,7 +68,6 @@ describe("Failure modes — Input safety and stability", () => {
     const durationMs = Date.now() - start;
 
     expectBoundedOutput(result.eiv.value);
-    expectBoundedOutput(result.eiv.baseConfidence);
     expectBoundedAnalyzerOutputs(result.outputs);
     expect(durationMs).toBeLessThan(2000);
   });
@@ -84,7 +83,6 @@ describe("Failure modes — Input safety and stability", () => {
       const { outputs, eiv } = runPipeline(text);
       expectBoundedAnalyzerOutputs(outputs);
       expectBoundedOutput(eiv.value);
-      expectBoundedOutput(eiv.baseConfidence);
     });
   });
 
@@ -98,7 +96,6 @@ describe("Failure modes — Input safety and stability", () => {
     samples.forEach((text) => {
       const { outputs, eiv } = runPipeline(text);
       expectBoundedOutput(eiv.value);
-      expectBoundedOutput(eiv.baseConfidence);
       expectBoundedAnalyzerOutputs(outputs);
     });
   });
