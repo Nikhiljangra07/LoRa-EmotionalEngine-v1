@@ -8,36 +8,26 @@ import { EIVComponents } from '../types/eiv.types';
  * Normalized analyzer scores (0–1)
  */
 export interface AnalyzerOutputs {
-  linguisticScore?: number;
-  emojiScore?: number;
-  capitalizationScore?: number;
-  punctuationScore?: number;
+  expressionStrength: { score: number; confidence: number };
+  valence: { score: number; confidence: number };
+  arousal: { score: number; confidence: number };
 }
-
-/* ============================================================================
- * Utilities
- * ========================================================================== */
-
-function clamp(value: number, min = 0, max = 1): number {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(Math.max(value, min), max);
-}
-
-function safe(value?: number): number {
-  return Number.isFinite(value) ? value! : 0;
-}
-
-/* ============================================================================
- * Assembler
- * ========================================================================== */
 
 export class EIVComponentAssembler {
   static assemble(outputs: AnalyzerOutputs): EIVComponents {
     return {
-      linguistic: clamp(safe(outputs.linguisticScore)),
-      emoji: clamp(safe(outputs.emojiScore)),
-      capitalization: clamp(safe(outputs.capitalizationScore)),
-      punctuation: clamp(safe(outputs.punctuationScore)),
+      expressionStrength: {
+        score: outputs.expressionStrength.score,
+        confidence: outputs.expressionStrength.confidence,
+      },
+      valence: {
+        score: outputs.valence.score,
+        confidence: outputs.valence.confidence,
+      },
+      arousal: {
+        score: outputs.arousal.score,
+        confidence: outputs.arousal.confidence,
+      },
     };
   }
 }

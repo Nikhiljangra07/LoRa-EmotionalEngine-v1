@@ -3,7 +3,7 @@ import { MASTER_CONSTANTS } from "../config/master.constants";
 export type EIVInputs = {
   es: { score: number; confidence: number };
   valence: { score: number; confidence: number };
-  arousal: { arousal: number; confidence: number };
+  arousal: { score: number; confidence: number };
 };
 
 const CONSTANTS = MASTER_CONSTANTS.eivCompositionConstants;
@@ -43,7 +43,7 @@ const computeESGain = (
 export const composeEIV = (inputs: EIVInputs) => {
   const { es, valence, arousal } = inputs;
   const { base, baseConf } = confidenceWeightedBase(
-    arousal.arousal,
+    arousal.score,
     arousal.confidence,
     Math.abs(valence.score),
     valence.confidence

@@ -1,10 +1,14 @@
 // src/emotion-core/types/eiv.types.ts
 
+export interface EIVComponentSignal {
+  score: number;
+  confidence: number;
+}
+
 export interface EIVComponents {
-  linguistic: number;        // 0–1 (V1: repetition-based)
-  punctuation: number;       // 0–1
-  capitalization: number;    // 0–1
-  emoji: number;             // 0–1
+  expressionStrength: EIVComponentSignal;
+  valence: EIVComponentSignal;
+  arousal: EIVComponentSignal;
 }
 
 export type EIVTier =
@@ -18,10 +22,9 @@ export interface EIVBreakdown {
   rawComponents: EIVComponents;
 
   weightedComponents: {
-    linguistic: number;
-    punctuation: number;
-    capitalization: number;
-    emoji: number;
+    expressionStrength: number;
+    valence: number;
+    arousal: number;
   };
 
   dominantSignals: string[];
