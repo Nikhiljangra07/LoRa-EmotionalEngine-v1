@@ -367,6 +367,10 @@ const AMBIGUITY_ANALYZER_CONSTANTS: AmbiguityAnalyzerConstants = {
   },
 } as const;
 
+const AMBIGUITY_CONSTRAINTS = {
+  threshold: AMBIGUITY_ANALYZER_CONSTANTS.baseline.score,
+} as const;
+
 // SENTENCE BOUNDARY (Sentence Boundary Analyzer)
 const SENTENCE_BOUNDARY_ANALYZER_CONSTANTS: SentenceBoundaryAnalyzerConstants = {
   enableChatHeuristics: true,
@@ -641,6 +645,7 @@ export const MASTER_CONSTANTS = {
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
   ambiguityAnalyzer: AMBIGUITY_ANALYZER_CONSTANTS,
+  ambiguity: AMBIGUITY_CONSTRAINTS,
   sentenceBoundaryAnalyzer: SENTENCE_BOUNDARY_ANALYZER_CONSTANTS,
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,

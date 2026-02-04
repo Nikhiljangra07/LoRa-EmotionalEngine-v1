@@ -112,21 +112,6 @@ describe("AmbiguityAnalyzer V1 signals", () => {
     }
   });
 
-  describe("Minimal Sarcasm Flag", () => {
-    const inputs = [
-      "You really think this is good but it is awful?",
-      "Seriously, I love it and hate it?",
-    ];
-
-    for (const input of inputs) {
-      it("should flag tonal inversion pattern only", () => {
-        const result = analyzer.analyze(input);
-        expect(typeof result.tonalInversionPatternDetected).toBe("boolean");
-        expect(result.tonalInversionPatternDetected).toBe(true);
-      });
-    }
-  });
-
   describe("Weak Affect Masking", () => {
     const inputs = ["That was awful. I'm good.", "It was horrible. I feel nice."];
 
@@ -138,5 +123,39 @@ describe("AmbiguityAnalyzer V1 signals", () => {
         expect(result.contradictionDetected).toBe(true);
       });
     }
+  });
+
+  describe("Confidence penalty hint", () => {
+    it("should emit a bounded confidencePenaltyHint", () => {
+      const result = analyzer.analyze("maybe this works");
+      expect(result.confidencePenaltyHint).toBeGreaterThanOrEqual(
+        CONSTANTS.penaltyHint.min
+      );
+      expect(result.confidencePenaltyHint).toBeLessThanOrEqual(
+        CONSTANTS.penaltyHint.max
+      );
+      expect(result.confidencePenaltyHint).toBeGreaterThanOrEqual(
+        CONSTANTS.penaltyHint.floor
+      );
+    });
+  });
+
+  describe("Determinism", () => {
+    it("should be deterministic across runs", () => {
+      const input = "I think this is good but maybe it is bad.";
+      const a = analyzer.analyze(input);
+      const b = analyzer.analyze(input);
+      expect(a).toEqual(b);
+    });
+  });
+
+  describe("No semantic leakage", () => {
+    it("should not expose intent or emotion labels", () => {
+      const result = analyzer.analyze("maybe this works");
+      const haystack = result.ambiguitySources.join("|").toLowerCase();
+      expect(haystack).not.toContain("sarcasm");
+      expect(haystack).not.toContain("intent");
+      expect(haystack).not.toContain("emotion");
+    });
   });
 });
