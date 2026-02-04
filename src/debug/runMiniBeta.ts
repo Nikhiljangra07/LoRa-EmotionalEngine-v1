@@ -19,10 +19,9 @@ import { AnalyzerOutputs } from '../emotion-core/processors/EIVComponentAssemble
 
 // ---- MOCK ANALYZER OUTPUTS (NORMALIZED 0–1) ----
 const analyzerOutputs: AnalyzerOutputs = {
-  linguisticScore: 0.35,        // placeholder semantic load
-  emojiScore: 0.0,              // no emoji used
-  capitalizationScore: 0.1,     // mild caps
-  punctuationScore: 0.2,        // some punctuation emphasis
+  expressionStrength: { score: 0.35, confidence: 0.6 },
+  valence: { score: -0.2, confidence: 0.6 },
+  arousal: { score: 0.3, confidence: 0.6 },
 };
 
 // ---- MOCK EMOTIONAL STATE ----
