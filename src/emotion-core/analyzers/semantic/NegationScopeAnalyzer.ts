@@ -5,7 +5,7 @@
  * - Hybrid lexical + window approach
  * - Emits negation signals ONLY
  * - No emotion inversion
- * - <1ms latency
+ * - under 1ms latency
  *
  * Research-backed defaults:
  * - Forward window: 5 tokens
@@ -131,7 +131,8 @@ export class NegationScopeAnalyzer {
     }
 
     return {
-      negationDetected: scopes.length > 0,
+      negationDetected:
+        scopes.length > MASTER_CONSTANTS.bounds.zero,
       doubleNegationDetected,
       scopes
     };

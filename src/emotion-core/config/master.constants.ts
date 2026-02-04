@@ -9,7 +9,10 @@ import type { SentenceBoundaryAnalyzerConstants } from "../types/SentenceBoundar
  * V1 frozen: do not change these values without updating tests and documentation.
  */
 
-const MASTER_BOUNDS = {} as const;
+const MASTER_BOUNDS = {
+  zero: 0,
+  one: 1,
+} as const;
 const MASTER_THRESHOLDS = {} as const;
 const MASTER_WEIGHTS = {} as const;
 const MASTER_LIMITS = {} as const;
@@ -77,6 +80,27 @@ const CAPITALIZATION_CONSTANTS = {
     repeatedLetters: 0.75,
     allCapsBoosted: 0.8,
   },
+  eivMath: {
+    maxEiv: 1, // upper bound for capitalization intensity
+    softCapLimit: 4, // full contribution upper bound
+    hardCapLimit: 6, // diminishing returns upper bound
+    diminishingMultiplier: 0.5, // reduced contribution factor
+    densityThreshold: 0.4, // caps density penalty threshold
+    densityPenaltyFactor: 0.85, // confidence multiplier under high density
+    signalCounts: {
+      single: 1, // single signal count
+    },
+    confidenceDefaults: {
+      emptySignals: 1, // confidence when no caps signals
+      singleSignal: 0.55, // single all-caps confidence
+      controlledSignals: 0.75, // controlled repetition confidence
+      overuseSignals: 0.65, // overuse confidence
+    },
+    clamp: {
+      min: 0, // intensity/confidence lower bound
+      max: 1, // intensity/confidence upper bound
+    },
+  },
 } as const;
 
 // PUNCTUATION (Punctuation Analyzer)
@@ -112,10 +136,34 @@ const REPETITION_ANALYZER_CONSTANTS = {
   },
 } as const;
 
+// REPETITION (Math)
+const REPETITION_MATH_CONSTANTS = {
+  maxEiv: 1, // upper bound for repetition intensity
+  maxRepetitionBoost: 0.4, // maximum repetition boost
+  repetitionScale: 0.15, // repetition saturation scale
+  maxEffectiveRepetition: 5, // stylistic saturation cap
+  minBoostCount: 2, // minimum repetitions for boost
+  confidence: {
+    singleMaxInclusive: 1, // single occurrence threshold
+    doubleCount: 2, // double occurrence threshold
+    controlledMaxInclusive: 5, // controlled repetition cap
+    single: 0.5, // single confidence
+    double: 0.75, // double confidence
+    controlled: 0.85, // controlled confidence
+    overuse: 0.7, // overuse confidence
+  },
+  clamp: {
+    min: 0, // lower bound
+    max: 1, // upper bound
+  },
+} as const;
+
 // NRC (NRC Lexicon Analyzer)
 const NRC_LEXICON_ANALYZER_CONSTANTS = {
   thresholds: {
     dominantGapMin: 0.6,
+    minDominanceCandidates: 2,
+    minNonZeroScore: 0,
     confidenceTokenLowMaxExclusive: 10,
     confidenceTokenModerateMaxExclusive: 30,
   },
@@ -630,6 +678,13 @@ const AROUSAL_CALIBRATION_CONSTANTS = {
   },
 } as const;
 
+// LAYER-1 HEALTH (audit: confidence degradation threshold)
+const LAYER1_CONSTANTS = {
+  degradation: {
+    confidenceThreshold: 0.3, // minimum acceptable Layer-1 confidence
+  },
+} as const;
+
 // ENGINE DEFAULTS (audit: centralized initialization)
 const ENGINE_DEFAULTS = {
   initialETV: 0.5, // default session starting point
@@ -649,6 +704,40 @@ const STATE_CLASSIFICATION = {
   relationshipStyle: {
     professionalMaxExclusive: 0.4, // professional upper bound
     friendlyMaxExclusive: 0.6, // friendly upper bound
+  },
+} as const;
+
+// EMOTIONAL STATE INTERPRETATION (audit: arousal classification)
+const EMOTIONAL_STATE_INTERPRETATION = {
+  arousalFromEiv: {
+    highMinInclusive: 0.75, // high arousal lower bound
+    mediumMinInclusive: 0.35, // medium arousal lower bound
+  },
+} as const;
+
+// PROMPT POLICY (audit: formality thresholds)
+const PROMPT_POLICY = {
+  etvThresholds: {
+    professionalMaxExclusive: 0.35, // professional upper bound
+    friendlyMaxExclusive: 0.65, // friendly upper bound
+  },
+} as const;
+
+// PROMPT TEMPLATE (audit: relationship bands)
+const PROMPT_TEMPLATE = {
+  etvBands: {
+    professionalMaxExclusive: 0.4, // professional upper bound
+    friendlyMaxExclusive: 0.6, // friendly upper bound
+  },
+} as const;
+
+// EIV TIERS (audit: tier thresholds)
+const EIV_CONSTANTS = {
+  tiers: {
+    minimalMaxExclusive: 0.15, // minimal upper bound
+    lowMaxExclusive: 0.3, // low upper bound
+    moderateMaxExclusive: 0.55, // moderate upper bound
+    highMaxExclusive: 0.8, // high upper bound
   },
 } as const;
 
@@ -678,6 +767,18 @@ const ETV_BOUNDS = {
   roundingDecimals: 3, // persisted precision
 } as const;
 
+// ETV (audit: recovery + bounds)
+const ETV_CONSTANTS = {
+  recovery: {
+    baseRate: ETV_RECOVERY.baseRate,
+    minSessionEivForRecovery: ETV_RECOVERY.minSessionEivForRecovery,
+    bias: ETV_RECOVERY.bias,
+    avgRecoveryPerSession: ETV_RECOVERY.avgRecoveryPerSession,
+    violationPenalty: PENALTIES.etvViolation,
+  },
+  bounds: ETV_BOUNDS,
+} as const;
+
 export const MASTER_CONSTANTS = {
   bounds: MASTER_BOUNDS,
   thresholds: MASTER_THRESHOLDS,
@@ -689,6 +790,7 @@ export const MASTER_CONSTANTS = {
   punctuationAnalyzer: PUNCTUATION_ANALYZER_CONSTANTS,
   emojiAnalyzer: EMOJI_ANALYZER_CONSTANTS,
   repetitionAnalyzer: REPETITION_ANALYZER_CONSTANTS,
+  repetitionMath: REPETITION_MATH_CONSTANTS,
   nrcLexiconAnalyzer: NRC_LEXICON_ANALYZER_CONSTANTS,
   negationScopeAnalyzer: NEGATION_SCOPE_CONSTANTS,
   valenceAnalyzer: VALENCE_ANALYZER_CONSTANTS,
@@ -698,11 +800,19 @@ export const MASTER_CONSTANTS = {
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
   eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
+  layer1: LAYER1_CONSTANTS,
   engineDefaults: ENGINE_DEFAULTS,
   stateClassification: STATE_CLASSIFICATION,
+  emotionalState: {
+    interpretation: EMOTIONAL_STATE_INTERPRETATION,
+  },
+  promptPolicy: PROMPT_POLICY,
+  promptTemplate: PROMPT_TEMPLATE,
+  eiv: EIV_CONSTANTS,
   etvRecovery: ETV_RECOVERY,
   penalties: PENALTIES,
   etvBounds: ETV_BOUNDS,
+  etv: ETV_CONSTANTS,
 } as const;
 
 export { VALENCE_AMBIGUITY_CONSTRAINTS };

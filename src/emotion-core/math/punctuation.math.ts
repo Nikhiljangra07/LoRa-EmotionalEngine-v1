@@ -5,6 +5,7 @@ import {
   MAX_INTENSITY,
   PUNCTUATION_DIMINISHING_POLICY,
 } from '../config/punctuation.config';
+import { MASTER_CONSTANTS } from '../config/master.constants';
 
 /* ============================================================================
  * Public Constants
@@ -51,11 +52,17 @@ export function calculateIncrementalIntensity(
   baseWeight: number,
   count: number
 ): number {
-  if (count <= 0) return 0;
+  if (count <= MASTER_CONSTANTS.bounds.zero) {
+    return MASTER_CONSTANTS.bounds.zero;
+  }
 
   // Single punctuation = baseline only
-  if (count === 1) {
-    return clamp(baseWeight, 0, MAX_INTENSITY);
+  if (count === MASTER_CONSTANTS.bounds.one) {
+    return clamp(
+      baseWeight,
+      MASTER_CONSTANTS.bounds.zero,
+      MAX_INTENSITY
+    );
   }
 
   const {
@@ -97,7 +104,7 @@ export function calculateIncrementalIntensity(
 
   return clamp(
     baseWeight + boundedContribution,
-    0,
+    MASTER_CONSTANTS.bounds.zero,
     MAX_INTENSITY
   );
 }
@@ -134,7 +141,9 @@ export function calculateConfidence(
   position: 'start' | 'mid' | 'end' = 'mid',
   baseConfidence = 0.7
 ): number {
-  if (count <= 0) return 0;
+  if (count <= MASTER_CONSTANTS.bounds.zero) {
+    return MASTER_CONSTANTS.bounds.zero;
+  }
 
   // Confidence saturates faster than intensity
   const repetitionConfidenceBoost = Math.min(
@@ -145,8 +154,8 @@ export function calculateConfidence(
   return clamp(
     (baseConfidence + repetitionConfidenceBoost) *
       POSITION_CONFIDENCE_MULTIPLIER[position],
-    0,
-    1
+    MASTER_CONSTANTS.bounds.zero,
+    MASTER_CONSTANTS.bounds.one
   );
 }
 
@@ -167,14 +176,14 @@ export interface CategorizedSignal {
 export function aggregateSignals(signals: CategorizedSignal[]) {
   if (signals.length === 0) {
     return {
-      aggregateEIV: 0,
-      aggregateConfidence: 0,
+      aggregateEIV: MASTER_CONSTANTS.bounds.zero,
+      aggregateConfidence: MASTER_CONSTANTS.bounds.zero,
       strategy: 'MAX',
     };
   }
 
-  let dominantEIV = 0;
-  let dominantConfidence = 0;
+  let dominantEIV: number = MASTER_CONSTANTS.bounds.zero;
+  let dominantConfidence: number = MASTER_CONSTANTS.bounds.zero;
 
   for (const signal of signals) {
     if (signal.eiv > dominantEIV) {
@@ -184,8 +193,16 @@ export function aggregateSignals(signals: CategorizedSignal[]) {
   }
 
   return {
-    aggregateEIV: clamp(dominantEIV, 0, MAX_INTENSITY),
-    aggregateConfidence: clamp(dominantConfidence, 0, 1),
+    aggregateEIV: clamp(
+      dominantEIV,
+      MASTER_CONSTANTS.bounds.zero,
+      MAX_INTENSITY
+    ),
+    aggregateConfidence: clamp(
+      dominantConfidence,
+      MASTER_CONSTANTS.bounds.zero,
+      MASTER_CONSTANTS.bounds.one
+    ),
     strategy: 'MAX',
   };
 }

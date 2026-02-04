@@ -17,6 +17,8 @@
  * - Yerkes–Dodson law (arousal saturation)
  * ========================================================================== */
 
+import { MASTER_CONSTANTS } from "../config/master.constants";
+
 export type DiminishingMode =
   | 'linear'
   | 'capped-linear'
@@ -40,7 +42,7 @@ export interface DiminishingConfig {
   /**
    * Controls curvature (meaning depends on mode)
    * - logarithmic: natural log multiplier
-   * - power: exponent (>0, <1 = diminishing)
+   * - power: exponent (greater than 0; below 1 = diminishing)
    */
   decayFactor?: number;
 
@@ -54,14 +56,16 @@ export interface DiminishingConfig {
 /**
  * Compute total contribution under diminishing returns
  *
- * @param count - number of repetitions (>=1)
+ * @param count - number of repetitions (at least 1)
  * @param config - decay configuration
  */
 export function computeDiminishingReturns(
   count: number,
   config: DiminishingConfig
 ): number {
-  if (count <= 0) return 0;
+  if (count <= MASTER_CONSTANTS.bounds.zero) {
+    return MASTER_CONSTANTS.bounds.zero;
+  }
 
   const effectiveCount =
     config.maxEffectiveCount !== undefined
@@ -94,7 +98,7 @@ export function computeDiminishingReturns(
     case 'power': {
       /**
        * Psycholinguistic repetition attenuation:
-       * contribution ≈ a * n^b , where 0 < b < 1
+       * contribution ≈ a * n^b , where b is between 0 and 1
        */
       const b = config.decayFactor ?? 0.7;
       total = config.baseIncrement * Math.pow(effectiveCount, b);
