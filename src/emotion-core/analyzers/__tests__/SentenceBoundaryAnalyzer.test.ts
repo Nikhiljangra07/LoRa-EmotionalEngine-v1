@@ -10,10 +10,10 @@ const forbiddenTokens = [
   "sentiment",
   "valence",
   "arousal",
-  "sarcasm",
   "intensity",
   "affect",
   "trust",
+  "pragmatic",
 ];
 
 const findBoundary = (

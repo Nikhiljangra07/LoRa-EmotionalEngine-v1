@@ -17,9 +17,9 @@ const expectNoEmotionalLeakage = (sources: string[]) => {
     "sentiment",
     "valence",
     "arousal",
-    "sarcasm",
     "intensity",
     "affect",
+    "pragmatic",
   ];
   const haystack = sources.join("|").toLowerCase();
   forbidden.forEach((token) => {

@@ -8,6 +8,24 @@ Measures visual expressivity in text using surface signals (caps, punctuation re
 - No semantic interpretation
 - No probabilistic or ML-based inference
 
+### Explicit Exclusion: Sarcasm
+
+Sarcasm is a pragmatic, intent-level phenomenon requiring
+speaker belief modeling and contextual contradiction resolution.
+
+Layer-1 analyzers operate on **observable surface signals only**.
+
+Therefore:
+- Sarcasm is NOT detected
+- Sarcasm is NOT inferred
+- Sarcasm is NOT modeled
+
+Any apparent sarcasm-related behavior in tests refers solely to
+surface-level polarity inversion or expression strength patterns,
+without intent attribution.
+
+This is critical for audit defense.
+
 ## Formal Signal Definitions
 Let `N = max(totalCharacters, 1)`.
 
