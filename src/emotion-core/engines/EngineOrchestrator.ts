@@ -1,6 +1,7 @@
 import { EIVScorer } from '../scorers/EIVScorer';
 import { ETVEngine } from './ETVEngine';
 import { ETVState } from '../types/etv.types';
+import { MASTER_CONSTANTS } from '../config/master.constants';
 import {
   EIVComponentAssembler,
   AnalyzerOutputs,
@@ -22,7 +23,9 @@ export class EngineOrchestrator {
   // 🔹 LLM boundary (single responsibility)
   private responder = new OpenAIResponder();
 
-  constructor(initialETV: number = 0.5) {
+  constructor(
+    initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV
+  ) {
     this.etvState = {
       value: initialETV,
       sessionEIVs: [],
@@ -99,9 +102,13 @@ export class EngineOrchestrator {
 
       promptProfile: {
         relationshipStyle:
-          this.etvState.value < 0.4
+          this.etvState.value <
+          MASTER_CONSTANTS.stateClassification.relationshipStyle
+            .professionalMaxExclusive
             ? 'PROFESSIONAL'
-            : this.etvState.value < 0.6
+            : this.etvState.value <
+              MASTER_CONSTANTS.stateClassification.relationshipStyle
+                .friendlyMaxExclusive
             ? 'FRIENDLY'
             : 'CASUAL',
 
@@ -190,9 +197,24 @@ export class EngineOrchestrator {
   private mapEIVToTier(
     value: number
   ): 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME' {
-    if (value < 0.25) return 'LOW';
-    if (value < 0.5) return 'MEDIUM';
-    if (value < 0.75) return 'HIGH';
+    if (
+      value <
+      MASTER_CONSTANTS.stateClassification.eivTier.lowMaxExclusive
+    ) {
+      return 'LOW';
+    }
+    if (
+      value <
+      MASTER_CONSTANTS.stateClassification.eivTier.mediumMaxExclusive
+    ) {
+      return 'MEDIUM';
+    }
+    if (
+      value <
+      MASTER_CONSTANTS.stateClassification.eivTier.highMaxExclusive
+    ) {
+      return 'HIGH';
+    }
     return 'EXTREME';
   }
 

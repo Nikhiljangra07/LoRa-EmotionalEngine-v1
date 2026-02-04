@@ -630,6 +630,54 @@ const AROUSAL_CALIBRATION_CONSTANTS = {
   },
 } as const;
 
+// ENGINE DEFAULTS (audit: centralized initialization)
+const ENGINE_DEFAULTS = {
+  initialETV: 0.5, // default session starting point
+} as const;
+
+// STATE CLASSIFICATION (audit: branching thresholds)
+const STATE_CLASSIFICATION = {
+  eivTier: {
+    lowMaxExclusive: 0.25, // low tier upper bound
+    mediumMaxExclusive: 0.5, // medium tier upper bound
+    highMaxExclusive: 0.75, // high tier upper bound
+  },
+  arousalFromEiv: {
+    highMinInclusive: 0.75, // high arousal lower bound
+    mediumMinInclusive: 0.35, // medium arousal lower bound
+  },
+  relationshipStyle: {
+    professionalMaxExclusive: 0.4, // professional upper bound
+    friendlyMaxExclusive: 0.6, // friendly upper bound
+  },
+} as const;
+
+// ETV RECOVERY (audit: recovery calibration)
+const ETV_RECOVERY = {
+  baseRate: 0.015, // conservative baseline recovery rate
+  minSessionEivForRecovery: 0.55, // minimum EIV to trigger recovery
+  bias: {
+    highMinInclusive: 0.75, // high-EIV recovery bias threshold
+    midMinInclusive: 0.65, // mid-EIV recovery bias threshold
+    high: 1.25, // high recovery bias multiplier
+    mid: 1.15, // mid recovery bias multiplier
+    low: 1.1, // low recovery bias multiplier
+  },
+  avgRecoveryPerSession: 0.02, // sessions-to-recover average increment
+} as const;
+
+// PENALTIES (audit: explicit penalty constants)
+const PENALTIES = {
+  etvViolation: 0.08, // violation penalty multiplier
+} as const;
+
+// ETV BOUNDS (audit: clamp and rounding policy)
+const ETV_BOUNDS = {
+  min: 0, // lower clamp
+  max: 1, // upper clamp
+  roundingDecimals: 3, // persisted precision
+} as const;
+
 export const MASTER_CONSTANTS = {
   bounds: MASTER_BOUNDS,
   thresholds: MASTER_THRESHOLDS,
@@ -650,6 +698,11 @@ export const MASTER_CONSTANTS = {
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
   eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
+  engineDefaults: ENGINE_DEFAULTS,
+  stateClassification: STATE_CLASSIFICATION,
+  etvRecovery: ETV_RECOVERY,
+  penalties: PENALTIES,
+  etvBounds: ETV_BOUNDS,
 } as const;
 
 export { VALENCE_AMBIGUITY_CONSTRAINTS };
