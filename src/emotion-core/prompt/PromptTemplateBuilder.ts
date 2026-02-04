@@ -2,6 +2,7 @@
 
 import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
+import { MASTER_CONSTANTS } from '../config/master.constants';
 
 export class PromptTemplateBuilder {
   static build(
@@ -40,11 +41,19 @@ GLOBAL CONSTRAINTS
    * ============================================================
    */
   private static mapETVToRelationshipStyle(etv: number): string {
-    if (etv < 0.4) {
+    if (
+      etv <
+      MASTER_CONSTANTS.promptTemplate.etvBands
+        .professionalMaxExclusive
+    ) {
       return 'Professional — polite, calm, and respectful';
     }
 
-    if (etv < 0.6) {
+    if (
+      etv <
+      MASTER_CONSTANTS.promptTemplate.etvBands
+        .friendlyMaxExclusive
+    ) {
       return 'Friendly — warm, open, and conversational';
     }
 

@@ -9,9 +9,9 @@ export class ETVEngine {
     hasViolation: boolean
   ): number {
     const BASE_RECOVERY_RATE =
-      MASTER_CONSTANTS.etvRecovery.baseRate; // conservative
+      MASTER_CONSTANTS.etv.recovery.baseRate; // conservative
     const VIOLATION_PENALTY =
-      MASTER_CONSTANTS.penalties.etvViolation;
+      MASTER_CONSTANTS.etv.recovery.violationPenalty;
 
     let newETV = currentETV;
 
@@ -28,16 +28,16 @@ export class ETVEngine {
     if (
       !hasViolation &&
       sessionEIV >=
-        MASTER_CONSTANTS.etvRecovery.minSessionEivForRecovery
+        MASTER_CONSTANTS.etv.recovery.minSessionEivForRecovery
     ) {
       const recoveryBias =
         sessionEIV >=
-        MASTER_CONSTANTS.etvRecovery.bias.highMinInclusive
-          ? MASTER_CONSTANTS.etvRecovery.bias.high
+        MASTER_CONSTANTS.etv.recovery.bias.highMinInclusive
+          ? MASTER_CONSTANTS.etv.recovery.bias.high
           : sessionEIV >=
-            MASTER_CONSTANTS.etvRecovery.bias.midMinInclusive
-          ? MASTER_CONSTANTS.etvRecovery.bias.mid
-          : MASTER_CONSTANTS.etvRecovery.bias.low;
+            MASTER_CONSTANTS.etv.recovery.bias.midMinInclusive
+          ? MASTER_CONSTANTS.etv.recovery.bias.mid
+          : MASTER_CONSTANTS.etv.recovery.bias.low;
 
       const recoveryAmount =
         BASE_RECOVERY_RATE * sessionEIV * recoveryBias;
@@ -49,12 +49,12 @@ export class ETVEngine {
     // Clamp (safety rail)
     // -----------------------------
     newETV = Math.max(
-      MASTER_CONSTANTS.etvBounds.min,
-      Math.min(MASTER_CONSTANTS.etvBounds.max, newETV)
+      MASTER_CONSTANTS.etv.bounds.min,
+      Math.min(MASTER_CONSTANTS.etv.bounds.max, newETV)
     );
 
     return Number(
-      newETV.toFixed(MASTER_CONSTANTS.etvBounds.roundingDecimals)
+      newETV.toFixed(MASTER_CONSTANTS.etv.bounds.roundingDecimals)
     );
   }
 
@@ -65,10 +65,12 @@ export class ETVEngine {
     currentETV: number,
     targetETV: number
   ): number {
-    if (currentETV >= targetETV) return 0;
+    if (currentETV >= targetETV) {
+      return MASTER_CONSTANTS.etv.bounds.min;
+    }
 
     const avgRecoveryPerSession =
-      MASTER_CONSTANTS.etvRecovery.avgRecoveryPerSession;
+      MASTER_CONSTANTS.etv.recovery.avgRecoveryPerSession;
     return Math.ceil(
       (targetETV - currentETV) / avgRecoveryPerSession
     );

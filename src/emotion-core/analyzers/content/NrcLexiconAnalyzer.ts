@@ -55,7 +55,7 @@ export interface NrcAnalysisResult {
 
 /**
  * Internal lexicon structure
- * word -> emotion -> 1
+ * word maps to emotion: 1
  */
 type NrcLexicon = Record<string, Partial<Record<NRCEmotion, 1>>>;
 
@@ -171,9 +171,16 @@ export class NrcLexiconAnalyzer {
   } {
     const sorted = Object.entries(distribution)
       .sort((a, b) => b[1] - a[1])
-      .filter(([, v]) => v > 0);
+      .filter(
+        ([, v]) =>
+          v >
+          NRC_CONSTANTS.thresholds.minNonZeroScore
+      );
 
-    if (sorted.length < 2) {
+    if (
+      sorted.length <
+      NRC_CONSTANTS.thresholds.minDominanceCandidates
+    ) {
       return {
         dominantEmotion: sorted[0]?.[0] as NRCEmotion | undefined,
         confidenceGap: NRC_CONSTANTS.normalization.singleEmotionGap,

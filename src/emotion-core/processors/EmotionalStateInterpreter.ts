@@ -33,14 +33,14 @@ export class EmotionalStateInterpreter {
   private static classifyArousal(eiv: number): ArousalLevel {
     if (
       eiv >=
-      MASTER_CONSTANTS.stateClassification.arousalFromEiv
+      MASTER_CONSTANTS.emotionalState.interpretation.arousalFromEiv
         .highMinInclusive
     ) {
       return 'HIGH';
     }
     if (
       eiv >=
-      MASTER_CONSTANTS.stateClassification.arousalFromEiv
+      MASTER_CONSTANTS.emotionalState.interpretation.arousalFromEiv
         .mediumMinInclusive
     ) {
       return 'MEDIUM';
@@ -62,7 +62,8 @@ export class EmotionalStateInterpreter {
       return 'NEUTRAL';
     }
 
-    return components.valence.score >= 0
+    return components.valence.score >=
+      MASTER_CONSTANTS.valenceAnalyzer.bounds.zero
       ? 'POSITIVE'
       : 'NEGATIVE';
   }

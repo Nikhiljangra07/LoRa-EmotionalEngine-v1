@@ -1,5 +1,6 @@
 // src/emotion-core/math/repetition.math.ts
 
+import { MASTER_CONSTANTS } from '../config/master.constants';
 import { AnalyzerSignal } from '../types/analysis.types';
 
 /**
@@ -13,13 +14,15 @@ import { AnalyzerSignal } from '../types/analysis.types';
  * - Deterministic
  */
 
-const MAX_EIV = 1.0;
+const MAX_EIV =
+  MASTER_CONSTANTS.repetitionMath.maxEiv;
 
 /**
  * Maximum boost repetition can contribute.
  * Chosen conservatively to avoid overpowering lexical emotion.
  */
-const MAX_REPETITION_BOOST = 0.4;
+const MAX_REPETITION_BOOST =
+  MASTER_CONSTANTS.repetitionMath.maxRepetitionBoost;
 
 /**
  * Controls how quickly repetition saturates.
@@ -27,13 +30,15 @@ const MAX_REPETITION_BOOST = 0.4;
  * - Strong early gain (2–3 repetitions)
  * - Rapid perceptual plateau
  */
-const REPETITION_SCALE = 0.15;
+const REPETITION_SCALE =
+  MASTER_CONSTANTS.repetitionMath.repetitionScale;
 
 /**
  * Beyond this count, additional repetitions carry
  * stylistic meaning only, not emotional intensity.
  */
-const MAX_EFFECTIVE_REPETITION = 5;
+const MAX_EFFECTIVE_REPETITION =
+  MASTER_CONSTANTS.repetitionMath.maxEffectiveRepetition;
 
 interface RepetitionMathResult {
   intensity: number;
@@ -45,10 +50,16 @@ export function computeRepetitionEIV(
   metadata?: { maxRepetitionCount?: number }
 ): RepetitionMathResult {
   if (!signals || signals.length === 0) {
-    return { intensity: 0, confidence: 1.0 };
+    return {
+      intensity: MASTER_CONSTANTS.repetitionMath.clamp.min,
+      confidence: MASTER_CONSTANTS.repetitionMath.confidence.single,
+    };
   }
 
-  const count = Math.max(1, metadata?.maxRepetitionCount ?? 1);
+  const count = Math.max(
+    MASTER_CONSTANTS.bounds.one,
+    metadata?.maxRepetitionCount ?? MASTER_CONSTANTS.bounds.one
+  );
   const boost = repetitionIntensityBoost(count);
 
   let intensitySum = 0;
@@ -57,7 +68,11 @@ export function computeRepetitionEIV(
   }
 
   return {
-    intensity: clamp(intensitySum, 0, MAX_EIV),
+    intensity: clamp(
+      intensitySum,
+      MASTER_CONSTANTS.repetitionMath.clamp.min,
+      MAX_EIV
+    ),
     confidence: repetitionConfidence(count),
   };
 }
@@ -67,14 +82,20 @@ export function computeRepetitionEIV(
  * ========================================================================== */
 
 export function repetitionIntensityBoost(count: number): number {
-  if (count < 2) return 0;
+  if (count < MASTER_CONSTANTS.repetitionMath.minBoostCount) {
+    return MASTER_CONSTANTS.repetitionMath.clamp.min;
+  }
 
   const effectiveCount = Math.min(count, MAX_EFFECTIVE_REPETITION);
 
   const boost =
     Math.log(1 + effectiveCount) * REPETITION_SCALE;
 
-  return clamp(boost, 0, MAX_REPETITION_BOOST);
+  return clamp(
+    boost,
+    MASTER_CONSTANTS.repetitionMath.clamp.min,
+    MAX_REPETITION_BOOST
+  );
 }
 
 /* ============================================================================
@@ -82,10 +103,21 @@ export function repetitionIntensityBoost(count: number): number {
  * ========================================================================== */
 
 function repetitionConfidence(count: number): number {
-  if (count <= 1) return 0.5;
-  if (count === 2) return 0.75;
-  if (count <= MAX_EFFECTIVE_REPETITION) return 0.85;
-  return 0.7; // excessive repetition reduces interpretive certainty
+  if (
+    count <= MASTER_CONSTANTS.repetitionMath.confidence.singleMaxInclusive
+  ) {
+    return MASTER_CONSTANTS.repetitionMath.confidence.single;
+  }
+  if (count === MASTER_CONSTANTS.repetitionMath.confidence.doubleCount) {
+    return MASTER_CONSTANTS.repetitionMath.confidence.double;
+  }
+  if (
+    count <=
+    MASTER_CONSTANTS.repetitionMath.confidence.controlledMaxInclusive
+  ) {
+    return MASTER_CONSTANTS.repetitionMath.confidence.controlled;
+  }
+  return MASTER_CONSTANTS.repetitionMath.confidence.overuse;
 }
 
 /* ============================================================================

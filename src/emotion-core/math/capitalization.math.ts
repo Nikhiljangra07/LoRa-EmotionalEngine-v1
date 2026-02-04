@@ -1,5 +1,6 @@
 // src/emotion-core/math/capitalization.math.ts
 
+import { MASTER_CONSTANTS } from '../config/master.constants';
 import { AnalyzerSignal } from '../types/analysis.types';
 
 /**
@@ -14,7 +15,8 @@ import { AnalyzerSignal } from '../types/analysis.types';
  * ✔ Psychologically grounded (VADER + prosody literature)
  */
 
-const MAX_EIV = 1.0;
+const MAX_EIV =
+  MASTER_CONSTANTS.capitalization.eivMath.maxEiv;
 
 /**
  * Saturation thresholds
@@ -26,15 +28,19 @@ const MAX_EIV = 1.0;
  * - Reduced contribution (diminishing returns)
  * - Beyond this: ignored
  */
-const SOFT_CAP_LIMIT = 4;
-const HARD_CAP_LIMIT = 6;
+const SOFT_CAP_LIMIT =
+  MASTER_CONSTANTS.capitalization.eivMath.softCapLimit;
+const HARD_CAP_LIMIT =
+  MASTER_CONSTANTS.capitalization.eivMath.hardCapLimit;
 
 /**
  * Density penalty
  * - High caps density reduces confidence (spam / acronym flood)
  */
-const DENSITY_THRESHOLD = 0.4;
-const DENSITY_PENALTY_FACTOR = 0.85;
+const DENSITY_THRESHOLD =
+  MASTER_CONSTANTS.capitalization.eivMath.densityThreshold;
+const DENSITY_PENALTY_FACTOR =
+  MASTER_CONSTANTS.capitalization.eivMath.densityPenaltyFactor;
 
 interface CapitalizationMathResult {
   intensity: number;
@@ -50,7 +56,12 @@ export function computeCapitalizationEIV(
   }
 ): CapitalizationMathResult {
   if (!signals || signals.length === 0) {
-    return { intensity: 0, confidence: 1.0 };
+    return {
+      intensity: MASTER_CONSTANTS.capitalization.eivMath.clamp.min,
+      confidence:
+        MASTER_CONSTANTS.capitalization.eivMath.confidenceDefaults
+          .emptySignals,
+    };
   }
 
   const capsSignals = signals.filter(
@@ -71,12 +82,19 @@ export function computeCapitalizationEIV(
       intensity += signal.value;
     } else if (i < HARD_CAP_LIMIT) {
       // Diminishing returns
-      intensity += signal.value * 0.5;
+      intensity +=
+        signal.value *
+        MASTER_CONSTANTS.capitalization.eivMath
+          .diminishingMultiplier;
     }
     // Beyond HARD_CAP_LIMIT → ignored
   }
 
-  intensity = clamp(intensity, 0, MAX_EIV);
+  intensity = clamp(
+    intensity,
+    MASTER_CONSTANTS.capitalization.eivMath.clamp.min,
+    MAX_EIV
+  );
 
   /* ============================================================================
    * CONFIDENCE — Graded & Density-Aware
@@ -84,15 +102,25 @@ export function computeCapitalizationEIV(
 
   let confidence: number;
 
-  if (capsSignals.length === 1) {
+  if (
+    capsSignals.length ===
+    MASTER_CONSTANTS.capitalization.eivMath.signalCounts
+      .single
+  ) {
     // Single ALL-CAPS → possible typo / ambiguity
-    confidence = 0.55;
+    confidence =
+      MASTER_CONSTANTS.capitalization.eivMath.confidenceDefaults
+        .singleSignal;
   } else if (capsSignals.length <= SOFT_CAP_LIMIT) {
     // Repeated, controlled emphasis
-    confidence = 0.75;
+    confidence =
+      MASTER_CONSTANTS.capitalization.eivMath.confidenceDefaults
+        .controlledSignals;
   } else {
     // Overuse reduces clarity
-    confidence = 0.65;
+    confidence =
+      MASTER_CONSTANTS.capitalization.eivMath.confidenceDefaults
+        .overuseSignals;
   }
 
   // Density penalty (gradual, not binary)
@@ -103,7 +131,11 @@ export function computeCapitalizationEIV(
     confidence *= DENSITY_PENALTY_FACTOR;
   }
 
-  confidence = clamp(confidence, 0, 1);
+  confidence = clamp(
+    confidence,
+    MASTER_CONSTANTS.capitalization.eivMath.clamp.min,
+    MASTER_CONSTANTS.capitalization.eivMath.clamp.max
+  );
 
   return { intensity, confidence };
 }
