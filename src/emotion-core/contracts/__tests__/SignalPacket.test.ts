@@ -11,6 +11,7 @@ const buildSentence = (): SentenceData => ({
 const buildPacket = (): SignalPacket => ({
   messageText: "Example sentence.",
   sentences: [buildSentence()],
+  layer1Health: { degraded: false, reason: "layer1_confidence_ok" },
   metadata: { traceId: "test" },
 });
 
