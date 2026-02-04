@@ -49,6 +49,48 @@ export interface EmotionalState {
   confidence: number;
 }
 
+/**
+ * EmotionalProfile is a Layer-2 output contract promised by the LoRa architecture.
+ * It is NOT wired into v1 runtime. Wiring is deferred to v1.1+.
+ *
+ * NOTE:
+ * - Immutable by design (readonly fields).
+ * - Type-only contract; do not import into runtime paths yet.
+ */
+export interface EmotionFamilyClassification {
+  readonly primary: string;
+  readonly secondary?: string;
+  readonly confidence: number;
+}
+
+export interface EscalationMetrics {
+  readonly onsetRate: number;
+  readonly offsetRate: number;
+  readonly volatility: number;
+}
+
+export interface PressureMetrics {
+  readonly pressureScore: number;
+  readonly pressureTrend: 'rising' | 'stable' | 'releasing';
+}
+
+export interface LoopMetrics {
+  readonly loopingActive: boolean;
+  readonly loopDepth: number;
+}
+
+export interface EmotionalProfile {
+  readonly eiv: number;
+  readonly emotionFamily: EmotionFamilyClassification;
+  readonly escalation: EscalationMetrics;
+  readonly pressure: PressureMetrics;
+  readonly looping: LoopMetrics;
+  readonly ambiguity: {
+    readonly score: number;
+    readonly penaltyApplied: number;
+  };
+}
+
 /* ============================================================================
  * Analyzer-Level Structures (Future-facing, V1-safe)
  * ========================================================================== */
