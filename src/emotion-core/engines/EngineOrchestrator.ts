@@ -12,6 +12,24 @@ import { PromptTemplateBuilder } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 
+type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
+
+type LLMConfig = {
+  maxResponseMs: number;
+  maxAttempts: number;
+  cooldownMs: number;
+};
+
+type LLMResponder = {
+  generateResponse(prompt: string): Promise<string>;
+};
+
+const DEFAULT_LLM_CONFIG: LLMConfig = {
+  maxResponseMs: 2500,
+  maxAttempts: 2,
+  cooldownMs: 30000,
+};
+
 // 🔹 BETA-ONLY TRACE
 import { writeSessionTrace } from '../../debug/sessionTrace';
 
@@ -22,10 +40,17 @@ export class EngineOrchestrator {
   private messageCount = 0;
 
   // 🔹 LLM boundary (single responsibility)
-  private responder?: OpenAIResponder;
+  private responder?: LLMResponder;
+  private llmAvailability: LLMAvailability = 'AVAILABLE';
+  private llmCooldownUntil: number | null = null;
+  private readonly llmConfig: LLMConfig;
+  private readonly responderFactory: () => LLMResponder;
 
   constructor(
-    initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV
+    initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
+    llmConfig: Partial<LLMConfig> = {},
+    responderFactory: () => LLMResponder = () =>
+      new OpenAIResponder()
   ) {
     this.etvState = {
       value: initialETV,
@@ -33,6 +58,11 @@ export class EngineOrchestrator {
       messageCount: 0,
       lastUpdated: Date.now(),
     };
+    this.llmConfig = {
+      ...DEFAULT_LLM_CONFIG,
+      ...llmConfig,
+    };
+    this.responderFactory = responderFactory;
   }
 
   // ---------------------------------------------------
@@ -67,14 +97,7 @@ export class EngineOrchestrator {
     );
 
     // 5. Generate LLM response (FAIL-SAFE)
-    let llmOutput = '';
-    try {
-      llmOutput = await this.getResponder().generateResponse(prompt);
-    } catch (err) {
-      llmOutput =
-        'I’m here with you. Let’s take this one step at a time.';
-      console.error('[LoRa::LLMError]', err);
-    }
+    const llmOutput = await this.generateLLMResponse(prompt);
 
     const hasLowConfidenceSignal =
       analyzerOutputs.expressionStrength.confidence <
@@ -209,10 +232,88 @@ export class EngineOrchestrator {
     return { ...this.etvState };
   }
 
-  private getResponder(): OpenAIResponder {
+  private getResponder(): LLMResponder {
     if (!this.responder) {
-      this.responder = new OpenAIResponder();
+      this.responder = this.responderFactory();
     }
     return this.responder;
+  }
+
+  private async generateLLMResponse(
+    prompt: string
+  ): Promise<string> {
+    const now = Date.now();
+    if (this.llmAvailability === 'UNAVAILABLE') {
+      if (
+        this.llmCooldownUntil !== null &&
+        now >= this.llmCooldownUntil
+      ) {
+        this.llmAvailability = 'AVAILABLE';
+        this.llmCooldownUntil = null;
+        this.logLLMEvent('cooldown_exit');
+      } else {
+        this.logLLMEvent('cooldown_active', {
+          cooldownUntil: this.llmCooldownUntil,
+        });
+        this.logLLMEvent('fallback_used', { reason: 'cooldown' });
+        return EngineOrchestrator.fallbackResponse();
+      }
+    }
+
+    for (let attempt = 1; attempt <= this.llmConfig.maxAttempts; attempt += 1) {
+      this.logLLMEvent('retry_attempt', { attempt });
+      try {
+        const response = await this.withTimeout(
+          this.getResponder().generateResponse(prompt),
+          this.llmConfig.maxResponseMs
+        );
+        return response;
+      } catch (err) {
+        this.logLLMEvent('retry_failed', {
+          attempt,
+          error: err instanceof Error ? err.message : 'unknown',
+        });
+      }
+    }
+
+    this.llmAvailability = 'UNAVAILABLE';
+    this.llmCooldownUntil = now + this.llmConfig.cooldownMs;
+    this.logLLMEvent('cooldown_entry', {
+      cooldownUntil: this.llmCooldownUntil,
+    });
+    this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
+    return EngineOrchestrator.fallbackResponse();
+  }
+
+  private withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('LLM response timed out'));
+      }, timeoutMs);
+
+      promise
+        .then((value) => {
+          clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
+    });
+  }
+
+  private logLLMEvent(
+    event: string,
+    details: Record<string, unknown> = {}
+  ) {
+    console.log('[LoRa::LLM]', JSON.stringify({ event, ...details }));
+  }
+
+  private static fallbackResponse(): string {
+    return 'I’m here with you. Let’s take this one step at a time.';
   }
 }

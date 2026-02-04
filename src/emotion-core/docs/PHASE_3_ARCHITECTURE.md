@@ -35,3 +35,9 @@ This document is normative. Code must conform to it.
 ## Audit & Reproducibility
 - Results are reproducible without OpenAI access because core scoring, tiering, and orchestration are deterministic and driven by local constants.
 - The system can be peer-reviewed because boundaries, invariants, and constants are documented and enforced by tests.
+
+## Phase-4 Runtime Hardening
+- LLM invocation is lazy and only occurs when a response is required.
+- LLM availability is tracked explicitly and is isolated from emotional scoring, EIV tiering, and degradation.
+- Response generation enforces bounded retries, cooldown, and timeout with deterministic fallback.
+- These changes do not alter emotional intelligence or semantic interpretation.
