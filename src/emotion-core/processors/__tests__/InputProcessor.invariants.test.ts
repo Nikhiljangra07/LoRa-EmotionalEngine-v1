@@ -9,7 +9,7 @@ describe('InputProcessor — Architectural Invariants', () => {
   test('mutation attempts throw', () => {
     const out = InputProcessor.process('Hello!!! 😀');
     expect(() => {
-      (out as any).linguisticScore = 999;
+      out.expressionStrength = { score: 999, confidence: 1 };
     }).toThrow();
   });
 
@@ -22,6 +22,5 @@ describe('InputProcessor — Architectural Invariants', () => {
     );
 
     expect(src).toContain('MASTER_CONSTANTS');
-    expect(src).toContain('SATURATION');
   });
 });

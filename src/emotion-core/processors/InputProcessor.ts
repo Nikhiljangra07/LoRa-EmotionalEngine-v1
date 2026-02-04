@@ -26,7 +26,7 @@ export class InputProcessor {
     const valenceResult = this.valenceAnalyzer.analyze(text);
     const arousalResult = this.arousalAnalyzer.analyze(text);
 
-    return {
+    const output: AnalyzerOutputs = {
       expressionStrength: {
         score: esResult.es,
         confidence: MASTER_CONSTANTS.eivCompositionConstants.CONF.MAX,
@@ -40,5 +40,7 @@ export class InputProcessor {
         confidence: arousalResult.confidence,
       },
     };
+
+    return Object.freeze(output);
   }
 }
