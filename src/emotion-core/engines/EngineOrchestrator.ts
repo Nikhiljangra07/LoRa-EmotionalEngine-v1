@@ -76,22 +76,22 @@ export class EngineOrchestrator {
       console.error('[LoRa::LLMError]', err);
     }
 
-    // 6. Analyzer presence summary (CORRECTED)
+    const hasLowConfidenceSignal =
+      analyzerOutputs.expressionStrength.confidence <
+        MASTER_CONSTANTS.layer1.degradation.confidenceThreshold ||
+      analyzerOutputs.valence.confidence <
+        MASTER_CONSTANTS.layer1.degradation.confidenceThreshold ||
+      analyzerOutputs.arousal.confidence <
+        MASTER_CONSTANTS.layer1.degradation.confidenceThreshold;
+
+    const shouldDegrade = hasLowConfidenceSignal;
+
+    // 6. Analyzer presence summary (v1-safe)
     const analyzerSummary = {
-      emojiUsed:
-        (analyzerOutputs.emojiScore ?? MASTER_CONSTANTS.bounds.zero) >
-        MASTER_CONSTANTS.bounds.zero,
-      capsUsed:
-        (analyzerOutputs.capitalizationScore ??
-          MASTER_CONSTANTS.bounds.zero) >
-        MASTER_CONSTANTS.bounds.zero,
-      punctuationUsed:
-        (analyzerOutputs.punctuationScore ??
-          MASTER_CONSTANTS.bounds.zero) >
-        MASTER_CONSTANTS.bounds.zero,
-      repetitionDetected:
-        (analyzerOutputs.linguisticScore ?? MASTER_CONSTANTS.bounds.zero) >
-        MASTER_CONSTANTS.bounds.zero,
+      emojiUsed: shouldDegrade,
+      capsUsed: shouldDegrade,
+      punctuationUsed: shouldDegrade,
+      repetitionDetected: shouldDegrade,
     };
 
     // 7. Message-level decision logging
