@@ -1,7 +1,7 @@
 // src/emotion-core/processors/EmotionalStateInterpreter.ts
 
 import { MASTER_CONSTANTS } from '../config/master.constants';
-import { EIVComponents } from '../types/eiv.types';
+import { AnalyzerOutputs } from './EIVComponentAssembler';
 
 export type ArousalLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type Valence = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
@@ -14,11 +14,11 @@ export interface EmotionalState {
 
 export class EmotionalStateInterpreter {
   static interpret(
-    components: EIVComponents,
+    analyzerOutputs: AnalyzerOutputs,
     eiv: number
   ): EmotionalState {
     const arousal = this.classifyArousal(eiv);
-    const valence = this.classifyValence(components);
+    const valence = this.classifyValence(analyzerOutputs);
 
     return {
       arousal,
@@ -52,9 +52,13 @@ export class EmotionalStateInterpreter {
   // Valence = score sign + magnitude threshold
   // -----------------------------
   private static classifyValence(
-    components: EIVComponents
+    analyzerOutputs: AnalyzerOutputs
   ): Valence {
-    const magnitude = Math.abs(components.valence.score);
+    const valenceSignal = analyzerOutputs.valence ?? {
+      score: MASTER_CONSTANTS.bounds.zero,
+      confidence: MASTER_CONSTANTS.bounds.zero,
+    };
+    const magnitude = Math.abs(valenceSignal.score);
     const minMagnitude =
       MASTER_CONSTANTS.valenceAnalyzer.thresholds.minMagnitude;
 
@@ -62,7 +66,7 @@ export class EmotionalStateInterpreter {
       return 'NEUTRAL';
     }
 
-    return components.valence.score >=
+    return valenceSignal.score >=
       MASTER_CONSTANTS.valenceAnalyzer.bounds.zero
       ? 'POSITIVE'
       : 'NEGATIVE';
