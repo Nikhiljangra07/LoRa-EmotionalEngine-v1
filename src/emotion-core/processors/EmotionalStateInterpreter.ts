@@ -54,10 +54,13 @@ export class EmotionalStateInterpreter {
   private static classifyValence(
     analyzerOutputs: AnalyzerOutputs
   ): Valence {
-    const valenceSignal = analyzerOutputs.valence ?? {
-      score: MASTER_CONSTANTS.bounds.zero,
-      confidence: MASTER_CONSTANTS.bounds.zero,
-    };
+    // Crash-early invariant: Layer-1 must provide ValenceAnalyzer output.
+    if (!analyzerOutputs.valence) {
+      throw new Error(
+        "ValenceAnalyzer output missing — invalid Layer-1 packet"
+      );
+    }
+    const valenceSignal = analyzerOutputs.valence;
     const magnitude = Math.abs(valenceSignal.score);
     const minMagnitude =
       MASTER_CONSTANTS.valenceAnalyzer.thresholds.minMagnitude;
