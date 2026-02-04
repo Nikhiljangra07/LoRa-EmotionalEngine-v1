@@ -16,32 +16,87 @@ const readSource = (relativePath: string): string =>
     "utf8"
   );
 
-const extractInterfaceKeys = (
+const stripComments = (source: string): string =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*$/gm, "");
+
+const extractTypeBody = (
   source: string,
-  interfaceName: string
-): string[] => {
-  const match = source.match(
-    new RegExp(
-      `export\\s+interface\\s+${interfaceName}\\s*\\{([\\s\\S]*?)\\n\\}`,
-      "m"
-    )
+  typeName: string
+): string => {
+  const cleaned = stripComments(source);
+  const interfaceMatch = cleaned.match(
+    new RegExp(`\\binterface\\s+${typeName}\\b`)
   );
-  if (!match) {
-    throw new Error(`Interface not found: ${interfaceName}`);
+  const typeMatch = cleaned.match(
+    new RegExp(`\\btype\\s+${typeName}\\s*=`)
+  );
+
+  const match = interfaceMatch ?? typeMatch;
+  if (!match || match.index === undefined) {
+    throw new Error(`Type not found: ${typeName}`);
   }
-  return match[1]
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith("readonly"))
-    .map((line) => line.replace("readonly", "").trim())
-    .map((line) => line.replace(/[:?].*$/, ""))
-    .filter(Boolean);
+
+  const start = cleaned.indexOf("{", match.index);
+  if (start === -1) {
+    throw new Error(`Type body not found: ${typeName}`);
+  }
+
+  let depth = 0;
+  for (let i = start; i < cleaned.length; i += 1) {
+    const char = cleaned[i];
+    if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return cleaned.slice(start + 1, i);
+      }
+    }
+  }
+
+  throw new Error(`Unterminated type body: ${typeName}`);
+};
+
+const extractTypeKeys = (
+  source: string,
+  typeName: string
+): string[] => {
+  const body = extractTypeBody(source, typeName);
+  const keys: string[] = [];
+  let depth = 0;
+
+  body.split("\n").forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      return;
+    }
+    if (depth === 0) {
+      const match = trimmed.match(
+        /^(readonly\s+)?([A-Za-z0-9_]+)\s*[:?]/
+      );
+      if (match) {
+        keys.push(match[2]);
+      }
+    }
+
+    for (const char of line) {
+      if (char === "{") {
+        depth += 1;
+      } else if (char === "}") {
+        depth = Math.max(0, depth - 1);
+      }
+    }
+  });
+
+  return keys;
 };
 
 describe("Freeze invariants", () => {
   test("SignalPacket schema shape is frozen", () => {
     const source = readSource("types/SignalPacket.types.ts");
-    const keys = extractInterfaceKeys(source, "SignalPacket");
+    const keys = extractTypeKeys(source, "SignalPacket");
     expect(keys.sort()).toEqual(
       [
         "messageText",
@@ -58,7 +113,7 @@ describe("Freeze invariants", () => {
 
   test("EIVComponents keys are frozen", () => {
     const source = readSource("types/eiv.types.ts");
-    const keys = extractInterfaceKeys(source, "EIVComponents");
+    const keys = extractTypeKeys(source, "EIVComponents");
     expect(keys.sort()).toEqual(
       ["expressionStrength", "valence", "arousal"].sort()
     );
@@ -66,7 +121,7 @@ describe("Freeze invariants", () => {
 
   test("EIVResult exposes only public contract fields", () => {
     const source = readSource("types/eiv.types.ts");
-    const keys = extractInterfaceKeys(source, "EIVResult");
+    const keys = extractTypeKeys(source, "EIVResult");
     expect(keys.sort()).toEqual(
       ["value", "components", "breakdown", "timestamp"].sort()
     );
