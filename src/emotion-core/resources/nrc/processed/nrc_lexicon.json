@@ -131819,18 +131819,6 @@
     "surprise": 0,
     "trust": 1
   },
-  "sarcasm": {
-    "anger": 1,
-    "anticipation": 0,
-    "disgust": 1,
-    "fear": 0,
-    "joy": 0,
-    "negative": 1,
-    "positive": 0,
-    "sadness": 1,
-    "surprise": 0,
-    "trust": 0
-  },
   "sarcoma": {
     "anger": 0,
     "anticipation": 0,
