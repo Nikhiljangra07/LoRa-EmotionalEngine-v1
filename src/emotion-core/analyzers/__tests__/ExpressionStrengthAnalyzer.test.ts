@@ -4,7 +4,7 @@ import {
   buildExpressionStrengthFeatures,
 } from "../content/ExpressionStrengthAnalyzer";
 import { ExpressionStrengthScorer } from "../../scorers/ExpressionStrengthScorer";
-import { computeES } from "../../scorers/computeES";
+import { computeES } from "../../math/computeES";
 import type { ExpressionStrengthFeatures } from "../../types/ExpressionStrength";
 
 const baseFeatures = (
