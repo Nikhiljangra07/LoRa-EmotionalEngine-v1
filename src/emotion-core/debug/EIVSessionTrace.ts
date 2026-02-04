@@ -108,7 +108,7 @@ sessionInputs.forEach((text, index) => {
       confidence: valenceResult.confidence,
     },
     arousal: {
-      arousal: arousalResult.arousal,
+      score: arousalResult.arousal,
       confidence: arousalResult.confidence,
     },
   });
@@ -125,7 +125,7 @@ sessionInputs.forEach((text, index) => {
       confidence: valenceResult.confidence,
     },
     arousal: {
-      arousal: arousalResult.arousal,
+      score: arousalResult.arousal,
       confidence: arousalResult.confidence,
     },
     EIV: {

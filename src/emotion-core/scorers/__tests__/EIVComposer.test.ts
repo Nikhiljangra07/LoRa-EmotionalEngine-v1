@@ -8,7 +8,7 @@ const CONSTANTS = MASTER_CONSTANTS.eivCompositionConstants;
 const baseInputs = {
   es: { score: 0.6, confidence: 0.8 },
   valence: { score: 0.4, confidence: 0.7 },
-  arousal: { arousal: 0.4, confidence: 0.7 },
+  arousal: { score: 0.4, confidence: 0.7 },
 };
 
 describe("EIVComposer", () => {
@@ -16,7 +16,7 @@ describe("EIVComposer", () => {
     const nearFloor = composeEIV({
       es: { score: 1, confidence: 1 },
       valence: { score: 0, confidence: CONSTANTS.CONF.MIN },
-      arousal: { arousal: CONSTANTS.BASE_FLOOR_GATE, confidence: CONSTANTS.CONF.MIN },
+      arousal: { score: CONSTANTS.BASE_FLOOR_GATE, confidence: CONSTANTS.CONF.MIN },
     });
 
     const maxGain =
@@ -34,13 +34,13 @@ describe("EIVComposer", () => {
     const lowConf = composeEIV({
       es: { score: 0, confidence: CONSTANTS.CONF.MIN },
       valence: { score: 0.6, confidence: CONSTANTS.CONF.MIN },
-      arousal: { arousal: 0.6, confidence: CONSTANTS.CONF.MIN },
+      arousal: { score: 0.6, confidence: CONSTANTS.CONF.MIN },
     });
 
     const highConf = composeEIV({
       es: { score: 0, confidence: CONSTANTS.CONF.MAX },
       valence: { score: 0.6, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: 0.6, confidence: CONSTANTS.CONF.MAX },
+      arousal: { score: 0.6, confidence: CONSTANTS.CONF.MAX },
     });
 
     expect(highConf.base).toBeGreaterThan(lowConf.base);
@@ -62,12 +62,12 @@ describe("EIVComposer", () => {
     const highConf = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0.7, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: 0.7, confidence: CONSTANTS.CONF.MAX },
+      arousal: { score: 0.7, confidence: CONSTANTS.CONF.MAX },
     });
     const lowConf = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0.7, confidence: CONSTANTS.CONF.MIN },
-      arousal: { arousal: 0.7, confidence: CONSTANTS.CONF.MIN },
+      arousal: { score: 0.7, confidence: CONSTANTS.CONF.MIN },
     });
     expect(highConf.base).toBeGreaterThan(lowConf.base);
   });
@@ -76,7 +76,7 @@ describe("EIVComposer", () => {
     const result = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0, confidence: CONSTANTS.CONF.MIN },
-      arousal: { arousal: 0.8, confidence: CONSTANTS.CONF.MAX },
+      arousal: { score: 0.8, confidence: CONSTANTS.CONF.MAX },
     });
     expect(result.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
   });
@@ -85,7 +85,7 @@ describe("EIVComposer", () => {
     const result = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0.8, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: 0, confidence: CONSTANTS.CONF.MIN },
+      arousal: { score: 0, confidence: CONSTANTS.CONF.MIN },
     });
     expect(result.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
   });
@@ -94,12 +94,12 @@ describe("EIVComposer", () => {
     const valenceStrong = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 1, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: 0.2, confidence: CONSTANTS.CONF.MAX },
+      arousal: { score: 0.2, confidence: CONSTANTS.CONF.MAX },
     });
     const arousalStrong = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0.2, confidence: CONSTANTS.CONF.MAX },
-      arousal: { arousal: 1, confidence: CONSTANTS.CONF.MAX },
+      arousal: { score: 1, confidence: CONSTANTS.CONF.MAX },
     });
     expect(valenceStrong.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
     expect(arousalStrong.base).toBeGreaterThan(CONSTANTS.CLAMP.MIN);
@@ -110,12 +110,12 @@ describe("EIVComposer", () => {
     const base = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0.4, confidence: 0.7 },
-      arousal: { arousal: 0.4, confidence: 0.7 },
+      arousal: { score: 0.4, confidence: 0.7 },
     });
     const slightlyHigher = composeEIV({
       es: { score: 0, confidence: 0.5 },
       valence: { score: 0.42, confidence: 0.7 },
-      arousal: { arousal: 0.4, confidence: 0.7 },
+      arousal: { score: 0.4, confidence: 0.7 },
     });
     expect(slightlyHigher.base - base.base).toBeLessThan(0.05);
   });
@@ -124,7 +124,7 @@ describe("EIVComposer", () => {
     const high = composeEIV({
       es: { score: 1, confidence: 1 },
       valence: { score: 1, confidence: 0.9 },
-      arousal: { arousal: 1, confidence: 0.9 },
+      arousal: { score: 1, confidence: 0.9 },
     });
     expect(high.value).toBeLessThanOrEqual(CONSTANTS.CLAMP.MAX);
     expect(high.value).toBeGreaterThan(high.base);

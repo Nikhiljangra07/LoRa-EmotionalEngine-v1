@@ -7,13 +7,16 @@ describe("EIVScorer — EIV composition delegation", () => {
     const inputs: EIVInputs = {
       es: { score: 0.7, confidence: 0.8 },
       valence: { score: -0.4, confidence: 0.7 },
-      arousal: { arousal: 0.6, confidence: 0.7 },
+      arousal: { score: 0.6, confidence: 0.7 },
+    };
+    const components: EIVComponents = {
+      expressionStrength: { ...inputs.es },
+      valence: { ...inputs.valence },
+      arousal: { ...inputs.arousal },
     };
 
     const expected = composeEIV(inputs).value;
-    const result = EIVScorer.calculate(
-      inputs as unknown as EIVComponents
-    ).value;
+    const result = EIVScorer.calculate(components).value;
 
     expect(result).toBeCloseTo(expected, 8);
   });

@@ -77,15 +77,18 @@ describe("ValenceAnalyzer — determinism and audit safety", () => {
   });
 
   test("emotion-labeled lexicon injection fails fast", () => {
-    const positive =
-      VALENCE.lexicon.polarity.positive as unknown as string[];
+    const positive = VALENCE.lexicon.polarity.positive;
     const original = [...positive];
     try {
-      positive.push("anger");
+      Array.prototype.push.call(positive, "anger");
       expect(() => analyze("anger")).toThrow();
     } finally {
-      positive.length = ZERO;
-      positive.push(...original);
+      Array.prototype.splice.call(
+        positive,
+        0,
+        positive.length,
+        ...original
+      );
     }
   });
 });

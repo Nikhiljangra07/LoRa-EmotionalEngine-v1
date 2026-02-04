@@ -1,5 +1,6 @@
 // src/emotion-core/processors/EmotionalStateInterpreter.ts
 
+import { MASTER_CONSTANTS } from '../config/master.constants';
 import { EIVComponents } from '../types/eiv.types';
 
 export type ArousalLevel = 'LOW' | 'MEDIUM' | 'HIGH';
@@ -36,23 +37,21 @@ export class EmotionalStateInterpreter {
   }
 
   // -----------------------------
-  // Valence = emoji + punctuation logic
+  // Valence = score sign + magnitude threshold
   // -----------------------------
   private static classifyValence(
     components: EIVComponents
   ): Valence {
-    const { emoji, punctuation } = components;
+    const magnitude = Math.abs(components.valence.score);
+    const minMagnitude =
+      MASTER_CONSTANTS.valenceAnalyzer.thresholds.minMagnitude;
 
-    // Positive signal dominates
-    if (emoji >= 0.4) {
-      return 'POSITIVE';
+    if (magnitude < minMagnitude) {
+      return 'NEUTRAL';
     }
 
-    // High arousal punctuation without emoji = frustration / negative
-    if (emoji < 0.15 && punctuation >= 0.5) {
-      return 'NEGATIVE';
-    }
-
-    return 'NEUTRAL';
+    return components.valence.score >= 0
+      ? 'POSITIVE'
+      : 'NEGATIVE';
   }
 }
