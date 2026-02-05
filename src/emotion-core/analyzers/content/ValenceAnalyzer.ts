@@ -38,6 +38,13 @@ const tokenize = (text: string): string[] =>
     .split(/\s+/)
     .filter(Boolean);
 
+const normalizeForPhrase = (text: string): string =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const normalizeToken = (token: string): string => token.replace(/[^a-z]/g, "");
 
 type Span = { start: number; end: number };
@@ -124,10 +131,12 @@ export class ValenceAnalyzer {
     }
 
     const tokens = tokenize(trimmed);
+    const normalizedText = normalizeForPhrase(trimmed);
     const lexicon = buildPolarityLexicon();
     const negationSpans = buildNegationSpans(tokens);
     const contrastiveMarkers: string[] = [];
     let lastContrastIndex: number | undefined;
+    const tokenSet = new Set(tokens.map((token) => normalizeToken(token)));
 
     tokens.forEach((token, index) => {
       const normalized = normalizeToken(token);
@@ -176,11 +185,66 @@ export class ValenceAnalyzer {
       }
     });
 
+    const markers = VALENCE_CONSTANTS.lexicon.markers;
+    const matchedMarkers = {
+      selfConsciousnessNegative: markers.selfConsciousnessNegative.filter(
+        (token) => tokenSet.has(token)
+      ),
+      playfulHedgingPositive: markers.playfulHedgingPositive.filter((token) =>
+        tokenSet.has(token)
+      ),
+      phrasesPositive: markers.phrasesPositive.filter((phrase) =>
+        normalizedText.includes(phrase)
+      ),
+      phrasesNegative: markers.phrasesNegative.filter((phrase) =>
+        normalizedText.includes(phrase)
+      ),
+      emotiveEmojiPositive: markers.emotiveEmojiPositive.filter((emoji) =>
+        trimmed.includes(emoji)
+      ),
+      emotiveEmojiNegative: markers.emotiveEmojiNegative.filter((emoji) =>
+        trimmed.includes(emoji)
+      ),
+    };
+
+    const markerHits = {
+      selfConsciousnessNegative:
+        matchedMarkers.selfConsciousnessNegative.length,
+      playfulHedgingPositive: matchedMarkers.playfulHedgingPositive.length,
+      phrasesPositive: matchedMarkers.phrasesPositive.length,
+      phrasesNegative: matchedMarkers.phrasesNegative.length,
+      emotiveEmojiPositive: matchedMarkers.emotiveEmojiPositive.length,
+      emotiveEmojiNegative: matchedMarkers.emotiveEmojiNegative.length,
+    };
+
+    positiveWeight +=
+      markerHits.playfulHedgingPositive *
+        VALENCE_CONSTANTS.markerWeights.playfulHedgingPositive +
+      markerHits.phrasesPositive * VALENCE_CONSTANTS.markerWeights.phrasesPositive +
+      markerHits.emotiveEmojiPositive *
+        VALENCE_CONSTANTS.markerWeights.emotiveEmojiPositive;
+
+    negativeWeight +=
+      markerHits.selfConsciousnessNegative *
+        VALENCE_CONSTANTS.markerWeights.selfConsciousnessNegative +
+      markerHits.phrasesNegative * VALENCE_CONSTANTS.markerWeights.phrasesNegative +
+      markerHits.emotiveEmojiNegative *
+        VALENCE_CONSTANTS.markerWeights.emotiveEmojiNegative;
+
+    const markerEvidenceCount =
+      markerHits.selfConsciousnessNegative +
+      markerHits.playfulHedgingPositive +
+      markerHits.phrasesPositive +
+      markerHits.phrasesNegative +
+      markerHits.emotiveEmojiPositive +
+      markerHits.emotiveEmojiNegative;
+
     const polarityTokenCount =
       polarityHits.positive + polarityHits.negative;
+    const effectiveEvidenceCount = polarityTokenCount + markerEvidenceCount;
 
     if (
-      polarityTokenCount <
+      effectiveEvidenceCount <
       VALENCE_CONSTANTS.confidence.minAffectiveTokens
     ) {
       neutralTriggers.push("low_evidence");
@@ -195,7 +259,18 @@ export class ValenceAnalyzer {
     void contrastiveMarkers;
 
     let score: number = VALENCE_CONSTANTS.bounds.zero;
-    if (
+    if (polarityTokenCount === VALENCE_CONSTANTS.bounds.zero) {
+      const denominator =
+        positiveWeight +
+        negativeWeight +
+        VALENCE_CONSTANTS.normalization.markerBaseline;
+      const raw = (positiveWeight - negativeWeight) / denominator;
+      score = clamp(
+        raw,
+        VALENCE_CONSTANTS.normalization.minScore,
+        VALENCE_CONSTANTS.normalization.maxScore
+      );
+    } else if (
       positiveWeight > VALENCE_CONSTANTS.bounds.zero &&
       negativeWeight === VALENCE_CONSTANTS.bounds.zero
     ) {
@@ -232,10 +307,40 @@ export class ValenceAnalyzer {
 
     let confidence = Math.min(VALENCE_CONSTANTS.bounds.one, magnitude);
     if (
-      polarityTokenCount <
+      effectiveEvidenceCount <
       VALENCE_CONSTANTS.confidence.minAffectiveTokens
     ) {
       confidence *= VALENCE_CONSTANTS.confidence.lowEvidenceMultiplier;
+    }
+
+    const markerConfidence =
+      markerHits.selfConsciousnessNegative *
+        VALENCE_CONSTANTS.markerConfidence.selfConsciousnessNegative +
+      markerHits.playfulHedgingPositive *
+        VALENCE_CONSTANTS.markerConfidence.playfulHedgingPositive +
+      markerHits.phrasesPositive *
+        VALENCE_CONSTANTS.markerConfidence.phrasesPositive +
+      markerHits.phrasesNegative *
+        VALENCE_CONSTANTS.markerConfidence.phrasesNegative +
+      markerHits.emotiveEmojiPositive *
+        VALENCE_CONSTANTS.markerConfidence.emotiveEmojiPositive +
+      markerHits.emotiveEmojiNegative *
+        VALENCE_CONSTANTS.markerConfidence.emotiveEmojiNegative;
+
+    confidence = clamp(
+      Math.max(confidence, markerConfidence),
+      VALENCE_CONSTANTS.bounds.zero,
+      VALENCE_CONSTANTS.bounds.one
+    );
+
+    if (process.env.LORA_DEBUG) {
+      console.log("[LoRa::ValenceDebug]", {
+        markers: matchedMarkers,
+        polarityHits,
+        positiveWeight,
+        negativeWeight,
+        neutralTriggers,
+      });
     }
 
     return {

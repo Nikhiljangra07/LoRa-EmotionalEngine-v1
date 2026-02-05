@@ -210,6 +210,22 @@ const VALENCE_ANALYZER_CONSTANTS = {
         "unpleasant",
       ],
     },
+    markers: {
+      selfConsciousnessNegative: [
+        "awkward",
+        "embarrassed",
+        "embarrassing",
+        "dying",
+        "hide",
+        "weird",
+        "feelings",
+      ],
+      playfulHedgingPositive: ["lol", "cool"],
+      phrasesPositive: ["cool cool cool"],
+      phrasesNegative: ["dont make it a big thing", "big thing"],
+      emotiveEmojiNegative: ["😭", "😳", "🙈", "🫣"],
+      emotiveEmojiPositive: ["😂"],
+    },
   },
   thresholds: {
     minMagnitude: 0.15,
@@ -218,6 +234,22 @@ const VALENCE_ANALYZER_CONSTANTS = {
   confidence: {
     minAffectiveTokens: 2,
     lowEvidenceMultiplier: 0.5,
+  },
+  markerWeights: {
+    selfConsciousnessNegative: 0.25,
+    playfulHedgingPositive: 0.2,
+    phrasesPositive: 0.25,
+    phrasesNegative: 0.25,
+    emotiveEmojiNegative: 0.2,
+    emotiveEmojiPositive: 0.2,
+  },
+  markerConfidence: {
+    selfConsciousnessNegative: 0.15,
+    playfulHedgingPositive: 0.12,
+    phrasesPositive: 0.12,
+    phrasesNegative: 0.12,
+    emotiveEmojiNegative: 0.12,
+    emotiveEmojiPositive: 0.12,
   },
   negation: {
     attenuation: 0.5,
@@ -231,6 +263,7 @@ const VALENCE_ANALYZER_CONSTANTS = {
   },
   normalization: {
     epsilon: 1e-6,
+    markerBaseline: 1,
     minScore: -1,
     maxScore: 1,
   },
@@ -551,6 +584,27 @@ const EIV_COMPOSITION_CONSTANTS = {
   },
 } as const;
 
+// MOMENTUM (runtime-only, session-local)
+const MOMENTUM_CONSTANTS = {
+  decay: 0.85,
+  gain: 0.15,
+  confidence: {
+    floor: 0.4,
+    aggregationFloor: 0.4,
+    lowSignalPenalty: 0.1,
+  },
+  history: {
+    maxEntries: 5,
+    minEntriesForConfidence: 2,
+  },
+  hardBreakThreshold: 0.75,
+  guidanceBias: {
+    confidenceMinExclusive: 0.5,
+    arousalHighMinExclusive: 0.6,
+    valenceNegativeMaxExclusive: -0.4,
+  },
+} as const;
+
 // AROUSAL (Arousal Analyzer)
 // Structural / cognitive load only. No emotion or expressivity signals.
 const AROUSAL_CALIBRATION_CONSTANTS = {
@@ -800,6 +854,7 @@ export const MASTER_CONSTANTS = {
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
   eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
+  momentum: MOMENTUM_CONSTANTS,
   layer1: LAYER1_CONSTANTS,
   engineDefaults: ENGINE_DEFAULTS,
   stateClassification: STATE_CLASSIFICATION,

@@ -17,9 +17,16 @@ export interface EmotionalState {
   intensity: number; // EIV (0–1)
 }
 
+type MomentumSignal = {
+  valence: number;
+  arousal: number;
+  confidence: number;
+};
+
 export class EmotionalStateInterpreter {
   // Runtime-only momentum (resets on process exit)
   static momentum: MomentumState = INITIAL_MOMENTUM_STATE;
+  private static momentumHistory: MomentumSignal[] = [];
 
   static interpret(
     analyzerOutputs: AnalyzerOutputs,
@@ -28,17 +35,28 @@ export class EmotionalStateInterpreter {
     const arousal = this.classifyArousal(eiv);
     const valence = this.classifyValence(analyzerOutputs);
 
+    const detectedSignal: MomentumSignal = {
+      valence: analyzerOutputs.valence.score,
+      arousal: analyzerOutputs.arousal.score,
+      confidence: Math.min(
+        analyzerOutputs.valence.confidence,
+        analyzerOutputs.arousal.confidence
+      ),
+    };
+
+    EmotionalStateInterpreter.momentumHistory.push(detectedSignal);
+    if (
+      EmotionalStateInterpreter.momentumHistory.length >
+      MASTER_CONSTANTS.momentum.history.maxEntries
+    ) {
+      EmotionalStateInterpreter.momentumHistory.shift();
+    }
+
     // Update momentum using detected emotional signals
     EmotionalStateInterpreter.momentum = updateMomentum(
       EmotionalStateInterpreter.momentum,
-      {
-        valence: analyzerOutputs.valence.score,
-        arousal: analyzerOutputs.arousal.score,
-        confidence: Math.min(
-          analyzerOutputs.valence.confidence,
-          analyzerOutputs.arousal.confidence
-        ),
-      }
+      detectedSignal,
+      EmotionalStateInterpreter.momentumHistory
     );
 
     if (process.env.LORA_DEBUG) {
