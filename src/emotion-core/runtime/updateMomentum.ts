@@ -1,3 +1,4 @@
+import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import { MomentumState } from './MomentumState';
 
 /**
@@ -10,11 +11,12 @@ import { MomentumState } from './MomentumState';
  * Rationale:
  * This is exponential smoothing, not escalation.
  */
-const DECAY = 0.85; // keeps continuity without dominance
-const GAIN = 0.15; // ensures new signal always matters
-
-const CONFIDENCE_FLOOR = 0.4;
-const HARD_BREAK_THRESHOLD = 0.75;
+const {
+  DECAY,
+  GAIN,
+  CONFIDENCE_FLOOR,
+  HARD_BREAK_THRESHOLD,
+} = MOMENTUM_CONSTANTS;
 
 export function updateMomentum(
   previous: MomentumState,
