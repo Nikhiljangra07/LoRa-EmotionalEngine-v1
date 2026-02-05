@@ -620,6 +620,10 @@ const EIV_COMPOSITION_CONSTANTS = {
 const LLM_CONSTANTS = {
   retryConfidenceThreshold: 0.8,
   firstAttemptTimeoutRatio: 0.6,
+  maxRetries: 1,
+  cooldownSoftFactor: 0.5,
+  cooldownRetryRecoveryRatio: 0.5,
+  quickMessageMaxChars: 80,
 } as const;
 
 // MOMENTUM (runtime-only, session-local)

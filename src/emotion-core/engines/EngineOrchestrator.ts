@@ -11,6 +11,7 @@ import { EmotionalState } from '../types/analysis.types';
 import type { SignalPacket } from '../types/SignalPacket.types';
 import { PromptTemplateBuilder } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
+import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
@@ -48,6 +49,7 @@ export class EngineOrchestrator {
   private responder?: LLMResponder;
   private llmAvailability: LLMAvailability = 'AVAILABLE';
   private llmCooldownUntil: number | null = null;
+  private llmCooldownStartedAt: number | null = null;
   private readonly llmConfig: LLMConfig;
   private readonly responderFactory: () => LLMResponder;
 
@@ -151,6 +153,7 @@ export class EngineOrchestrator {
     const questionPatterns = [
       'should i',
       'what do you think',
+      'what would you do',
       'how do i',
       "what's your take",
       'whats your take',
@@ -196,11 +199,46 @@ export class EngineOrchestrator {
       },
     };
 
+    const fallbackContext = {
+      userText: userMessage,
+      microContext,
+      guidanceMode,
+      analyzerSummary: summaryForLog as {
+        emojiUsed: boolean;
+        capsUsed: boolean;
+        punctuationUsed: boolean;
+        repetitionDetected: boolean;
+      },
+      emotionalState: {
+        arousal: emotionalState.arousal,
+        valence: emotionalState.valence,
+      },
+      flags: {
+        safetyTriggered: hasViolation,
+        ambiguityDetected: flags.ambiguityDetected ?? false,
+      },
+    };
+
     // 6. Generate LLM response (FAIL-SAFE)
-    const llmOutput = await this.generateLLMResponse(llmInput, decision);
+    const llmOutput = await this.generateLLMResponse(
+      llmInput,
+      decision,
+      fallbackContext
+    );
 
     // 7. Message-level decision logging
-    DecisionLogger.logMessageDecision({
+    const relationshipStyle: PromptProfile['relationshipStyle'] =
+      this.etvState.value <
+      MASTER_CONSTANTS.stateClassification.relationshipStyle
+        .professionalMaxExclusive
+        ? 'PROFESSIONAL'
+        : this.etvState.value <
+          MASTER_CONSTANTS.stateClassification.relationshipStyle
+            .friendlyMaxExclusive
+        ? 'FRIENDLY'
+        : 'CASUAL';
+
+    const decisionPayload: MessageDecisionLog = {
       messageId: `msg-${this.messageCount}`,
       timestamp: Date.now(),
 
@@ -222,17 +260,7 @@ export class EngineOrchestrator {
       },
 
       promptProfile: {
-        relationshipStyle:
-          this.etvState.value <
-          MASTER_CONSTANTS.stateClassification.relationshipStyle
-            .professionalMaxExclusive
-            ? 'PROFESSIONAL'
-            : this.etvState.value <
-              MASTER_CONSTANTS.stateClassification.relationshipStyle
-                .friendlyMaxExclusive
-            ? 'FRIENDLY'
-            : 'CASUAL',
-
+        relationshipStyle,
         guidanceMode,
       },
 
@@ -243,7 +271,14 @@ export class EngineOrchestrator {
 
       llmOutput,
       userFeedback,
-    });
+    };
+    DecisionLogger.logMessageDecision(
+      (debugEnabled && microContext
+        ? ({ ...decisionPayload, microContext } as MessageDecisionLog & {
+            microContext: string;
+          })
+        : decisionPayload) as MessageDecisionLog
+    );
 
     if (process.env.LORA_DEBUG === 'true' && signalPacket) {
       console.log('[LoRa::SignalPacket]', JSON.stringify(signalPacket));
@@ -330,6 +365,25 @@ export class EngineOrchestrator {
     decision: {
       eiv: { confidence: number };
       promptProfile: { guidanceMode: PromptProfile['guidanceMode'] };
+    },
+    fallbackContext: {
+      userText: string;
+      microContext?: string;
+      guidanceMode: PromptProfile['guidanceMode'];
+      analyzerSummary: {
+        emojiUsed: boolean;
+        capsUsed: boolean;
+        punctuationUsed: boolean;
+        repetitionDetected: boolean;
+      };
+      emotionalState: {
+        arousal: EmotionalState['arousal'];
+        valence: EmotionalState['valence'];
+      };
+      flags: {
+        safetyTriggered: boolean;
+        ambiguityDetected: boolean;
+      };
     }
   ): Promise<string> {
     const now = Date.now();
@@ -340,13 +394,46 @@ export class EngineOrchestrator {
       ) {
         this.llmAvailability = 'AVAILABLE';
         this.llmCooldownUntil = null;
+        this.llmCooldownStartedAt = null;
         this.logLLMEvent('cooldown_exit');
       } else {
-        this.logLLMEvent('cooldown_active', {
-          cooldownUntil: this.llmCooldownUntil,
-        });
-        this.logLLMEvent('fallback_used', { reason: 'cooldown' });
-        return EngineOrchestrator.fallbackResponse();
+        if (!debugEnabled) {
+          this.logLLMEvent('cooldown_active', {
+            cooldownUntil: this.llmCooldownUntil,
+          });
+          this.logLLMEvent('fallback_used', { reason: 'cooldown' });
+          return EngineOrchestrator.fallbackResponse();
+        }
+        const normalizedUserText = fallbackContext.userText.toLowerCase();
+        const quickQuestionPatterns = [
+          'should i',
+          'what do you think',
+          'what would you do',
+          'how do i',
+        ];
+        const shouldAttemptDuringCooldown =
+          normalizedUserText.includes('?') ||
+          quickQuestionPatterns.some((pattern) =>
+            normalizedUserText.includes(pattern)
+          ) ||
+          fallbackContext.userText.length <=
+            MASTER_CONSTANTS.llm.quickMessageMaxChars ||
+          (this.llmCooldownStartedAt !== null &&
+            this.llmCooldownUntil !== null &&
+            now >=
+              this.llmCooldownStartedAt +
+                (this.llmCooldownUntil - this.llmCooldownStartedAt) *
+                  MASTER_CONSTANTS.llm.cooldownRetryRecoveryRatio);
+
+        if (!shouldAttemptDuringCooldown) {
+          this.logLLMEvent('cooldown_active', {
+            cooldownUntil: this.llmCooldownUntil,
+          });
+          this.logLLMEvent('fallback_used', { reason: 'cooldown' });
+          return debugEnabled
+            ? EngineOrchestrator.generateFallbackReply(fallbackContext)
+            : EngineOrchestrator.fallbackResponse();
+        }
       }
     }
 
@@ -357,7 +444,7 @@ export class EngineOrchestrator {
     const configuredRetries = Math.max(0, this.llmConfig.maxAttempts - 1);
     const maxRetries = isHighConfidence
       ? 0
-      : Math.min(1, configuredRetries);
+      : Math.min(MASTER_CONSTANTS.llm.maxRetries, configuredRetries);
     const maxAttempts = Math.max(1, maxRetries + 1);
     const firstAttemptTimeoutMs = Math.min(
       this.llmConfig.maxResponseMs,
@@ -367,11 +454,11 @@ export class EngineOrchestrator {
       )
     );
     const retryTimeoutMs = this.llmConfig.maxResponseMs;
+    let attempts = 0;
+    let lastError: unknown = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      if (attempt > 1) {
-        this.logLLMEvent('retry_attempt');
-      }
+      attempts = attempt;
       try {
         const response = await this.withTimeout(
           this.getResponder().generateResponse(prompt),
@@ -379,19 +466,31 @@ export class EngineOrchestrator {
         );
         return response;
       } catch (err) {
-        if (attempt > 1) {
-          this.logLLMEvent('retry_failed');
-        }
+        lastError = err;
       }
     }
 
+    if (attempts > 1) {
+      this.logLLMEvent('retry_summary', { attempts });
+    }
     this.llmAvailability = 'UNAVAILABLE';
-    this.llmCooldownUntil = now + this.llmConfig.cooldownMs;
+    this.llmCooldownStartedAt = now;
+    this.llmCooldownUntil =
+      now +
+      Math.round(
+        this.llmConfig.cooldownMs *
+          MASTER_CONSTANTS.llm.cooldownSoftFactor
+      );
     this.logLLMEvent('cooldown_entry', {
       cooldownUntil: this.llmCooldownUntil,
     });
+    if (lastError instanceof Error) {
+      void lastError;
+    }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
-    return EngineOrchestrator.fallbackResponse();
+    return debugEnabled
+      ? EngineOrchestrator.generateFallbackReply(fallbackContext)
+      : EngineOrchestrator.fallbackResponse();
   }
 
   private withTimeout<T>(
@@ -427,5 +526,69 @@ export class EngineOrchestrator {
 
   private static fallbackResponse(): string {
     return 'I’m here with you. Let’s take this one step at a time.';
+  }
+
+  private static generateFallbackReply(params: {
+    userText: string;
+    microContext?: string;
+    guidanceMode: PromptProfile['guidanceMode'];
+    analyzerSummary: {
+      emojiUsed: boolean;
+      capsUsed: boolean;
+      punctuationUsed: boolean;
+      repetitionDetected: boolean;
+    };
+    emotionalState: {
+      arousal: EmotionalState['arousal'];
+      valence: EmotionalState['valence'];
+    };
+    flags: {
+      safetyTriggered: boolean;
+      ambiguityDetected: boolean;
+    };
+  }): string {
+    const normalized = params.userText.toLowerCase();
+    const questionPatterns = [
+      'should i',
+      'what do you think',
+      'what would you do',
+      'how do i',
+    ];
+    const isQuestion =
+      normalized.includes('?') ||
+      questionPatterns.some((pattern) => normalized.includes(pattern));
+
+    const strongExpressivity =
+      params.analyzerSummary.capsUsed ||
+      params.analyzerSummary.punctuationUsed ||
+      params.analyzerSummary.repetitionDetected ||
+      params.analyzerSummary.emojiUsed;
+    const isHighArousal = params.emotionalState.arousal === 'HIGH';
+    const isNegative = params.emotionalState.valence === 'NEGATIVE';
+    const isPositive = params.emotionalState.valence === 'POSITIVE';
+
+    if (isQuestion) {
+      return [
+        "I'd start with a single next step you can finish today, then review what still feels uncertain.",
+        "What part of the decision feels most stuck right now?",
+      ].join(' ');
+    }
+
+    if ((isHighArousal || strongExpressivity) && isNegative) {
+      return [
+        "That sounds really heavy. Two things to try: take a brief pause to reset your breathing, then pick one small action you can control right now.",
+        "What would feel like the smallest relief today?",
+      ].join(' ');
+    }
+
+    if (isHighArousal && isPositive) {
+      return [
+        "That sounds exciting. What's the next moment you're most looking forward to?",
+      ].join(' ');
+    }
+
+    return [
+      "I hear you. What's the one part you'd like to focus on next?",
+    ].join(' ');
   }
 }

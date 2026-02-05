@@ -83,6 +83,9 @@ export const runChatCLI = () => {
       }
 
       const { analyzerOutputs, signalPacket } = InputProcessor.process(trimmed);
+      if (debugEnabled && process.env.LORA_DEBUG_WIRING) {
+        lastPrompt = trimmed;
+      }
       const signalPacketWithContext = microContext
         ? ({
             ...signalPacket,
