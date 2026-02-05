@@ -15,18 +15,20 @@ const emotionalState: EmotionalState = {
 
 const engine = new EngineOrchestrator();
 
-engine
-  .processMessage(
-    analyzerOutputs,
-    emotionalState,
-    false,
-    {},
-    undefined,
-    signalPacket
-  )
-  .then((result) => {
+const run = async () => {
+  try {
+    const result = await engine.processMessage(
+      analyzerOutputs,
+      emotionalState,
+      false,
+      {},
+      undefined,
+      signalPacket
+    );
     console.log("Manual LLM probe result:", result);
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error("Manual LLM probe error:", error);
-  });
+  }
+};
+
+void run();
