@@ -9,6 +9,9 @@ import { InputProcessor } from "../processors/InputProcessor";
 import type { EmotionalState } from "../types/analysis.types";
 import { DecisionLogger } from "../logging/DecisionLogger";
 import { OpenAIResponder } from "../llm/OpenAIResponder";
+import { EIVComponentAssembler } from "../processors/EIVComponentAssembler";
+import { EIVScorer } from "../scorers/EIVScorer";
+import { EmotionalStateInterpreter } from "../processors/EmotionalStateInterpreter";
 
 const COMMANDS = ["/help", "/exit", "/quit"];
 
@@ -27,6 +30,9 @@ export const runChatCLI = () => {
         repetitionDetected: boolean;
       }
     | null = null;
+  let lastGuidanceMode: string | null = null;
+  let lastFlags: { ambiguityDetected?: boolean; safetyTriggered?: boolean } =
+    {};
 
   if (process.env.LORA_DEBUG_WIRING) {
     const originalGenerate = OpenAIResponder.prototype.generateResponse;
@@ -40,6 +46,8 @@ export const runChatCLI = () => {
     const originalLog = DecisionLogger.logMessageDecision;
     DecisionLogger.logMessageDecision = (payload) => {
       lastAnalyzerSummary = payload.analyzerSummary;
+      lastGuidanceMode = payload.promptProfile.guidanceMode;
+      lastFlags = payload.flags;
       return originalLog(payload);
     };
   }
@@ -60,11 +68,17 @@ export const runChatCLI = () => {
       }
 
       const { analyzerOutputs, signalPacket } = InputProcessor.process(trimmed);
+      const components = EIVComponentAssembler.assemble(analyzerOutputs);
+      const eivResult = EIVScorer.calculate(components);
+      const interpreted = EmotionalStateInterpreter.interpret(
+        analyzerOutputs,
+        eivResult.value
+      );
       const emotionalState: EmotionalState = {
         dominant: "NEUTRAL",
-        arousal: "LOW",
-        valence: "NEUTRAL",
-        confidence: 0.5,
+        arousal: interpreted.arousal,
+        valence: interpreted.valence,
+        confidence: analyzerOutputs.valence.confidence,
       };
 
       const flags = { ambiguityDetected: false };
@@ -86,12 +100,33 @@ export const runChatCLI = () => {
             "payloadIncludesUser:",
             includesUser
           );
+          console.log("[LoRa::Wiring]", "valence", {
+            score: analyzerOutputs.valence.score,
+            confidence: analyzerOutputs.valence.confidence,
+          });
+          console.log("[LoRa::Wiring]", "arousal", {
+            score: analyzerOutputs.arousal.score,
+            confidence: analyzerOutputs.arousal.confidence,
+          });
+          console.log("[LoRa::Wiring]", "expressionStrength", {
+            score: analyzerOutputs.expressionStrength.score,
+            confidence: analyzerOutputs.expressionStrength.confidence,
+          });
+          console.log("[LoRa::Wiring]", "emotionalState", emotionalState);
+          console.log(
+            "[LoRa::Wiring]",
+            "guidanceMode:",
+            lastGuidanceMode ?? "missing"
+          );
           if (lastAnalyzerSummary) {
             console.log(
               "[LoRa::Wiring]",
               "analyzerSummary:",
               lastAnalyzerSummary
             );
+          }
+          if (lastFlags) {
+            console.log("[LoRa::Wiring]", "flags:", lastFlags);
           }
         }
 

@@ -11,6 +11,12 @@ type AnalyzerProbePayload = {
     punctuation: boolean;
     repetition: boolean;
   };
+  analyzerSummary: {
+    emojiUsed: boolean;
+    capsUsed: boolean;
+    punctuationUsed: boolean;
+    repetitionDetected: boolean;
+  };
 };
 
 export const logAnalyzerProbe = (payload: AnalyzerProbePayload): void => {
@@ -19,5 +25,6 @@ export const logAnalyzerProbe = (payload: AnalyzerProbePayload): void => {
   console.groupCollapsed("[LoRa::AnalyzerProbe]");
   console.debug("analyzers", payload.analyzers);
   console.debug("expressionStrengthSignals", payload.expressionStrengthSignals);
+  console.debug("analyzerSummary", payload.analyzerSummary);
   console.groupEnd();
 };
