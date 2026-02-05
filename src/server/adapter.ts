@@ -7,7 +7,7 @@ import { EmotionalStateInterpreter } from '../emotion-core/processors/EmotionalS
 import type { EmotionalState } from '../emotion-core/types/analysis.types';
 
 const app = express();
-const port = 3001;
+const port = 3000;
 const debugEnabled = process.env.LORA_DEBUG === '1';
 
 app.use(express.json());
@@ -61,7 +61,5 @@ app.post('/chat', async (req, res) => {
 });
 
 app.listen(port, () => {
-  if (debugEnabled) {
-    console.log(`[LoRa::Adapter] listening on ${port}`);
-  }
+  console.log(`[LoRa::Adapter] listening on ${port}`);
 });
