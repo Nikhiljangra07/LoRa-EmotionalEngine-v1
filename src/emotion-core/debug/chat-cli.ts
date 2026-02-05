@@ -34,6 +34,9 @@ export const runChatCLI = () => {
   let lastGuidanceMode: string | null = null;
   let lastFlags: { ambiguityDetected?: boolean; safetyTriggered?: boolean } =
     {};
+  const recentMessages: string[] = [];
+  const maxRecentMessages = 4;
+  const maxContextChars = 300;
 
   if (debugEnabled && process.env.LORA_DEBUG_WIRING) {
     const originalGenerate = OpenAIResponder.prototype.generateResponse;
@@ -68,7 +71,27 @@ export const runChatCLI = () => {
         return prompt();
       }
 
+      const microContext =
+        recentMessages.length >= 2
+          ? recentMessages
+              .slice(-maxRecentMessages)
+              .join("\n")
+              .slice(0, maxContextChars)
+          : undefined;
+      if (debugEnabled && microContext) {
+        console.log("[LoRa::MicroContext]", microContext);
+      }
+
       const { analyzerOutputs, signalPacket } = InputProcessor.process(trimmed);
+      const signalPacketWithContext = microContext
+        ? ({
+            ...signalPacket,
+            metadata: {
+              ...(signalPacket.metadata as Record<string, unknown>),
+              microContext,
+            },
+          } as typeof signalPacket)
+        : signalPacket;
       const components = EIVComponentAssembler.assemble(analyzerOutputs);
       const eivResult = EIVScorer.calculate(components);
       const interpreted = EmotionalStateInterpreter.interpret(
@@ -90,7 +113,7 @@ export const runChatCLI = () => {
           false,
           flags,
           undefined,
-          signalPacket
+          signalPacketWithContext
         );
         console.log(`LoRa> ${result.llmOutput}`);
 
@@ -142,6 +165,11 @@ export const runChatCLI = () => {
         }
       } catch (error) {
         console.error("LoRa> Error:", error);
+      }
+
+      recentMessages.push(trimmed);
+      if (recentMessages.length > maxRecentMessages) {
+        recentMessages.shift();
       }
 
       return prompt();

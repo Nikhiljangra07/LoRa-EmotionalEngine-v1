@@ -619,6 +619,7 @@ const EIV_COMPOSITION_CONSTANTS = {
 // LLM (runtime gating)
 const LLM_CONSTANTS = {
   retryConfidenceThreshold: 0.8,
+  firstAttemptTimeoutRatio: 0.6,
 } as const;
 
 // MOMENTUM (runtime-only, session-local)
@@ -642,6 +643,9 @@ const MOMENTUM_CONSTANTS = {
   },
   initiative: {
     confidenceMinInclusive: 0.35,
+  },
+  answerFirst: {
+    confidenceMinInclusive: 0.1,
   },
 } as const;
 
