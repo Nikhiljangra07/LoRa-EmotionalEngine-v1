@@ -98,25 +98,34 @@ export class EngineOrchestrator {
       this.etvState
     );
 
+    const userMessage = signalPacket?.messageText;
+    const llmInput = userMessage
+      ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
+      : prompt;
+
     // 5. Generate LLM response (FAIL-SAFE)
-    const llmOutput = await this.generateLLMResponse(prompt);
+    const llmOutput = await this.generateLLMResponse(llmInput);
 
-    const hasLowConfidenceSignal =
-      analyzerOutputs.expressionStrength.confidence <
-        MASTER_CONSTANTS.layer1.degradation.confidenceThreshold ||
-      analyzerOutputs.valence.confidence <
-        MASTER_CONSTANTS.layer1.degradation.confidenceThreshold ||
-      analyzerOutputs.arousal.confidence <
-        MASTER_CONSTANTS.layer1.degradation.confidenceThreshold;
-
-    const shouldDegrade = hasLowConfidenceSignal;
+    const probeSignals =
+      signalPacket?.metadata &&
+      typeof signalPacket.metadata === 'object' &&
+      'expressionStrengthSignals' in signalPacket.metadata
+        ? (signalPacket.metadata as {
+            expressionStrengthSignals?: {
+              emoji?: boolean;
+              caps?: boolean;
+              punctuation?: boolean;
+              repetition?: boolean;
+            };
+          }).expressionStrengthSignals
+        : undefined;
 
     // 6. Analyzer presence summary (v1-safe)
     const analyzerSummary = {
-      emojiUsed: shouldDegrade,
-      capsUsed: shouldDegrade,
-      punctuationUsed: shouldDegrade,
-      repetitionDetected: shouldDegrade,
+      emojiUsed: probeSignals?.emoji ?? false,
+      capsUsed: probeSignals?.caps ?? false,
+      punctuationUsed: probeSignals?.punctuation ?? false,
+      repetitionDetected: probeSignals?.repetition ?? false,
     };
 
     // 7. Message-level decision logging
