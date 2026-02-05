@@ -616,6 +616,11 @@ const EIV_COMPOSITION_CONSTANTS = {
   },
 } as const;
 
+// LLM (runtime gating)
+const LLM_CONSTANTS = {
+  retryConfidenceThreshold: 0.8,
+} as const;
+
 // MOMENTUM (runtime-only, session-local)
 const MOMENTUM_CONSTANTS = {
   decay: 0.85,
@@ -634,6 +639,9 @@ const MOMENTUM_CONSTANTS = {
     confidenceMinExclusive: 0.5,
     arousalHighMinExclusive: 0.6,
     valenceNegativeMaxExclusive: -0.4,
+  },
+  initiative: {
+    confidenceMinInclusive: 0.35,
   },
 } as const;
 
@@ -886,6 +894,7 @@ export const MASTER_CONSTANTS = {
   valenceAmbiguityConstraints: VALENCE_AMBIGUITY_CONSTRAINTS,
   arousalCalibrationConstants: AROUSAL_CALIBRATION_CONSTANTS,
   eivCompositionConstants: EIV_COMPOSITION_CONSTANTS,
+  llm: LLM_CONSTANTS,
   momentum: MOMENTUM_CONSTANTS,
   layer1: LAYER1_CONSTANTS,
   engineDefaults: ENGINE_DEFAULTS,

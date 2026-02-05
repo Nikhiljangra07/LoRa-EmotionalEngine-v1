@@ -95,20 +95,6 @@ export class EngineOrchestrator {
     this.sessionEIVs.push(eivResult.value);
     this.sessionHasViolation ||= hasViolation;
 
-    // 4. Build prompt (PURE)
-    const prompt = PromptTemplateBuilder.build(
-      emotionalState,
-      this.etvState
-    );
-
-    const userMessage = signalPacket?.messageText;
-    const llmInput = userMessage
-      ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
-      : prompt;
-
-    // 5. Generate LLM response (FAIL-SAFE)
-    const llmOutput = await this.generateLLMResponse(llmInput);
-
     const analyzerSummary = (
       signalPacket?.metadata as
         | {
@@ -130,7 +116,7 @@ export class EngineOrchestrator {
       repetitionDetected: undefined,
     };
 
-    // 7. Message-level decision logging
+    // 4. Message-level decision context (pre-LLM)
     let guidanceMode: PromptProfile['guidanceMode'] =
       emotionalState.arousal === 'LOW'
         ? 'CALM_NEUTRAL'
@@ -158,6 +144,34 @@ export class EngineOrchestrator {
       }
     }
 
+    // 5. Build prompt (PURE)
+    const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
+      guidanceMode,
+      momentumConfidence: momentum.confidence,
+    });
+
+    const userMessage = signalPacket?.messageText;
+    const llmInput = userMessage
+      ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
+      : prompt;
+
+    const decision = {
+      eiv: {
+        confidence: Math.min(
+          eivResult.components.expressionStrength.confidence,
+          eivResult.components.valence.confidence,
+          eivResult.components.arousal.confidence
+        ),
+      },
+      promptProfile: {
+        guidanceMode,
+      },
+    };
+
+    // 6. Generate LLM response (FAIL-SAFE)
+    const llmOutput = await this.generateLLMResponse(llmInput, decision);
+
+    // 7. Message-level decision logging
     DecisionLogger.logMessageDecision({
       messageId: `msg-${this.messageCount}`,
       timestamp: Date.now(),
@@ -284,7 +298,11 @@ export class EngineOrchestrator {
   }
 
   private async generateLLMResponse(
-    prompt: string
+    prompt: string,
+    decision: {
+      eiv: { confidence: number };
+      promptProfile: { guidanceMode: PromptProfile['guidanceMode'] };
+    }
   ): Promise<string> {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
@@ -304,7 +322,14 @@ export class EngineOrchestrator {
       }
     }
 
-    for (let attempt = 1; attempt <= this.llmConfig.maxAttempts; attempt += 1) {
+    const isHighConfidence =
+      decision.eiv.confidence >=
+        MASTER_CONSTANTS.llm.retryConfidenceThreshold &&
+      decision.promptProfile.guidanceMode !== 'FALLBACK';
+    const maxRetries = isHighConfidence ? 0 : this.llmConfig.maxAttempts - 1;
+    const maxAttempts = Math.max(1, maxRetries + 1);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       this.logLLMEvent('retry_attempt', { attempt });
       try {
         const response = await this.withTimeout(

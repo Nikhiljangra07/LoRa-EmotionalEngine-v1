@@ -7,6 +7,7 @@ import {
   MomentumState,
 } from '../runtime/MomentumState';
 import { updateMomentum } from '../runtime/updateMomentum';
+import { debugEnabled } from '../debug/debugGate';
 
 export type ArousalLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type Valence = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
@@ -59,7 +60,7 @@ export class EmotionalStateInterpreter {
       EmotionalStateInterpreter.momentumHistory
     );
 
-    if (process.env.LORA_DEBUG) {
+    if (debugEnabled) {
       console.log(
         '[LoRa::Momentum]',
         EmotionalStateInterpreter.momentum
