@@ -13,6 +13,8 @@ import { PromptTemplateBuilder } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
+import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
+import type { PromptProfile } from '../types/logging.types';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -129,7 +131,7 @@ export class EngineOrchestrator {
     };
 
     // 7. Message-level decision logging
-    let guidanceMode =
+    let guidanceMode: PromptProfile['guidanceMode'] =
       emotionalState.arousal === 'LOW'
         ? 'CALM_NEUTRAL'
         : emotionalState.valence === 'NEGATIVE'
@@ -139,10 +141,19 @@ export class EngineOrchestrator {
     const momentum = EmotionalStateInterpreter.momentum;
 
     // Bias guidance mode (do NOT override)
-    if (momentum.confidence > 0.5) {
-      if (momentum.arousalBias > 0.6) {
+    if (
+      momentum.confidence >
+      MOMENTUM_CONSTANTS.guidanceBias.confidenceMinExclusive
+    ) {
+      if (
+        momentum.arousalBias >
+        MOMENTUM_CONSTANTS.guidanceBias.arousalHighMinExclusive
+      ) {
         guidanceMode = 'ENERGY_MATCH';
-      } else if (momentum.valenceBias < -0.4) {
+      } else if (
+        momentum.valenceBias <
+        MOMENTUM_CONSTANTS.guidanceBias.valenceNegativeMaxExclusive
+      ) {
         guidanceMode = 'DE_ESCALATE';
       }
     }
