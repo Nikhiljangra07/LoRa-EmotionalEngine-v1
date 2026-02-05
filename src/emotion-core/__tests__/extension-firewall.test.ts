@@ -117,8 +117,8 @@ describe("Extension firewall fixtures", () => {
   });
 
   test("EF-002: Safe metrics only (whitelist access)", () => {
-    const outputs = InputProcessor.process("Test message.");
-    const components = EIVComponentAssembler.assemble(outputs);
+    const { analyzerOutputs } = InputProcessor.process("Test message.");
+    const components = EIVComponentAssembler.assemble(analyzerOutputs);
     const result = EIVScorer.calculate(components);
     const allowed = ["value", "components", "breakdown", "timestamp"];
     expect(Object.keys(result)).toEqual(expect.arrayContaining(allowed));
@@ -126,8 +126,8 @@ describe("Extension firewall fixtures", () => {
   });
 
   test("EF-003: Unsafe internals are hidden", () => {
-    const outputs = InputProcessor.process("Test message.");
-    const components = EIVComponentAssembler.assemble(outputs);
+    const { analyzerOutputs } = InputProcessor.process("Test message.");
+    const components = EIVComponentAssembler.assemble(analyzerOutputs);
     const result = EIVScorer.calculate(components);
     // @ts-expect-error internal scorer internals must not be accessible
     result._internalGainCurve;

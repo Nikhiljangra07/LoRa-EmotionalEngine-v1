@@ -14,7 +14,7 @@ const messages = [
 ];
 
 for (const msg of messages) {
-  const analyzerOutputs = InputProcessor.process(msg);
+  const { analyzerOutputs } = InputProcessor.process(msg);
   const emotionalState: EmotionalState = {
     dominant: 'NEUTRAL',
     arousal: 'LOW',

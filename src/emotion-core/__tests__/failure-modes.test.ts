@@ -32,10 +32,10 @@ const DEFAULT_STATE: EmotionalState = {
 };
 
 const runPipeline = (text: string) => {
-  const outputs = InputProcessor.process(text);
-  const components = EIVComponentAssembler.assemble(outputs);
+  const { analyzerOutputs } = InputProcessor.process(text);
+  const components = EIVComponentAssembler.assemble(analyzerOutputs);
   const eiv = EIVScorer.calculate(components);
-  return { outputs, eiv };
+  return { outputs: analyzerOutputs, eiv };
 };
 
 const expectBoundedOutput = (value: number) => {
@@ -45,7 +45,7 @@ const expectBoundedOutput = (value: number) => {
 };
 
 const expectBoundedAnalyzerOutputs = (
-  outputs: ReturnType<typeof InputProcessor.process>
+  outputs: ReturnType<typeof InputProcessor.process>["analyzerOutputs"]
 ) => {
   expectBoundedOutput(outputs.expressionStrength.score);
   expectBoundedOutput(outputs.expressionStrength.confidence);
@@ -128,7 +128,7 @@ describe("Failure modes — Orchestrator runtime robustness", () => {
         generateResponse: async () => "LOCAL",
       })
     );
-    const outputs = InputProcessor.process("");
+    const { analyzerOutputs: outputs } = InputProcessor.process("");
 
     const result = await engine.processMessage(
       outputs,
@@ -146,7 +146,7 @@ describe("Failure modes — Orchestrator runtime robustness", () => {
       })
     );
     const text = "???";
-    const outputs = InputProcessor.process(text);
+    const { analyzerOutputs: outputs } = InputProcessor.process(text);
 
     const first = await engine.processMessage(
       outputs,
