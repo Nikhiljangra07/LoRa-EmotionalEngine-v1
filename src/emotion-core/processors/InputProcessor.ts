@@ -7,6 +7,7 @@ import { ArousalAnalyzer } from '../analyzers/content/ArousalAnalyzer';
 import { buildExpressionStrengthFeatures } from '../analyzers/content/ExpressionStrengthAnalyzer';
 import type { AnalyzerOutputs } from './EIVComponentAssembler';
 import type { SignalPacket } from '../types/SignalPacket.types';
+import { logAnalyzerProbe } from '../debug/AnalyzerProbe';
 
 /* ============================================================================
  * Input Processor
@@ -29,6 +30,26 @@ export class InputProcessor {
     const esResult = ExpressionStrengthScorer.compute(esFeatures);
     const valenceResult = this.valenceAnalyzer.analyze(text);
     const arousalResult = this.arousalAnalyzer.analyze(text);
+
+    if (process.env.LORA_DEBUG) {
+      logAnalyzerProbe({
+        analyzers: {
+          valence: true,
+          arousal: true,
+          expressionStrength: true,
+          ambiguityComputed: false,
+        },
+        expressionStrengthSignals: {
+          emoji: esFeatures.emojiCount > 0,
+          caps: esFeatures.capsRatio > 0,
+          punctuation:
+            esFeatures.exclamationCount > 0 ||
+            esFeatures.questionCount > 0 ||
+            esFeatures.hasMixedPunctuation,
+          repetition: esFeatures.expressiveLengtheningCount > 0,
+        },
+      });
+    }
 
     const output: AnalyzerOutputs = {
       expressionStrength: {
