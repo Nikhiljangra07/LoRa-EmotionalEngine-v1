@@ -1,4 +1,5 @@
 import { MASTER_CONSTANTS } from "../../config/master.constants";
+import { debugEnabled } from "../../utils/debugGate";
 
 export type Valence = "POSITIVE" | "NEGATIVE" | "NEUTRAL";
 
@@ -403,7 +404,7 @@ export class ValenceAnalyzer {
       VALENCE_CONSTANTS.bounds.one
     );
 
-    if (process.env.LORA_DEBUG) {
+    if (debugEnabled) {
       console.log("[LoRa::ValenceDebug]", {
         markers: matchedMarkers,
         polarityHits,

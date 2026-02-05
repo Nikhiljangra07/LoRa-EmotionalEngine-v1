@@ -12,6 +12,7 @@ import { OpenAIResponder } from "../llm/OpenAIResponder";
 import { EIVComponentAssembler } from "../processors/EIVComponentAssembler";
 import { EIVScorer } from "../scorers/EIVScorer";
 import { EmotionalStateInterpreter } from "../processors/EmotionalStateInterpreter";
+import { debugEnabled } from "./debugGate";
 
 const COMMANDS = ["/help", "/exit", "/quit"];
 
@@ -34,7 +35,7 @@ export const runChatCLI = () => {
   let lastFlags: { ambiguityDetected?: boolean; safetyTriggered?: boolean } =
     {};
 
-  if (process.env.LORA_DEBUG_WIRING) {
+  if (debugEnabled && process.env.LORA_DEBUG_WIRING) {
     const originalGenerate = OpenAIResponder.prototype.generateResponse;
     OpenAIResponder.prototype.generateResponse = async function (
       prompt: string
@@ -93,7 +94,7 @@ export const runChatCLI = () => {
         );
         console.log(`LoRa> ${result.llmOutput}`);
 
-        if (process.env.LORA_DEBUG_WIRING) {
+        if (debugEnabled && process.env.LORA_DEBUG_WIRING) {
           const includesUser = lastPrompt?.includes(trimmed) ?? false;
           console.log(
             "[LoRa::Wiring]",
