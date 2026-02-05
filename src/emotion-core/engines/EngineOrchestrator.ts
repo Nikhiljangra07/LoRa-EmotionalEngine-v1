@@ -15,6 +15,7 @@ import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile } from '../types/logging.types';
+import { debugEnabled } from '../debug/debugGate';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -104,6 +105,7 @@ export class EngineOrchestrator {
               punctuationUsed?: boolean;
               repetitionDetected?: boolean;
             };
+            microContext?: string;
           }
         | undefined
     )?.analyzerSummary;
@@ -144,13 +146,39 @@ export class EngineOrchestrator {
       }
     }
 
+    const userMessage = signalPacket?.messageText ?? '';
+    const normalizedUserMessage = userMessage.toLowerCase();
+    const questionPatterns = [
+      'should i',
+      'what do you think',
+      'how do i',
+      "what's your take",
+      'whats your take',
+    ];
+    const isQuestion =
+      normalizedUserMessage.includes('?') ||
+      questionPatterns.some((pattern) =>
+        normalizedUserMessage.includes(pattern)
+      );
+    const allowAnswerFirst =
+      isQuestion &&
+      momentum.confidence >=
+        MASTER_CONSTANTS.momentum.answerFirst.confidenceMinInclusive &&
+      !hasViolation &&
+      !flags.ambiguityDetected;
+
+    const microContext = (
+      signalPacket?.metadata as { microContext?: string } | undefined
+    )?.microContext;
+
     // 5. Build prompt (PURE)
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
+      answerFirst: allowAnswerFirst,
+      microContext,
     });
 
-    const userMessage = signalPacket?.messageText;
     const llmInput = userMessage
       ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
       : prompt;
@@ -326,22 +354,34 @@ export class EngineOrchestrator {
       decision.eiv.confidence >=
         MASTER_CONSTANTS.llm.retryConfidenceThreshold &&
       decision.promptProfile.guidanceMode !== 'FALLBACK';
-    const maxRetries = isHighConfidence ? 0 : this.llmConfig.maxAttempts - 1;
+    const configuredRetries = Math.max(0, this.llmConfig.maxAttempts - 1);
+    const maxRetries = isHighConfidence
+      ? 0
+      : Math.min(1, configuredRetries);
     const maxAttempts = Math.max(1, maxRetries + 1);
+    const firstAttemptTimeoutMs = Math.min(
+      this.llmConfig.maxResponseMs,
+      Math.round(
+        this.llmConfig.maxResponseMs *
+          MASTER_CONSTANTS.llm.firstAttemptTimeoutRatio
+      )
+    );
+    const retryTimeoutMs = this.llmConfig.maxResponseMs;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      this.logLLMEvent('retry_attempt', { attempt });
+      if (attempt > 1) {
+        this.logLLMEvent('retry_attempt');
+      }
       try {
         const response = await this.withTimeout(
           this.getResponder().generateResponse(prompt),
-          this.llmConfig.maxResponseMs
+          attempt === 1 ? firstAttemptTimeoutMs : retryTimeoutMs
         );
         return response;
       } catch (err) {
-        this.logLLMEvent('retry_failed', {
-          attempt,
-          error: err instanceof Error ? err.message : 'unknown',
-        });
+        if (attempt > 1) {
+          this.logLLMEvent('retry_failed');
+        }
       }
     }
 
@@ -379,6 +419,9 @@ export class EngineOrchestrator {
     event: string,
     details: Record<string, unknown> = {}
   ) {
+    if (!debugEnabled) {
+      return;
+    }
     console.log('[LoRa::LLM]', JSON.stringify({ event, ...details }));
   }
 

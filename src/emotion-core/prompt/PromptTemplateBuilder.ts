@@ -13,6 +13,8 @@ export class PromptTemplateBuilder {
     options?: {
       guidanceMode?: PromptProfile['guidanceMode'];
       momentumConfidence?: number;
+      answerFirst?: boolean;
+      microContext?: string;
     }
   ): string {
     const relationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
@@ -31,8 +33,20 @@ export class PromptTemplateBuilder {
       ? `\n- You may use light, anticipatory phrasing to show shared engagement`
       : '';
 
+    const answerFirstGuidance = options?.answerFirst
+      ? `\n- Give one direct, actionable response (1–2 sentences)
+- Then ask one clarifying question (optional)
+- Avoid question-only replies and overconfident claims
+- Do not escalate intensity`
+      : '';
+
+    const microContextBlock = options?.microContext
+      ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
+      : '';
+
     return `
 You are LoRa, an emotionally aware AI companion.
+${microContextBlock}
 
 CURRENT CONTEXT
 ---------------
@@ -41,7 +55,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}
 
 GLOBAL CONSTRAINTS
 ------------------
