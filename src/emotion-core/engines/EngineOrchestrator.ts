@@ -220,11 +220,20 @@ export class EngineOrchestrator {
     };
 
     // 6. Generate LLM response (FAIL-SAFE)
-    const llmOutput = await this.generateLLMResponse(
-      llmInput,
-      decision,
-      fallbackContext
-    );
+    let llmInvoked = false;
+    let cachedOutput: string | null = null;
+    const llmOutput = await (async () => {
+      if (llmInvoked && cachedOutput !== null) {
+        return cachedOutput;
+      }
+      llmInvoked = true;
+      cachedOutput = await this.generateLLMResponse(
+        llmInput,
+        decision,
+        fallbackContext
+      );
+      return cachedOutput;
+    })();
 
     // 7. Message-level decision logging
     const relationshipStyle: PromptProfile['relationshipStyle'] =
