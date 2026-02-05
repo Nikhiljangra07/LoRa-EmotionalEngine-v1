@@ -31,6 +31,23 @@ export class InputProcessor {
     const valenceResult = this.valenceAnalyzer.analyze(text);
     const arousalResult = this.arousalAnalyzer.analyze(text);
 
+    const expressionStrengthSignals = {
+      emoji: esFeatures.emojiCount > 0,
+      caps: esFeatures.capsRatio > 0,
+      punctuation:
+        esFeatures.exclamationCount > 0 ||
+        esFeatures.questionCount > 0 ||
+        esFeatures.hasMixedPunctuation,
+      repetition: esFeatures.expressiveLengtheningCount > 0,
+    };
+
+    const analyzerSummary = {
+      emojiUsed: expressionStrengthSignals.emoji,
+      capsUsed: expressionStrengthSignals.caps,
+      punctuationUsed: expressionStrengthSignals.punctuation,
+      repetitionDetected: expressionStrengthSignals.repetition,
+    };
+
     if (process.env.LORA_DEBUG) {
       logAnalyzerProbe({
         analyzers: {
@@ -39,15 +56,8 @@ export class InputProcessor {
           expressionStrength: true,
           ambiguityComputed: false,
         },
-        expressionStrengthSignals: {
-          emoji: esFeatures.emojiCount > 0,
-          caps: esFeatures.capsRatio > 0,
-          punctuation:
-            esFeatures.exclamationCount > 0 ||
-            esFeatures.questionCount > 0 ||
-            esFeatures.hasMixedPunctuation,
-          repetition: esFeatures.expressiveLengtheningCount > 0,
-        },
+        expressionStrengthSignals,
+        analyzerSummary,
       });
     }
 
@@ -81,6 +91,10 @@ export class InputProcessor {
       layer1Health: Object.freeze({
         degraded: false,
         reason: 'layer1_confidence_ok',
+      }),
+      metadata: Object.freeze({
+        expressionStrengthSignals,
+        analyzerSummary,
       }),
       expressionStrength: Object.freeze({
         score: esResult.es,

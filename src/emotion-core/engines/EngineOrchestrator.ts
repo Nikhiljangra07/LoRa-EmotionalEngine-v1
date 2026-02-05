@@ -106,26 +106,25 @@ export class EngineOrchestrator {
     // 5. Generate LLM response (FAIL-SAFE)
     const llmOutput = await this.generateLLMResponse(llmInput);
 
-    const probeSignals =
-      signalPacket?.metadata &&
-      typeof signalPacket.metadata === 'object' &&
-      'expressionStrengthSignals' in signalPacket.metadata
-        ? (signalPacket.metadata as {
-            expressionStrengthSignals?: {
-              emoji?: boolean;
-              caps?: boolean;
-              punctuation?: boolean;
-              repetition?: boolean;
+    const analyzerSummary = (
+      signalPacket?.metadata as
+        | {
+            analyzerSummary?: {
+              emojiUsed?: boolean;
+              capsUsed?: boolean;
+              punctuationUsed?: boolean;
+              repetitionDetected?: boolean;
             };
-          }).expressionStrengthSignals
-        : undefined;
+          }
+        | undefined
+    )?.analyzerSummary;
 
     // 6. Analyzer presence summary (v1-safe)
-    const analyzerSummary = {
-      emojiUsed: probeSignals?.emoji ?? false,
-      capsUsed: probeSignals?.caps ?? false,
-      punctuationUsed: probeSignals?.punctuation ?? false,
-      repetitionDetected: probeSignals?.repetition ?? false,
+    const summaryForLog = analyzerSummary ?? {
+      emojiUsed: undefined,
+      capsUsed: undefined,
+      punctuationUsed: undefined,
+      repetitionDetected: undefined,
     };
 
     // 7. Message-level decision logging
@@ -133,7 +132,12 @@ export class EngineOrchestrator {
       messageId: `msg-${this.messageCount}`,
       timestamp: Date.now(),
 
-      analyzerSummary,
+      analyzerSummary: summaryForLog as {
+        emojiUsed: boolean;
+        capsUsed: boolean;
+        punctuationUsed: boolean;
+        repetitionDetected: boolean;
+      },
 
       eiv: {
         value: eivResult.value,

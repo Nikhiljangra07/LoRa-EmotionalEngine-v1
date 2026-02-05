@@ -23,6 +23,12 @@ describe("DecisionLogger analyzerSummary integrity", () => {
           punctuation: false,
           repetition: false,
         },
+        analyzerSummary: {
+          emojiUsed: false,
+          capsUsed: false,
+          punctuationUsed: false,
+          repetitionDetected: false,
+        },
       },
     };
 
