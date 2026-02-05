@@ -137,6 +137,7 @@ export class ValenceAnalyzer {
     const contrastiveMarkers: string[] = [];
     let lastContrastIndex: number | undefined;
     const tokenSet = new Set(tokens.map((token) => normalizeToken(token)));
+    const rawTokens = trimmed.split(/\s+/).filter(Boolean);
 
     tokens.forEach((token, index) => {
       const normalized = normalizeToken(token);
@@ -187,16 +188,19 @@ export class ValenceAnalyzer {
 
     const markers = VALENCE_CONSTANTS.lexicon.markers;
     const matchedMarkers = {
-      selfConsciousnessNegative: markers.selfConsciousnessNegative.filter(
-        (token) => tokenSet.has(token)
-      ),
-      playfulHedgingPositive: markers.playfulHedgingPositive.filter((token) =>
+      positiveTokens: markers.positiveTokens.filter((token) =>
         tokenSet.has(token)
       ),
-      phrasesPositive: markers.phrasesPositive.filter((phrase) =>
+      negativeTokens: markers.negativeTokens.filter((token) =>
+        tokenSet.has(token)
+      ),
+      positivePhrases: markers.positivePhrases.filter((phrase) =>
         normalizedText.includes(phrase)
       ),
-      phrasesNegative: markers.phrasesNegative.filter((phrase) =>
+      negativePhrases: markers.negativePhrases.filter((phrase) =>
+        normalizedText.includes(phrase)
+      ),
+      contextIntensifiers: markers.contextIntensifiers.filter((phrase) =>
         normalizedText.includes(phrase)
       ),
       emotiveEmojiPositive: markers.emotiveEmojiPositive.filter((emoji) =>
@@ -205,39 +209,94 @@ export class ValenceAnalyzer {
       emotiveEmojiNegative: markers.emotiveEmojiNegative.filter((emoji) =>
         trimmed.includes(emoji)
       ),
+      contextualEmoji: markers.contextualEmoji.filter((emoji) =>
+        trimmed.includes(emoji)
+      ),
     };
 
     const markerHits = {
-      selfConsciousnessNegative:
-        matchedMarkers.selfConsciousnessNegative.length,
-      playfulHedgingPositive: matchedMarkers.playfulHedgingPositive.length,
-      phrasesPositive: matchedMarkers.phrasesPositive.length,
-      phrasesNegative: matchedMarkers.phrasesNegative.length,
+      positiveTokens: matchedMarkers.positiveTokens.length,
+      negativeTokens: matchedMarkers.negativeTokens.length,
+      positivePhrases: matchedMarkers.positivePhrases.length,
+      negativePhrases: matchedMarkers.negativePhrases.length,
+      contextIntensifiers: matchedMarkers.contextIntensifiers.length,
       emotiveEmojiPositive: matchedMarkers.emotiveEmojiPositive.length,
       emotiveEmojiNegative: matchedMarkers.emotiveEmojiNegative.length,
+      contextualEmoji: matchedMarkers.contextualEmoji.length,
     };
 
+    const positiveMarkerCount =
+      markerHits.positiveTokens + markerHits.positivePhrases;
+
+    const hasCapsToken =
+      rawTokens.filter((token) => {
+        const normalized = token.replace(/[^A-Za-z]/g, "");
+        if (
+          normalized.length <
+          VALENCE_CONSTANTS.evidenceBoost.capsTokenMinLength
+        ) {
+          return false;
+        }
+        return normalized === normalized.toUpperCase();
+      }).length >= VALENCE_CONSTANTS.evidenceBoost.capsTokenMinCount;
+
+    const hasRepeatedPunctuation =
+      new RegExp(
+        `[!?]{${VALENCE_CONSTANTS.evidenceBoost.punctuationRepeatMin},}`
+      ).test(trimmed) ||
+      new RegExp(
+        `\\.{${VALENCE_CONSTANTS.evidenceBoost.ellipsisMin},}`
+      ).test(trimmed);
+
+    const evidenceMultiplier =
+      VALENCE_CONSTANTS.bounds.one +
+      (hasCapsToken
+        ? VALENCE_CONSTANTS.evidenceBoost.capsMultiplier
+        : VALENCE_CONSTANTS.bounds.zero) +
+      (hasRepeatedPunctuation
+        ? VALENCE_CONSTANTS.evidenceBoost.punctuationMultiplier
+        : VALENCE_CONSTANTS.bounds.zero);
+
     positiveWeight +=
-      markerHits.playfulHedgingPositive *
-        VALENCE_CONSTANTS.markerWeights.playfulHedgingPositive +
-      markerHits.phrasesPositive * VALENCE_CONSTANTS.markerWeights.phrasesPositive +
+      markerHits.positiveTokens *
+        VALENCE_CONSTANTS.markerWeights.positiveTokens +
+      markerHits.positivePhrases *
+        VALENCE_CONSTANTS.markerWeights.positivePhrases +
       markerHits.emotiveEmojiPositive *
         VALENCE_CONSTANTS.markerWeights.emotiveEmojiPositive;
 
     negativeWeight +=
-      markerHits.selfConsciousnessNegative *
-        VALENCE_CONSTANTS.markerWeights.selfConsciousnessNegative +
-      markerHits.phrasesNegative * VALENCE_CONSTANTS.markerWeights.phrasesNegative +
+      markerHits.negativeTokens *
+        VALENCE_CONSTANTS.markerWeights.negativeTokens +
+      markerHits.negativePhrases *
+        VALENCE_CONSTANTS.markerWeights.negativePhrases +
       markerHits.emotiveEmojiNegative *
         VALENCE_CONSTANTS.markerWeights.emotiveEmojiNegative;
 
+    if (markerHits.contextualEmoji > VALENCE_CONSTANTS.bounds.zero) {
+      const usePositiveEmoji =
+        positiveMarkerCount >=
+        VALENCE_CONSTANTS.emojiContext.positiveMarkerThreshold;
+      if (usePositiveEmoji) {
+        positiveWeight +=
+          markerHits.contextualEmoji *
+          VALENCE_CONSTANTS.markerWeights.contextualEmojiPositive;
+      } else {
+        negativeWeight +=
+          markerHits.contextualEmoji *
+          VALENCE_CONSTANTS.markerWeights.contextualEmojiNegative;
+      }
+    }
+
     const markerEvidenceCount =
-      markerHits.selfConsciousnessNegative +
-      markerHits.playfulHedgingPositive +
-      markerHits.phrasesPositive +
-      markerHits.phrasesNegative +
+      markerHits.positiveTokens +
+      markerHits.negativeTokens +
+      markerHits.positivePhrases +
+      markerHits.negativePhrases +
+      markerHits.contextIntensifiers +
       markerHits.emotiveEmojiPositive +
-      markerHits.emotiveEmojiNegative;
+      markerHits.emotiveEmojiNegative +
+      markerHits.contextualEmoji;
 
     const polarityTokenCount =
       polarityHits.positive + polarityHits.negative;
@@ -313,22 +372,33 @@ export class ValenceAnalyzer {
       confidence *= VALENCE_CONSTANTS.confidence.lowEvidenceMultiplier;
     }
 
+    const contextualEmojiPositive =
+      markerHits.contextualEmoji > VALENCE_CONSTANTS.bounds.zero &&
+      positiveMarkerCount >=
+        VALENCE_CONSTANTS.emojiContext.positiveMarkerThreshold;
+
     const markerConfidence =
-      markerHits.selfConsciousnessNegative *
-        VALENCE_CONSTANTS.markerConfidence.selfConsciousnessNegative +
-      markerHits.playfulHedgingPositive *
-        VALENCE_CONSTANTS.markerConfidence.playfulHedgingPositive +
-      markerHits.phrasesPositive *
-        VALENCE_CONSTANTS.markerConfidence.phrasesPositive +
-      markerHits.phrasesNegative *
-        VALENCE_CONSTANTS.markerConfidence.phrasesNegative +
+      markerHits.positiveTokens *
+        VALENCE_CONSTANTS.markerConfidence.positiveTokens +
+      markerHits.negativeTokens *
+        VALENCE_CONSTANTS.markerConfidence.negativeTokens +
+      markerHits.positivePhrases *
+        VALENCE_CONSTANTS.markerConfidence.positivePhrases +
+      markerHits.negativePhrases *
+        VALENCE_CONSTANTS.markerConfidence.negativePhrases +
+      markerHits.contextIntensifiers *
+        VALENCE_CONSTANTS.markerConfidence.contextIntensifiers +
       markerHits.emotiveEmojiPositive *
         VALENCE_CONSTANTS.markerConfidence.emotiveEmojiPositive +
       markerHits.emotiveEmojiNegative *
-        VALENCE_CONSTANTS.markerConfidence.emotiveEmojiNegative;
+        VALENCE_CONSTANTS.markerConfidence.emotiveEmojiNegative +
+      markerHits.contextualEmoji *
+        (contextualEmojiPositive
+          ? VALENCE_CONSTANTS.markerConfidence.contextualEmojiPositive
+          : VALENCE_CONSTANTS.markerConfidence.contextualEmojiNegative);
 
     confidence = clamp(
-      Math.max(confidence, markerConfidence),
+      Math.max(confidence, markerConfidence * evidenceMultiplier),
       VALENCE_CONSTANTS.bounds.zero,
       VALENCE_CONSTANTS.bounds.one
     );
@@ -339,6 +409,7 @@ export class ValenceAnalyzer {
         polarityHits,
         positiveWeight,
         negativeWeight,
+        evidenceMultiplier,
         neutralTriggers,
       });
     }
