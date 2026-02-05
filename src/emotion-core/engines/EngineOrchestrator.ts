@@ -53,6 +53,14 @@ export class EngineOrchestrator {
   private readonly llmConfig: LLMConfig;
   private readonly responderFactory: () => LLMResponder;
 
+  // 🔒 LLM execution ownership lock
+  private activeExecution?: symbol;
+  private lastDecision?: {
+    eiv: ReturnType<typeof EIVScorer.calculate>;
+    prompt: string;
+    llmOutput: string;
+  };
+
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
     llmConfig: Partial<LLMConfig> = {},
@@ -85,8 +93,14 @@ export class EngineOrchestrator {
     userFeedback?: 'positive' | 'neutral' | 'negative',
     signalPacket?: SignalPacket
   ) {
-    let llmExecutionContextActive = false;
-    let cachedLLMOutput: string | null = null;
+    // 🔒 Single-owner execution lock
+    const executionToken = Symbol('LLM_EXECUTION');
+    if (this.activeExecution) {
+      return this.lastDecision!;
+    }
+    this.activeExecution = executionToken;
+
+    try {
     this.messageCount += 1;
 
     // 1. Assemble EIV components (SAFE)
@@ -221,19 +235,12 @@ export class EngineOrchestrator {
       },
     };
 
-    // 6. Generate LLM response (FAIL-SAFE)
-    const llmOutput = await (async () => {
-      if (llmExecutionContextActive && cachedLLMOutput !== null) {
-        return cachedLLMOutput;
-      }
-      llmExecutionContextActive = true;
-      cachedLLMOutput = await this.generateLLMResponse(
-        llmInput,
-        decision,
-        fallbackContext
-      );
-      return cachedLLMOutput;
-    })();
+    // 6. Generate LLM response (FAIL-SAFE, single owner)
+    const llmOutput = await this.generateLLMResponse(
+      llmInput,
+      decision,
+      fallbackContext
+    );
 
     // 7. Message-level decision logging
     const relationshipStyle: PromptProfile['relationshipStyle'] =
@@ -303,11 +310,19 @@ export class EngineOrchestrator {
       llmOutput,
     });
 
-    return {
+    const result = {
       eiv: eivResult,
       prompt,
       llmOutput,
     };
+
+    this.lastDecision = result;
+    return result;
+    } finally {
+      if (this.activeExecution === executionToken) {
+        this.activeExecution = undefined;
+      }
+    }
   }
 
   // ---------------------------------------------------
