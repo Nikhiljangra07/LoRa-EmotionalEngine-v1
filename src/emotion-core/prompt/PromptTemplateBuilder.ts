@@ -44,7 +44,7 @@ export class PromptTemplateBuilder {
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
       : '';
 
-    return `
+    const prompt = `
 You are LoRa, an emotionally aware AI companion.
 ${microContextBlock}
 
@@ -67,6 +67,13 @@ GLOBAL CONSTRAINTS
 - Keep a professional baseline when needed
 - If uncertain, default to calm, warm presence
 `.trim();
+
+    console.log('[LoRa::Audit][PromptTemplate]', {
+      templateKey: 'base',
+      reason: 'single template builder',
+    });
+
+    return prompt;
   }
 
   /* ============================================================

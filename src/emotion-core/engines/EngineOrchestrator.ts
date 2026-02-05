@@ -190,6 +190,16 @@ export class EngineOrchestrator {
       signalPacket?.metadata as { microContext?: string } | undefined
     )?.microContext;
 
+    console.log('[LoRa::Audit][Engine]', {
+      userText: userMessage,
+      emotionalState,
+      eiv: {
+        value: eivResult.value,
+        tier: getEIVTier(eivResult.value),
+      },
+      promptProfile: { guidanceMode },
+    });
+
     // 5. Build prompt (PURE)
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
@@ -201,6 +211,8 @@ export class EngineOrchestrator {
     const llmInput = userMessage
       ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
       : prompt;
+
+    console.log('[LoRa::Audit][Prompt]', llmInput);
 
     const decision = {
       eiv: {
@@ -426,6 +438,10 @@ export class EngineOrchestrator {
             cooldownUntil: this.llmCooldownUntil,
           });
           this.logLLMEvent('fallback_used', { reason: 'cooldown' });
+          console.log('[LoRa::Audit][LLM]', {
+            path: 'fallback_static',
+            reason: 'cooldown',
+          });
           return EngineOrchestrator.fallbackResponse();
         }
         const normalizedUserText = fallbackContext.userText.toLowerCase();
@@ -454,6 +470,10 @@ export class EngineOrchestrator {
             cooldownUntil: this.llmCooldownUntil,
           });
           this.logLLMEvent('fallback_used', { reason: 'cooldown' });
+          console.log('[LoRa::Audit][LLM]', {
+            path: debugEnabled ? 'fallback_generated' : 'fallback_static',
+            reason: 'cooldown',
+          });
           return debugEnabled
             ? EngineOrchestrator.generateFallbackReply(fallbackContext)
             : EngineOrchestrator.fallbackResponse();
@@ -484,6 +504,7 @@ export class EngineOrchestrator {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       attempts = attempt;
       try {
+        console.log('[LoRa::Audit][LLM]', { path: 'real_llm_attempt' });
         const response = await this.withTimeout(
           this.getResponder().generateResponse(prompt),
           attempt === 1 ? firstAttemptTimeoutMs : retryTimeoutMs
@@ -513,6 +534,10 @@ export class EngineOrchestrator {
       void lastError;
     }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
+    console.log('[LoRa::Audit][LLM]', {
+      path: 'fallback_static',
+      reason: 'retry_exhausted',
+    });
     return EngineOrchestrator.fallbackResponse();
   }
 
