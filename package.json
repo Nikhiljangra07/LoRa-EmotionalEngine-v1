@@ -9,9 +9,10 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "dev": "ts-node src/index.ts",
     "test": "jest",
-    "chat": "ts-node src/emotion-core/debug/chat-cli.ts"
+    "chat": "ts-node src/emotion-core/debug/chat-cli.ts",
+    "dev": "ts-node src/server/adapter.ts",
+    "dev:test": "ts-node src/index.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
