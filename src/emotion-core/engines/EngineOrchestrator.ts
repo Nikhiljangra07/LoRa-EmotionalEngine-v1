@@ -85,6 +85,8 @@ export class EngineOrchestrator {
     userFeedback?: 'positive' | 'neutral' | 'negative',
     signalPacket?: SignalPacket
   ) {
+    let llmExecutionContextActive = false;
+    let cachedLLMOutput: string | null = null;
     this.messageCount += 1;
 
     // 1. Assemble EIV components (SAFE)
@@ -220,20 +222,17 @@ export class EngineOrchestrator {
     };
 
     // 6. Generate LLM response (FAIL-SAFE)
-    let llmInvoked = false;
-    let cachedOutput: string | null = null;
     const llmOutput = await (async () => {
-      if (llmInvoked && cachedOutput !== null) {
-        return cachedOutput;
+      if (llmExecutionContextActive && cachedLLMOutput !== null) {
+        return cachedLLMOutput;
       }
-      llmInvoked = true;
-      cachedOutput = await this.generateLLMResponse(
+      llmExecutionContextActive = true;
+      cachedLLMOutput = await this.generateLLMResponse(
         llmInput,
         decision,
         fallbackContext
       );
-
-      return cachedOutput;
+      return cachedLLMOutput;
     })();
 
     // 7. Message-level decision logging
