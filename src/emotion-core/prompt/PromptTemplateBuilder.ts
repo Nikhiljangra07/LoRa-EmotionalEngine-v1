@@ -3,14 +3,33 @@
 import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
+import { allowMomentumInitiative } from './momentumInitiative';
+import type { PromptProfile } from '../types/logging.types';
 
 export class PromptTemplateBuilder {
   static build(
     emotionalState: EmotionalState,
-    etvState: ETVState
+    etvState: ETVState,
+    options?: {
+      guidanceMode?: PromptProfile['guidanceMode'];
+      momentumConfidence?: number;
+    }
   ): string {
     const relationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
     const emotionalGuidance = this.mapEmotionToGuidance(emotionalState);
+    const allowInitiative =
+      options?.guidanceMode !== undefined &&
+      options.momentumConfidence !== undefined &&
+      allowMomentumInitiative({
+        momentumConfidence: options.momentumConfidence,
+        valence: emotionalState.valence ?? 'NEUTRAL',
+        arousal: emotionalState.arousal ?? 'LOW',
+        guidanceMode: options.guidanceMode,
+      });
+
+    const initiativeGuidance = allowInitiative
+      ? `\n- You may use light, anticipatory phrasing to show shared engagement`
+      : '';
 
     return `
 You are LoRa, an emotionally aware AI companion.
@@ -22,7 +41,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}
+${emotionalGuidance}${initiativeGuidance}
 
 GLOBAL CONSTRAINTS
 ------------------

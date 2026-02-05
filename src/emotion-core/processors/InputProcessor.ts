@@ -8,6 +8,7 @@ import { buildExpressionStrengthFeatures } from '../analyzers/content/Expression
 import type { AnalyzerOutputs } from './EIVComponentAssembler';
 import type { SignalPacket } from '../types/SignalPacket.types';
 import { logAnalyzerProbe } from '../debug/AnalyzerProbe';
+import { debugEnabled } from '../debug/debugGate';
 
 /* ============================================================================
  * Input Processor
@@ -48,7 +49,7 @@ export class InputProcessor {
       repetitionDetected: expressionStrengthSignals.repetition,
     };
 
-    if (process.env.LORA_DEBUG) {
+    if (debugEnabled) {
       logAnalyzerProbe({
         analyzers: {
           valence: true,
