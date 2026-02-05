@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { EngineOrchestrator } from '../emotion-core/engines/EngineOrchestrator';
 import { InputProcessor } from '../emotion-core/processors/InputProcessor';
 import { EIVComponentAssembler } from '../emotion-core/processors/EIVComponentAssembler';
@@ -9,6 +10,14 @@ import type { EmotionalState } from '../emotion-core/types/analysis.types';
 const app = express();
 const port = 3000;
 const debugEnabled = process.env.LORA_DEBUG === '1';
+
+app.use(
+  cors({
+    origin: 'http://localhost:8080',
+    methods: ['POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+  })
+);
 
 app.use(express.json());
 
