@@ -47,6 +47,32 @@ describe("ValenceAnalyzer — contrastive conjunctions", () => {
   });
 });
 
+describe("ValenceAnalyzer — marker-based signals", () => {
+  const cases: Array<{
+    text: string;
+    direction: "POSITIVE" | "NEGATIVE";
+  }> = [
+    { text: "I'm embarrassed", direction: "NEGATIVE" },
+    { text: "I had feelings", direction: "NEGATIVE" },
+    { text: "don't make it a big thing", direction: "NEGATIVE" },
+    { text: "I'm dying here 😭", direction: "NEGATIVE" },
+    { text: "cool cool cool 🫣", direction: "POSITIVE" },
+  ];
+
+  cases.forEach(({ text, direction }) => {
+    test(`marker cues drive ${direction} valence for "${text}"`, () => {
+      const result = analyze(text);
+      expect(result.confidence).toBeGreaterThan(ZERO);
+      expect(result.score).not.toBe(ZERO);
+      if (direction === "POSITIVE") {
+        expect(result.score).toBeGreaterThan(ZERO);
+      } else {
+        expect(result.score).toBeLessThan(ZERO);
+      }
+    });
+  });
+});
+
 describe("ValenceAnalyzer — forbidden behavior", () => {
   test("emotion-labeled words do not affect output", () => {
     const result = analyze("anger");
