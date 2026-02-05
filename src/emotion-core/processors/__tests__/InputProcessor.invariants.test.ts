@@ -2,15 +2,24 @@ import { InputProcessor } from '../InputProcessor';
 
 describe('InputProcessor — Architectural Invariants', () => {
   test('outputs are frozen (immutable)', () => {
-    const out = InputProcessor.process('Hello!!! 😀');
-    expect(Object.isFrozen(out)).toBe(true);
+    const { analyzerOutputs, signalPacket } = InputProcessor.process(
+      'Hello!!! 😀'
+    );
+    expect(Object.isFrozen(analyzerOutputs)).toBe(true);
+    expect(Object.isFrozen(signalPacket)).toBe(true);
   });
 
   test('mutation attempts throw', () => {
-    const out = InputProcessor.process('Hello!!! 😀');
+    const { analyzerOutputs } = InputProcessor.process('Hello!!! 😀');
     expect(() => {
-      out.expressionStrength = { score: 999, confidence: 1 };
+      analyzerOutputs.expressionStrength = { score: 999, confidence: 1 };
     }).toThrow();
+  });
+
+  test('SignalPacket is created at runtime', () => {
+    const { signalPacket } = InputProcessor.process('Hello!!! 😀');
+    expect(signalPacket).toBeDefined();
+    expect(signalPacket.messageText).toBe('Hello!!! 😀');
   });
 
   test('no hardcoded saturation literals', () => {

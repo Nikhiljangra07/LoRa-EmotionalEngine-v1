@@ -8,6 +8,7 @@ import {
   AnalyzerOutputs,
 } from '../processors/EIVComponentAssembler';
 import { EmotionalState } from '../types/analysis.types';
+import type { SignalPacket } from '../types/SignalPacket.types';
 import { PromptTemplateBuilder } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
@@ -75,7 +76,8 @@ export class EngineOrchestrator {
     flags: {
       ambiguityDetected?: boolean;
     } = {},
-    userFeedback?: 'positive' | 'neutral' | 'negative'
+    userFeedback?: 'positive' | 'neutral' | 'negative',
+    signalPacket?: SignalPacket
   ) {
     this.messageCount += 1;
 
@@ -162,6 +164,10 @@ export class EngineOrchestrator {
       llmOutput,
       userFeedback,
     });
+
+    if (process.env.LORA_DEBUG === 'true' && signalPacket) {
+      console.log('[LoRa::SignalPacket]', JSON.stringify(signalPacket));
+    }
 
     // 8. Session trace (DEBUG / BETA ONLY)
     writeSessionTrace(`session-${this.etvState.lastUpdated}`, {

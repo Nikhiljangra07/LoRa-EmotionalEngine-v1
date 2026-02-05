@@ -12,6 +12,7 @@ import { ValenceAnalyzer } from "../analyzers/content/ValenceAnalyzer";
 import { ArousalAnalyzer } from "../analyzers/content/ArousalAnalyzer";
 import { buildExpressionStrengthFeatures } from "../analyzers/content/ExpressionStrengthAnalyzer";
 import { computeES } from "../math/computeES";
+import { DecisionLogger } from "../logging/DecisionLogger";
 import type { EIVResult } from "../types/eiv.types";
 import type { EmotionalState } from "../types/analysis.types";
 import type { SignalPacket } from "../types/SignalPacket.types";
@@ -153,6 +154,47 @@ describe("Freeze invariants", () => {
     );
   });
 
+  test("SignalPacket is created at runtime and not consumed downstream", async () => {
+    const { analyzerOutputs, signalPacket } = InputProcessor.process(
+      "Test message."
+    );
+    expect(signalPacket).toBeDefined();
+    expect(Object.isFrozen(signalPacket)).toBe(true);
+
+    const assembleSpy = jest.spyOn(EIVComponentAssembler, "assemble");
+    const logSpy = jest.spyOn(DecisionLogger, "logMessageDecision");
+
+    const engine = new EngineOrchestrator(
+      MASTER_CONSTANTS.engineDefaults.initialETV,
+      {},
+      () => ({
+        generateResponse: async () => "ok",
+      })
+    );
+    const emotionalState: EmotionalState = {
+      dominant: "NEUTRAL",
+      arousal: "LOW",
+      valence: "NEUTRAL",
+      confidence: 0.5,
+    };
+
+    await engine.processMessage(
+      analyzerOutputs,
+      emotionalState,
+      false,
+      {},
+      undefined,
+      signalPacket
+    );
+
+    expect(assembleSpy).toHaveBeenCalledWith(analyzerOutputs);
+    const payload = logSpy.mock.calls[0]?.[0] as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(payload && "signalPacket" in payload).toBe(false);
+  });
+
   test("EIVComponents keys are frozen", () => {
     const source = readSource("types/eiv.types.ts");
     const keys = extractTypeKeys(source, "EIVComponents");
@@ -190,16 +232,16 @@ describe("Freeze invariants", () => {
     expect(es).toBeGreaterThanOrEqual(0);
     expect(es).toBeLessThanOrEqual(1);
 
-    const outputs = InputProcessor.process("Test message.");
-    expect(outputs.expressionStrength.confidence).toBeGreaterThanOrEqual(0);
-    expect(outputs.expressionStrength.confidence).toBeLessThanOrEqual(1);
-    expect(outputs.valence.confidence).toBeGreaterThanOrEqual(0);
-    expect(outputs.valence.confidence).toBeLessThanOrEqual(1);
-    expect(outputs.arousal.confidence).toBeGreaterThanOrEqual(0);
-    expect(outputs.arousal.confidence).toBeLessThanOrEqual(1);
+    const { analyzerOutputs } = InputProcessor.process("Test message.");
+    expect(analyzerOutputs.expressionStrength.confidence).toBeGreaterThanOrEqual(0);
+    expect(analyzerOutputs.expressionStrength.confidence).toBeLessThanOrEqual(1);
+    expect(analyzerOutputs.valence.confidence).toBeGreaterThanOrEqual(0);
+    expect(analyzerOutputs.valence.confidence).toBeLessThanOrEqual(1);
+    expect(analyzerOutputs.arousal.confidence).toBeGreaterThanOrEqual(0);
+    expect(analyzerOutputs.arousal.confidence).toBeLessThanOrEqual(1);
 
     const eiv: EIVResult = EIVScorer.calculate(
-      EIVComponentAssembler.assemble(outputs)
+      EIVComponentAssembler.assemble(analyzerOutputs)
     );
     expect(eiv.value).toBeGreaterThanOrEqual(0);
     expect(eiv.value).toBeLessThanOrEqual(1);
@@ -240,7 +282,7 @@ describe("Freeze invariants", () => {
       })
     );
 
-    const analyzerOutputs = InputProcessor.process("Test message.");
+    const { analyzerOutputs } = InputProcessor.process("Test message.");
     const emotionalState: EmotionalState = {
       dominant: "NEUTRAL",
       arousal: "LOW",
