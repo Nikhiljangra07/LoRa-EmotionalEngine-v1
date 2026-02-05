@@ -73,6 +73,29 @@ describe("ValenceAnalyzer — marker-based signals", () => {
   });
 });
 
+describe("ValenceAnalyzer — contextual emoji polarity", () => {
+  test("hype-positive text with 😭 is positive and confident", () => {
+    const result = analyze(
+      "OH MY GOD... Best day EVER... so excited... 😭✨🙌"
+    );
+    expect(result.valence).toBe("POSITIVE");
+    expect(result.score).toBeGreaterThan(ZERO);
+    expect(result.confidence).toBeGreaterThanOrEqual(0.35);
+  });
+
+  test("sadness text with 😭 stays negative", () => {
+    const result = analyze("this is bad 😭");
+    expect(result.valence).toBe("NEGATIVE");
+    expect(result.score).toBeLessThan(ZERO);
+  });
+
+  test("ambiguous 😭 alone remains low confidence", () => {
+    const result = analyze("😭");
+    expect(result.valence).toBe("NEUTRAL");
+    expect(result.confidence).toBeLessThanOrEqual(0.2);
+  });
+});
+
 describe("ValenceAnalyzer — forbidden behavior", () => {
   test("emotion-labeled words do not affect output", () => {
     const result = analyze("anger");
