@@ -488,9 +488,7 @@ export class EngineOrchestrator {
       void lastError;
     }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
-    return debugEnabled
-      ? EngineOrchestrator.generateFallbackReply(fallbackContext)
-      : EngineOrchestrator.fallbackResponse();
+    return EngineOrchestrator.fallbackResponse();
   }
 
   private withTimeout<T>(
