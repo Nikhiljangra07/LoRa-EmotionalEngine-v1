@@ -12,6 +12,7 @@ import type { SignalPacket } from '../types/SignalPacket.types';
 import { PromptTemplateBuilder } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
+import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -128,6 +129,24 @@ export class EngineOrchestrator {
     };
 
     // 7. Message-level decision logging
+    let guidanceMode =
+      emotionalState.arousal === 'LOW'
+        ? 'CALM_NEUTRAL'
+        : emotionalState.valence === 'NEGATIVE'
+        ? 'VALIDATING'
+        : 'ENERGY_MATCH';
+
+    const momentum = EmotionalStateInterpreter.momentum;
+
+    // Bias guidance mode (do NOT override)
+    if (momentum.confidence > 0.5) {
+      if (momentum.arousalBias > 0.6) {
+        guidanceMode = 'ENERGY_MATCH';
+      } else if (momentum.valenceBias < -0.4) {
+        guidanceMode = 'DE_ESCALATE';
+      }
+    }
+
     DecisionLogger.logMessageDecision({
       messageId: `msg-${this.messageCount}`,
       timestamp: Date.now(),
@@ -161,12 +180,7 @@ export class EngineOrchestrator {
             ? 'FRIENDLY'
             : 'CASUAL',
 
-        guidanceMode:
-          emotionalState.arousal === 'LOW'
-            ? 'CALM_NEUTRAL'
-            : emotionalState.valence === 'NEGATIVE'
-            ? 'VALIDATING'
-            : 'ENERGY_MATCH',
+        guidanceMode,
       },
 
       flags: {
