@@ -20,6 +20,7 @@ export interface PromptProfile {
     | 'CALM_NEUTRAL'
     | 'ENERGY_MATCH'
     | 'VALIDATING'
+    | 'DE_ESCALATE'
     | 'SUPPORTIVE'
     | 'FALLBACK';
 }

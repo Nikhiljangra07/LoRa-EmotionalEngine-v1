@@ -2,6 +2,11 @@
 
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { AnalyzerOutputs } from './EIVComponentAssembler';
+import {
+  INITIAL_MOMENTUM_STATE,
+  MomentumState,
+} from '../runtime/MomentumState';
+import { updateMomentum } from '../runtime/updateMomentum';
 
 export type ArousalLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type Valence = 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
@@ -13,12 +18,35 @@ export interface EmotionalState {
 }
 
 export class EmotionalStateInterpreter {
+  // Runtime-only momentum (resets on process exit)
+  static momentum: MomentumState = INITIAL_MOMENTUM_STATE;
+
   static interpret(
     analyzerOutputs: AnalyzerOutputs,
     eiv: number
   ): EmotionalState {
     const arousal = this.classifyArousal(eiv);
     const valence = this.classifyValence(analyzerOutputs);
+
+    // Update momentum using detected emotional signals
+    EmotionalStateInterpreter.momentum = updateMomentum(
+      EmotionalStateInterpreter.momentum,
+      {
+        valence: analyzerOutputs.valence.score,
+        arousal: analyzerOutputs.arousal.score,
+        confidence: Math.min(
+          analyzerOutputs.valence.confidence,
+          analyzerOutputs.arousal.confidence
+        ),
+      }
+    );
+
+    if (process.env.LORA_DEBUG) {
+      console.log(
+        '[LoRa::Momentum]',
+        EmotionalStateInterpreter.momentum
+      );
+    }
 
     return {
       arousal,
