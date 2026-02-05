@@ -475,12 +475,13 @@ export class EngineOrchestrator {
     }
     this.llmAvailability = 'UNAVAILABLE';
     this.llmCooldownStartedAt = now;
-    this.llmCooldownUntil =
-      now +
-      Math.round(
-        this.llmConfig.cooldownMs *
-          MASTER_CONSTANTS.llm.cooldownSoftFactor
-      );
+    const cooldownMs = debugEnabled
+      ? Math.round(
+          this.llmConfig.cooldownMs *
+            MASTER_CONSTANTS.llm.cooldownSoftFactor
+        )
+      : this.llmConfig.cooldownMs;
+    this.llmCooldownUntil = now + cooldownMs;
     this.logLLMEvent('cooldown_entry', {
       cooldownUntil: this.llmCooldownUntil,
     });
