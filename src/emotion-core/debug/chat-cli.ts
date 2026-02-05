@@ -7,6 +7,8 @@ import readline from "readline";
 import { EngineOrchestrator } from "../engines/EngineOrchestrator";
 import { InputProcessor } from "../processors/InputProcessor";
 import type { EmotionalState } from "../types/analysis.types";
+import { DecisionLogger } from "../logging/DecisionLogger";
+import { OpenAIResponder } from "../llm/OpenAIResponder";
 
 const COMMANDS = ["/help", "/exit", "/quit"];
 
@@ -15,6 +17,32 @@ export const runChatCLI = () => {
     input: process.stdin,
     output: process.stdout,
   });
+
+  let lastPrompt: string | null = null;
+  let lastAnalyzerSummary:
+    | {
+        emojiUsed: boolean;
+        capsUsed: boolean;
+        punctuationUsed: boolean;
+        repetitionDetected: boolean;
+      }
+    | null = null;
+
+  if (process.env.LORA_DEBUG_WIRING) {
+    const originalGenerate = OpenAIResponder.prototype.generateResponse;
+    OpenAIResponder.prototype.generateResponse = async function (
+      prompt: string
+    ): Promise<string> {
+      lastPrompt = prompt;
+      return originalGenerate.call(this, prompt);
+    };
+
+    const originalLog = DecisionLogger.logMessageDecision;
+    DecisionLogger.logMessageDecision = (payload) => {
+      lastAnalyzerSummary = payload.analyzerSummary;
+      return originalLog(payload);
+    };
+  }
 
   const engine = new EngineOrchestrator();
 
@@ -50,6 +78,22 @@ export const runChatCLI = () => {
           signalPacket
         );
         console.log(`LoRa> ${result.llmOutput}`);
+
+        if (process.env.LORA_DEBUG_WIRING) {
+          const includesUser = lastPrompt?.includes(trimmed) ?? false;
+          console.log(
+            "[LoRa::Wiring]",
+            "payloadIncludesUser:",
+            includesUser
+          );
+          if (lastAnalyzerSummary) {
+            console.log(
+              "[LoRa::Wiring]",
+              "analyzerSummary:",
+              lastAnalyzerSummary
+            );
+          }
+        }
 
         if (process.env.LORA_DEBUG_VERBOSE) {
           console.log(
