@@ -56,6 +56,11 @@ app.post('/chat', async (req, res) => {
       signalPacket
     );
 
+    console.log('[LoRa::Audit][Adapter]', {
+      message,
+      reply: result.llmOutput,
+    });
+
     if (debugEnabled) {
       console.log('[LoRa::Adapter]', { message, reply: result.llmOutput });
     }
