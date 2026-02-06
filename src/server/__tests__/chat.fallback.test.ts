@@ -2,6 +2,9 @@ import http from 'http';
 
 // ── Mocks (registered before adapter import) ───────────────────
 
+process.env.OPENAI_API_KEY =
+  process.env.OPENAI_API_KEY || 'test-openai-key';
+
 /**
  * Simulate LLM unavailability: the constructor throws exactly as
  * the real OpenAIResponder does when OPENAI_API_KEY is unset.
