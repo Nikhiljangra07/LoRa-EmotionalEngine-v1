@@ -7,6 +7,7 @@ import { EIVComponentAssembler } from '../emotion-core/processors/EIVComponentAs
 import { EIVScorer } from '../emotion-core/scorers/EIVScorer';
 import { EmotionalStateInterpreter } from '../emotion-core/processors/EmotionalStateInterpreter';
 import type { EmotionalState } from '../emotion-core/types/analysis.types';
+import { getLLMHealth } from './llmTelemetry';
 
 const app = express();
 const port = 3000;
@@ -30,6 +31,11 @@ app.use(express.json());
 // The session is ephemeral — lost on process restart, no persistence.
 const sessionManager = new SessionManager();
 const DEFAULT_SESSION_ID = 'default-http-session';
+
+// ── Health: LLM readiness (read-only, no side-effects) ───────────────
+app.get('/health/llm', (_req, res) => {
+  res.json(getLLMHealth());
+});
 
 app.post('/chat', async (req, res) => {
   const message =
