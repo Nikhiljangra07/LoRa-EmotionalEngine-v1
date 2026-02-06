@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { recordLLMSuccess } from '../../server/llmTelemetry';
 
 const _debug = process.env.LORA_DEBUG === '1';
 
@@ -76,6 +77,9 @@ export class OpenAIResponder {
     if (!text) {
       throw new Error('Empty response from OpenAI');
     }
+
+    // Passive telemetry — record real LLM success (not fallback)
+    recordLLMSuccess();
 
     if (_debug) {
       console.log('[LoRa::Debug][OpenAIResponder] success', {
