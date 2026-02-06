@@ -3,6 +3,7 @@
  *   LORA_DEBUG=1 LORA_DEBUG_VERBOSE=1 OPENAI_API_KEY=... \
  *   npx ts-node src/emotion-core/debug/chat-cli.ts
  */
+import '../../bootstrap';
 import readline from "readline";
 import { EngineOrchestrator } from "../engines/EngineOrchestrator";
 import { InputProcessor } from "../processors/InputProcessor";

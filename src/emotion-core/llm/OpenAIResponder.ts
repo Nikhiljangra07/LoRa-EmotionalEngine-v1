@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 
+const _debug = process.env.LORA_DEBUG === '1';
+
 export interface LLMResponseMeta {
   model: string;
   outputTokens?: number;
@@ -8,14 +10,29 @@ export interface LLMResponseMeta {
 
 export class OpenAIResponder {
   private client: OpenAI;
+  private readonly model: string;
+  private readonly baseURL: string | undefined;
 
   constructor() {
+    this.model = process.env.OPENAI_MODEL || 'gpt-4o';
+    this.baseURL = process.env.OPENAI_BASE_URL || undefined;
+
+    if (_debug) {
+      console.log('[LoRa::Debug][OpenAIResponder] config', {
+        provider: 'openai',
+        model: this.model,
+        baseURL: this.baseURL ?? '(default)',
+        apiKeyPresent: !!process.env.OPENAI_API_KEY,
+      });
+    }
+
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('OPENAI_API_KEY not set');
     }
 
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      ...(this.baseURL ? { baseURL: this.baseURL } : {}),
     });
   }
 
@@ -31,7 +48,7 @@ export class OpenAIResponder {
     const startTime = Date.now();
 
     const res = await this.client.responses.create({
-      model: 'gpt-4o',
+      model: this.model,
 
       // 🔒 HARD DISCIPLINE
       max_output_tokens: 400,
@@ -52,12 +69,13 @@ export class OpenAIResponder {
       throw new Error('Empty response from OpenAI');
     }
 
-    // Optional: expose metadata later without breaking API
-    // const meta: LLMResponseMeta = {
-    //   model: 'gpt-4o',
-    //   outputTokens: res.usage?.output_tokens,
-    //   latencyMs,
-    // };
+    if (_debug) {
+      console.log('[LoRa::Debug][OpenAIResponder] success', {
+        model: this.model,
+        latencyMs,
+        outputLength: text.length,
+      });
+    }
 
     return text;
   }

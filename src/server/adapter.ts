@@ -1,3 +1,4 @@
+import '../bootstrap';
 import express from 'express';
 import cors from 'cors';
 import { EngineOrchestrator } from '../emotion-core/engines/EngineOrchestrator';

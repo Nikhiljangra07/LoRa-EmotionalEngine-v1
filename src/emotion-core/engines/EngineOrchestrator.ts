@@ -504,7 +504,7 @@ export class EngineOrchestrator {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       attempts = attempt;
       try {
-        console.log('[LoRa::Audit][LLM]', { path: 'real_llm_attempt' });
+        console.log('[LoRa::Audit][LLM]', { path: 'real_llm_attempt', attempt, maxAttempts });
         const response = await this.withTimeout(
           this.getResponder().generateResponse(prompt),
           attempt === 1 ? firstAttemptTimeoutMs : retryTimeoutMs
@@ -512,6 +512,21 @@ export class EngineOrchestrator {
         return response;
       } catch (err) {
         lastError = err;
+        if (debugEnabled) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const status = (err as any)?.status ?? (err as any)?.statusCode ?? 'N/A';
+          let bodySnippet = 'N/A';
+          try {
+            const raw = (err as any)?.response?.body ?? (err as any)?.error?.message ?? (err as any)?.body;
+            if (raw) bodySnippet = String(raw).slice(0, 300);
+          } catch { /* ignore */ }
+          console.log('[LoRa::Debug][LLM] attempt_failed', {
+            attempt,
+            error: errMsg,
+            status,
+            bodySnippet,
+          });
+        }
       }
     }
 
@@ -530,8 +545,11 @@ export class EngineOrchestrator {
     this.logLLMEvent('cooldown_entry', {
       cooldownUntil: this.llmCooldownUntil,
     });
-    if (lastError instanceof Error) {
-      void lastError;
+    if (debugEnabled && lastError instanceof Error) {
+      console.log('[LoRa::Debug][LLM] retry_exhausted_error', {
+        message: lastError.message,
+        status: (lastError as any)?.status ?? 'N/A',
+      });
     }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
     console.log('[LoRa::Audit][LLM]', {
