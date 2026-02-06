@@ -1,8 +1,8 @@
 import '../bootstrap';
 import express from 'express';
 import cors from 'cors';
-import { EngineOrchestrator } from '../emotion-core/engines/EngineOrchestrator';
 import { InputProcessor } from '../emotion-core/processors/InputProcessor';
+import { SessionManager } from './session/SessionManager';
 import { EIVComponentAssembler } from '../emotion-core/processors/EIVComponentAssembler';
 import { EIVScorer } from '../emotion-core/scorers/EIVScorer';
 import { EmotionalStateInterpreter } from '../emotion-core/processors/EmotionalStateInterpreter';
@@ -22,6 +22,15 @@ app.use(
 
 app.use(express.json());
 
+// ── Session layer ──────────────────────────────────────────────────
+// The frontend sends no session identifier, so all HTTP requests share
+// a single global engine instance.  This is intentional: it mirrors
+// the CLI's single-engine behaviour and preserves emotional continuity
+// (ETV, momentum, cooldown, message count) across requests.
+// The session is ephemeral — lost on process restart, no persistence.
+const sessionManager = new SessionManager();
+const DEFAULT_SESSION_ID = 'default-http-session';
+
 app.post('/chat', async (req, res) => {
   const message =
     typeof req.body?.message === 'string' ? req.body.message : '';
@@ -31,7 +40,7 @@ app.post('/chat', async (req, res) => {
   }
 
   try {
-    const engine = new EngineOrchestrator();
+    const engine = sessionManager.getEngine(DEFAULT_SESSION_ID);
     const { analyzerOutputs, signalPacket } =
       InputProcessor.process(message);
     const components =
