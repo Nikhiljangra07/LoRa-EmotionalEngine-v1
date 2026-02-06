@@ -27,7 +27,10 @@ type LLMConfig = {
 };
 
 type LLMResponder = {
-  generateResponse(prompt: string): Promise<string>;
+  generateResponse(
+    prompt: string,
+    options?: { signal?: AbortSignal; requestId?: string }
+  ): Promise<string>;
 };
 
 const DEFAULT_LLM_CONFIG: LLMConfig = {
@@ -35,6 +38,12 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   maxAttempts: 2,
   cooldownMs: 30000,
 };
+
+/** Per-request abort timeout (env-configurable, default 12 s). */
+const llmTimeoutMs = Math.max(
+  1000,
+  parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 12000
+);
 
 // 🔹 BETA-ONLY TRACE
 import { writeSessionTrace } from '../../debug/sessionTrace';
@@ -490,42 +499,70 @@ export class EngineOrchestrator {
       ? 0
       : Math.min(MASTER_CONSTANTS.llm.maxRetries, configuredRetries);
     const maxAttempts = Math.max(1, maxRetries + 1);
-    const firstAttemptTimeoutMs = Math.min(
-      this.llmConfig.maxResponseMs,
-      Math.round(
-        this.llmConfig.maxResponseMs *
-          MASTER_CONSTANTS.llm.firstAttemptTimeoutRatio
-      )
-    );
-    const retryTimeoutMs = this.llmConfig.maxResponseMs;
     let attempts = 0;
     let lastError: unknown = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       attempts = attempt;
+      const requestId = `msg-${this.messageCount}-a${attempt}`;
+
+      // AbortController cancels the real HTTP request on timeout
+      // (prevents orphaned requests that cause duplicate success logs).
+      let timedOut = false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, llmTimeoutMs);
+
       try {
-        console.log('[LoRa::Audit][LLM]', { path: 'real_llm_attempt', attempt, maxAttempts });
-        const response = await this.withTimeout(
-          this.getResponder().generateResponse(prompt),
-          attempt === 1 ? firstAttemptTimeoutMs : retryTimeoutMs
-        );
+        console.log('[LoRa::Audit][LLM]', {
+          path: 'real_llm_attempt',
+          attempt,
+          maxAttempts,
+          requestId,
+          timeoutMs: llmTimeoutMs,
+        });
+        const response = await this.getResponder().generateResponse(prompt, {
+          signal: controller.signal,
+          requestId,
+        });
+        clearTimeout(timer);
         return response;
       } catch (err) {
+        clearTimeout(timer);
         lastError = err;
+        const retryable = EngineOrchestrator.isRetryableError(err, timedOut);
         if (debugEnabled) {
           const errMsg = err instanceof Error ? err.message : String(err);
-          const status = (err as any)?.status ?? (err as any)?.statusCode ?? 'N/A';
+          const status =
+            (err as any)?.status ?? (err as any)?.statusCode ?? 'N/A';
           let bodySnippet = 'N/A';
           try {
-            const raw = (err as any)?.response?.body ?? (err as any)?.error?.message ?? (err as any)?.body;
+            const raw =
+              (err as any)?.response?.body ??
+              (err as any)?.error?.message ??
+              (err as any)?.body;
             if (raw) bodySnippet = String(raw).slice(0, 300);
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
           console.log('[LoRa::Debug][LLM] attempt_failed', {
+            requestId,
             attempt,
             error: errMsg,
             status,
             bodySnippet,
+            timedOut,
+            retryable,
           });
+        }
+        // Non-retryable errors (401/403/404/422) → stop immediately
+        if (!retryable) break;
+        // Jitter backoff (100-300 ms) before next attempt
+        if (attempt < maxAttempts) {
+          const jitter = Math.floor(Math.random() * 200) + 100;
+          await new Promise<void>((r) => setTimeout(r, jitter));
         }
       }
     }
@@ -588,6 +625,28 @@ export class EngineOrchestrator {
       return;
     }
     console.log('[LoRa::LLM]', JSON.stringify({ event, ...details }));
+  }
+
+  /**
+   * Retry only on timeout / network / 429 / 5xx.
+   * Never retry auth (401/403), not-found (404), or bad-request (422).
+   */
+  private static isRetryableError(err: unknown, timedOut: boolean): boolean {
+    if (timedOut) return true;
+    const status =
+      (err as any)?.status ?? (err as any)?.statusCode;
+    if (typeof status === 'number') {
+      if (
+        status === 401 ||
+        status === 403 ||
+        status === 404 ||
+        status === 422
+      )
+        return false;
+      if (status === 429 || status >= 500) return true;
+    }
+    // Network errors (no HTTP status) are transient → retryable
+    return true;
   }
 
   private static fallbackResponse(): string {

@@ -44,21 +44,29 @@ export class OpenAIResponder {
    * - Controlled temperature (no rambling)
    * - Returns clean text only (no chain-of-thought)
    */
-  async generateResponse(prompt: string): Promise<string> {
+  async generateResponse(
+    prompt: string,
+    options?: { signal?: AbortSignal; requestId?: string }
+  ): Promise<string> {
     const startTime = Date.now();
+    const requestId = options?.requestId ?? 'unknown';
 
-    const res = await this.client.responses.create({
-      model: this.model,
+    const res = await this.client.responses.create(
+      {
+        model: this.model,
 
-      // 🔒 HARD DISCIPLINE
-      max_output_tokens: 400,
+        // 🔒 HARD DISCIPLINE
+        max_output_tokens: 400,
 
-      // Emotional but restrained
-      temperature: 0.6,
+        // Emotional but restrained
+        temperature: 0.6,
 
-      // Single-turn, no memory bleed
-      input: prompt,
-    });
+        // Single-turn, no memory bleed
+        input: prompt,
+      },
+      // Pass AbortSignal so timeout actually cancels the HTTP request
+      options?.signal ? { signal: options.signal } : {}
+    );
 
     const latencyMs = Date.now() - startTime;
 
@@ -71,6 +79,7 @@ export class OpenAIResponder {
 
     if (_debug) {
       console.log('[LoRa::Debug][OpenAIResponder] success', {
+        requestId,
         model: this.model,
         latencyMs,
         outputLength: text.length,
