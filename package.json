@@ -32,7 +32,9 @@
     "layer2:inspect-ekman6-v1_3": "ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior_v1_3.ts",
     "layer2:build-gold": "ts-node src/appraisal-lab/layer2/build_gold_appraisals.ts",
     "layer2:run-rule-mapper-test": "ts-node src/appraisal-lab/layer2/run_rule_mapper_on_test.ts",
-    "layer2:validate-rule-mapper": "ts-node src/appraisal-lab/layer2/validate_rule_mapper.ts"
+    "layer2:validate-rule-mapper": "ts-node src/appraisal-lab/layer2/validate_rule_mapper.ts",
+    "layer2:build-envent-likelihood": "ts-node src/appraisal-lab/layer2/build_envent_likelihood.ts",
+    "layer2:compare-envent-likelihood": "ts-node src/appraisal-lab/layer2/compare_envent_likelihoods.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
