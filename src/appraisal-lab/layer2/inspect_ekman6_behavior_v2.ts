@@ -13,8 +13,11 @@
  *
  * Usage:
  *   npx ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior_v2.ts
+ *   npx ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior_v2.ts --report docs/layer2/inspect_ekman6_behavior_v1_2.md
  */
 
+import * as fs from "fs";
+import * as path from "path";
 import { inferEkman6, AppraisalBins, Ekman6InferenceConfig, DEFAULT_CONFIG } from "./infer_ekman6";
 
 // ============================================================
@@ -88,6 +91,18 @@ const TEST_CASES: TestCase[] = [
     },
     expectation: "HEDGE decision",
   },
+  {
+    label: "classic_anger_vs_sadness",
+    bins: {
+      valence: "NEG",
+      arousal: "HIGH",
+      agency: "OTHER",
+      control: "HIGH",
+      certainty: "HIGH",
+      goalRelevance: "HIGH",
+    },
+    expectation: "ANGER over SADNESS with tighter margin",
+  },
 ];
 
 // ============================================================
@@ -105,42 +120,54 @@ const ABLATIONS: AblationConfig[] = [
     label: "A) Learned priors + tiered weights (baseline)",
     tag: "A",
     config: {
-      PRIOR_MODE: "learned",
-      WEIGHT_MODE: "tiered",
-      PAIR_AWARE_BOOST: false,
-      WEIGHT_FLOOR: 0.30,
-      WEIGHT_SLOPE: 0.70,
-      CONTROL_MIN_BOOST: 0.45,
-      CERTAINTY_MIN_BOOST: 0.45,
-      AROUSAL_MIN_BOOST: 0.35,
+      priorMode: "learned",
+      priorBlendLambda: 0.20,
+      weightMode: "tiered",
+      pairAwareBoost: false,
+      weightFloor: 0.30,
+      weightSlope: 0.70,
+      controlMinBoost: 0.45,
+      certaintyMinBoost: 0.45,
+      arousalMinBoost: 0.35,
+      pmaxCommit: 0.45,
+      marginCommit: 0.15,
+      entropyHedge: 0.80,
     },
   },
   {
     label: "B) Uniform priors + tiered weights",
     tag: "B",
     config: {
-      PRIOR_MODE: "uniform",
-      WEIGHT_MODE: "tiered",
-      PAIR_AWARE_BOOST: false,
-      WEIGHT_FLOOR: 0.30,
-      WEIGHT_SLOPE: 0.70,
-      CONTROL_MIN_BOOST: 0.45,
-      CERTAINTY_MIN_BOOST: 0.45,
-      AROUSAL_MIN_BOOST: 0.35,
+      priorMode: "uniform",
+      priorBlendLambda: 0.20,
+      weightMode: "tiered",
+      pairAwareBoost: false,
+      weightFloor: 0.30,
+      weightSlope: 0.70,
+      controlMinBoost: 0.45,
+      certaintyMinBoost: 0.45,
+      arousalMinBoost: 0.35,
+      pmaxCommit: 0.45,
+      marginCommit: 0.15,
+      entropyHedge: 0.80,
     },
   },
   {
     label: "C) Uniform priors + linear floor weights",
     tag: "C",
     config: {
-      PRIOR_MODE: "uniform",
-      WEIGHT_MODE: "linear_floor",
-      PAIR_AWARE_BOOST: false,
-      WEIGHT_FLOOR: 0.30,
-      WEIGHT_SLOPE: 0.70,
-      CONTROL_MIN_BOOST: 0.45,
-      CERTAINTY_MIN_BOOST: 0.45,
-      AROUSAL_MIN_BOOST: 0.35,
+      priorMode: "uniform",
+      priorBlendLambda: 0.20,
+      weightMode: "linear_floor",
+      pairAwareBoost: false,
+      weightFloor: 0.30,
+      weightSlope: 0.70,
+      controlMinBoost: 0.45,
+      certaintyMinBoost: 0.45,
+      arousalMinBoost: 0.35,
+      pmaxCommit: 0.45,
+      marginCommit: 0.15,
+      entropyHedge: 0.80,
     },
   },
   {
@@ -163,6 +190,12 @@ function topN(posterior: Record<string, number>, n: number): { emo: string; p: n
     .sort((a, b) => b[1] - a[1])
     .slice(0, n)
     .map(([emo, p]) => ({ emo, p }));
+}
+
+function parseReportPathArg(): string | null {
+  const idx = process.argv.indexOf("--report");
+  if (idx === -1 || idx + 1 >= process.argv.length) return null;
+  return process.argv[idx + 1];
 }
 
 // ============================================================
@@ -217,6 +250,27 @@ function main(): void {
     console.log(row);
   }
   console.log("");
+
+  const reportPath = parseReportPathArg();
+  if (reportPath) {
+    const abs = path.isAbsolute(reportPath)
+      ? reportPath
+      : path.join(process.cwd(), reportPath);
+    const mdLines: string[] = [];
+    mdLines.push("# Ekman6 Behavior Inspection v1.2");
+    mdLines.push("");
+    mdLines.push(`Generated: ${new Date().toISOString()}`);
+    mdLines.push("");
+    mdLines.push("## Summary Table");
+    mdLines.push("");
+    mdLines.push(...summaryRows);
+    mdLines.push("");
+    const outDir = path.dirname(abs);
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+    fs.writeFileSync(abs, mdLines.join("\n"), "utf-8");
+    console.log(`Report written to: ${abs}`);
+    console.log("");
+  }
 
   // Highlight key comparisons
   console.log("─".repeat(64));

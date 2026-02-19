@@ -4,31 +4,42 @@
  * Pure config — no side effects, no imports beyond types.
  */
 
-export type PriorMode = "learned" | "uniform";
+export type PriorMode = "uniform" | "learned" | "blend";
 export type WeightMode = "linear_floor" | "tiered";
 
 export interface Ekman6InferenceConfig {
-  PRIOR_MODE: PriorMode;
-  WEIGHT_MODE: WeightMode;
-  PAIR_AWARE_BOOST: boolean;
+  priorMode: PriorMode;
+  priorBlendLambda: number;
+  weightMode: WeightMode;
+  pairAwareBoost: boolean;
 
-  WEIGHT_FLOOR: number;
-  WEIGHT_SLOPE: number;
+  weightFloor: number;
+  weightSlope: number;
 
-  CONTROL_MIN_BOOST: number;
-  CERTAINTY_MIN_BOOST: number;
-  AROUSAL_MIN_BOOST: number;
+  controlMinBoost: number;
+  certaintyMinBoost: number;
+  arousalMinBoost: number;
+
+  // Ekman6-specific reliability gate thresholds.
+  pmaxCommit: number;
+  marginCommit: number;
+  entropyHedge: number;
 }
 
 export const DEFAULT_CONFIG: Ekman6InferenceConfig = {
-  PRIOR_MODE: "uniform",
-  WEIGHT_MODE: "linear_floor",
-  PAIR_AWARE_BOOST: true,
+  priorMode: "blend",
+  priorBlendLambda: 0.20,
+  weightMode: "linear_floor",
+  pairAwareBoost: true,
 
-  WEIGHT_FLOOR: 0.30,
-  WEIGHT_SLOPE: 0.70,
+  weightFloor: 0.30,
+  weightSlope: 0.70,
 
-  CONTROL_MIN_BOOST: 0.45,
-  CERTAINTY_MIN_BOOST: 0.45,
-  AROUSAL_MIN_BOOST: 0.35,
+  controlMinBoost: 0.45,
+  certaintyMinBoost: 0.45,
+  arousalMinBoost: 0.35,
+
+  pmaxCommit: 0.45,
+  marginCommit: 0.15,
+  entropyHedge: 0.80,
 };

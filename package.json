@@ -27,7 +27,8 @@
     "layer2:compute-weights": "ts-node src/appraisal-lab/layer2/compute_dimension_weights.ts",
     "layer2:build-likelihood-ekman6": "ts-node src/appraisal-lab/layer2/build_likelihood_table_ekman6.ts",
     "layer2:inspect-ekman6": "ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior.ts",
-    "layer2:inspect-ekman6-v2": "ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior_v2.ts"
+    "layer2:inspect-ekman6-v2": "ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior_v2.ts",
+    "layer2:inspect-ekman6-v1_2": "ts-node src/appraisal-lab/layer2/inspect_ekman6_behavior_v2.ts --report docs/layer2/inspect_ekman6_behavior_v1_2.md"
   },
   "dependencies": {
     "cors": "^2.8.6",
