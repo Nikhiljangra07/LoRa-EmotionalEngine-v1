@@ -23,13 +23,24 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { CollapsedEmotion } from "./emotion_collapse_map";
-import { DEFAULT_CONFIG, Ekman6InferenceConfig } from "./ekman6_inference_config";
+import {
+  DEFAULT_CONFIG,
+  Ekman6InferenceConfig,
+  RawEkman6Config,
+  normalizeEkman6Config,
+} from "./ekman6_inference_config";
 
 // ============================================================
 // Re-exports for consumers
 // ============================================================
 
-export { DEFAULT_CONFIG, Ekman6InferenceConfig } from "./ekman6_inference_config";
+export {
+  DEFAULT_CONFIG,
+  Ekman6InferenceConfig,
+  RawEkman6Config,
+  ResolvedEkman6Config,
+  normalizeEkman6Config,
+} from "./ekman6_inference_config";
 
 // ============================================================
 // Types
@@ -261,8 +272,9 @@ function computePosterior(
 
 export function inferEkman6(
   bins: AppraisalBins,
-  config: Ekman6InferenceConfig = DEFAULT_CONFIG
+  userConfig?: RawEkman6Config
 ): Ekman6InferenceResult {
+  const config = normalizeEkman6Config(userConfig ?? DEFAULT_CONFIG);
   const table = loadTable();
   const emotions = table.metadata.collapsed_emotions as CollapsedEmotion[];
 
