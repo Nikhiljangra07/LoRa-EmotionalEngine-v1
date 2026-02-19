@@ -1,10 +1,7 @@
 /**
- * Layer-2 Step 7: Gating Validation (Coverage vs Safety)
+ * Layer-2 Step 7: Strengthened Gating Validation (Coverage vs Safety)
  *
- * Evaluation-only. No inference or likelihood mutations.
- * Produces:
- *   - data/layer2/gating_metrics_v1.json
- *   - reports/gating.md
+ * Evaluation-only. No inference, likelihood, calibration, or schema mutation.
  */
 
 import * as fs from "fs";
@@ -24,14 +21,23 @@ const GENERATION_TSV_PATH = path.join(
   "crowd-enVent_generation.tsv"
 );
 const CALIB_PATH = path.join(REPO_ROOT, "data", "layer2", "calibration_metrics_v1.json");
-const OUT_JSON = path.join(REPO_ROOT, "data", "layer2", "gating_metrics_v1.json");
-const OUT_MD = path.join(REPO_ROOT, "reports", "gating.md");
+const OUT_JSON_V1 = path.join(REPO_ROOT, "data", "layer2", "gating_metrics_v1.json");
+const OUT_JSON_V11 = path.join(REPO_ROOT, "data", "layer2", "gating_metrics_v1_1.json");
+const OUT_MD_V1 = path.join(REPO_ROOT, "reports", "gating.md");
+const OUT_MD_V11 = path.join(REPO_ROOT, "reports", "gating_v1_1.md");
 
 const SEED = 42;
 const SPLIT_TOL_ROWS = 1;
 const SUM_TOL = 1e-8;
 
 type SplitName = "train" | "dev" | "test";
+type GateKey =
+  | "pmax"
+  | "pmax_strict"
+  | "pmax_margin"
+  | "pmax_margin_strict"
+  | "pmax_entropy"
+  | "pmax_entropy_strict";
 type Bins = {
   valence: "NEG" | "NEU" | "POS";
   arousal: "LOW" | "MED" | "HIGH";
@@ -55,20 +61,51 @@ type Pred = {
   gold: CollapsedEmotion;
   probs: Record<CollapsedEmotion, number>;
   top1: CollapsedEmotion;
+  top2: CollapsedEmotion;
   pmax: number;
   margin: number;
-  entropy: number;
   entropyNorm: number;
 };
+type HarmStats = { numerator: number; denominator: number; rate: number };
+type GateRow = {
+  gate: GateKey;
+  t1: number;
+  t2: number | null;
+  t3: number | null;
+  strict: boolean;
+  coverage: number;
+  committed: number;
+  abstained: number;
+  accuracy: number;
+  harmful_rate: number;
+  harmful_reduction: number;
+  avg_entropy: number;
+  avg_margin: number;
+  score: number;
+};
 
-function assertNotExists(p: string): void {
-  if (fs.existsSync(p)) throw new Error(`Output already exists (refusing overwrite): ${p}`);
+const HARMFUL_PAIRS = new Set([
+  "ANGER|FEAR",
+  "FEAR|ANGER",
+  "ANGER|DISGUST",
+  "DISGUST|ANGER",
+  "SHAME|GUILT",
+  "GUILT|SHAME",
+]);
+
+function sum(arr: number[]): number {
+  return arr.reduce((a, b) => a + b, 0);
 }
 function assertFinite(name: string, n: number): void {
   if (!Number.isFinite(n)) throw new Error(`${name} is NaN/Infinity`);
 }
-function sum(arr: number[]): number {
-  return arr.reduce((a, b) => a + b, 0);
+function fmtPct(n: number): string {
+  return `${(n * 100).toFixed(2)}%`;
+}
+function resolveOutputPath(preferred: string, versioned: string): string {
+  if (!fs.existsSync(preferred)) return preferred;
+  if (!fs.existsSync(versioned)) return versioned;
+  throw new Error(`Both output paths exist: ${preferred} and ${versioned}`);
 }
 
 function mulberry32(seed: number): () => number {
@@ -88,10 +125,6 @@ function seededShuffle<T>(arr: T[], rng: () => number): T[] {
   }
   return a;
 }
-function argmaxObj<T extends string>(obj: Record<T, number>): T {
-  const entries = Object.entries(obj) as Array<[T, number]>;
-  return entries.sort((a, b) => b[1] - a[1])[0][0];
-}
 
 function loadRowsWithTextId(): EvalRow[] {
   const ds = JSON.parse(fs.readFileSync(DATASET_PATH, "utf-8")) as DatasetRow[];
@@ -110,8 +143,12 @@ function loadRowsWithTextId(): EvalRow[] {
     const rawEmotion = (tsv[emotionIdx] ?? "").trim();
     if (rawEmotion !== ds[i].emotion.trim()) throw new Error(`row alignment mismatch at ${i}`);
     try {
-      const collapsed = collapseEmotion(rawEmotion);
-      rows.push({ text_id, rawEmotion, collapsed, bins: ds[i].appraisals });
+      rows.push({
+        text_id,
+        rawEmotion,
+        collapsed: collapseEmotion(rawEmotion),
+        bins: ds[i].appraisals,
+      });
     } catch {
       excluded++;
     }
@@ -133,11 +170,13 @@ function splitByTextId(rows: EvalRow[]): Record<SplitName, EvalRow[]> {
     const top = [...counts.entries()].sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))[0][0];
     textGroups.push({ text_id: tid, collapsed: top });
   }
+
   const byEmotion = new Map<CollapsedEmotion, string[]>();
   for (const g of textGroups) {
     if (!byEmotion.has(g.collapsed)) byEmotion.set(g.collapsed, []);
     byEmotion.get(g.collapsed)!.push(g.text_id);
   }
+
   const splitTextIds: Record<SplitName, Set<string>> = { train: new Set(), dev: new Set(), test: new Set() };
   const rng = mulberry32(SEED);
   for (const emo of [...byEmotion.keys()].sort()) {
@@ -152,10 +191,11 @@ function splitByTextId(rows: EvalRow[]): Record<SplitName, EvalRow[]> {
     let i = 0;
     for (; i < nTrain; i++) splitTextIds.train.add(ids[i]);
     for (; i < nTrain + nDev; i++) splitTextIds.dev.add(ids[i]);
-    for (; i < ids.length; i++) splitTextIds.test.add(ids[i]);
+    for (; i < n; i++) splitTextIds.test.add(ids[i]);
   }
   for (const id of splitTextIds.train) if (splitTextIds.dev.has(id) || splitTextIds.test.has(id)) throw new Error(`text_id overlap: ${id}`);
   for (const id of splitTextIds.dev) if (splitTextIds.test.has(id)) throw new Error(`text_id overlap: ${id}`);
+
   const out: Record<SplitName, EvalRow[]> = { train: [], dev: [], test: [] };
   for (const r of rows) {
     if (splitTextIds.train.has(r.text_id)) out.train.push(r);
@@ -178,10 +218,8 @@ function applyTemperature(probs: Record<CollapsedEmotion, number>, T: number): R
   const exps = COLLAPSED_EMOTIONS.map((c) => Math.exp(logits[c] - maxLog));
   const den = sum(exps);
   const out: Record<CollapsedEmotion, number> = {} as Record<CollapsedEmotion, number>;
-  COLLAPSED_EMOTIONS.forEach((c, i) => {
-    out[c] = exps[i] / den;
-  });
-  const s = Object.values(out).reduce((a, b) => a + b, 0);
+  COLLAPSED_EMOTIONS.forEach((c, i) => (out[c] = exps[i] / den));
+  const s = sum(Object.values(out));
   if (Math.abs(s - 1) > SUM_TOL) throw new Error(`Scaled probabilities sum=${s}, expected 1`);
   return out;
 }
@@ -190,43 +228,154 @@ function inferPredictions(rows: EvalRow[], useCalibration: boolean, temperature:
   return rows.map((r, i) => {
     const base = inferEkman6(r.bins, DEFAULT_CONFIG).posterior;
     const probs = useCalibration ? applyTemperature(base, temperature!) : base;
-    const pSum = Object.values(probs).reduce((a, b) => a + b, 0);
+    const pSum = sum(Object.values(probs));
     if (Math.abs(pSum - 1) > SUM_TOL) throw new Error(`Posterior sum mismatch at row ${i}`);
-    const top1 = argmaxObj(probs);
-    const pmax = probs[top1];
-    const sorted = Object.values(probs).sort((a, b) => b - a);
-    const margin = (sorted[0] ?? 0) - (sorted[1] ?? 0);
+
+    const sorted = (Object.entries(probs) as Array<[CollapsedEmotion, number]>).sort((a, b) => b[1] - a[1]);
+    const top1 = sorted[0][0];
+    const top2 = sorted[1][0];
+    const pmax = sorted[0][1];
+    const margin = sorted[0][1] - sorted[1][1];
     let H = 0;
     for (const p of Object.values(probs)) if (p > 0) H -= p * Math.log(p);
-    const Hn = H / Math.log(COLLAPSED_EMOTIONS.length);
-    return { gold: r.collapsed, probs, top1, pmax, margin, entropy: H, entropyNorm: Hn };
+    const entropyNorm = H / Math.log(COLLAPSED_EMOTIONS.length);
+    return { gold: r.collapsed, probs, top1, top2, pmax, margin, entropyNorm };
   });
 }
 
-function harmfulStats(preds: Array<{ gold: CollapsedEmotion; top1: CollapsedEmotion }>): { numerator: number; denominator: number; rate: number } {
-  const harmfulPairs = new Set(["ANGER|FEAR", "FEAR|ANGER", "ANGER|DISGUST", "DISGUST|ANGER"]);
+function harmfulStats(preds: Array<{ gold: string; top1: string }>): HarmStats {
   let num = 0;
-  for (const p of preds) {
-    if (p.gold !== p.top1 && harmfulPairs.has(`${p.gold}|${p.top1}`)) num++;
-  }
+  for (const p of preds) if (p.gold !== p.top1 && HARMFUL_PAIRS.has(`${p.gold}|${p.top1}`)) num++;
   const den = preds.length;
   const rate = den ? num / den : 0;
   if (rate < 0 || rate > 1) throw new Error(`Harmful rate out of bounds: ${rate}`);
   return { numerator: num, denominator: den, rate };
 }
 
-function accuracy(preds: Array<{ gold: CollapsedEmotion; top1: CollapsedEmotion }>): number {
+function accuracy(preds: Array<{ gold: string; top1: string }>): number {
   const acc = preds.filter((p) => p.gold === p.top1).length / (preds.length || 1);
   assertFinite("accuracy", acc);
   return acc;
 }
 
+function isHarmfulTop2Pair(p: Pred): boolean {
+  return HARMFUL_PAIRS.has(`${p.top1}|${p.top2}`) || HARMFUL_PAIRS.has(`${p.top2}|${p.top1}`);
+}
+
+function thresholdRange(start: number, end: number, step: number): number[] {
+  const out: number[] = [];
+  for (let x = start; x <= end + 1e-12; x += step) out.push(Number(x.toFixed(2)));
+  return out;
+}
+
+function evaluateGate(
+  preds: Pred[],
+  baselineHarm: HarmStats,
+  gate: GateKey,
+  strict: boolean,
+  t1: number,
+  t2: number | null,
+  t3: number | null
+): GateRow {
+  const committed = preds.filter((p) => {
+    const t1Eff = strict && isHarmfulTop2Pair(p) ? t1 + 0.05 : t1;
+    if (gate.startsWith("pmax_margin")) return p.pmax >= t1Eff && p.margin >= (t2 ?? 0);
+    if (gate.startsWith("pmax_entropy")) return p.pmax >= t1Eff && p.entropyNorm <= (t3 ?? 1);
+    return p.pmax >= t1Eff;
+  });
+
+  const cov = committed.length / preds.length;
+  const abstained = preds.length - committed.length;
+  const acc = committed.length ? accuracy(committed) : 0;
+  const harm = committed.length ? harmfulStats(committed) : { numerator: 0, denominator: 0, rate: 0 };
+  const reduction = baselineHarm.rate === 0 ? 0 : (baselineHarm.rate - harm.rate) / baselineHarm.rate;
+  const avgEntropy = committed.length ? sum(committed.map((p) => p.entropyNorm)) / committed.length : 0;
+  const avgMargin = committed.length ? sum(committed.map((p) => p.margin)) / committed.length : 0;
+  const score = reduction - (1 - cov);
+  return {
+    gate,
+    t1,
+    t2,
+    t3,
+    strict,
+    coverage: cov,
+    committed: committed.length,
+    abstained,
+    accuracy: acc,
+    harmful_rate: harm.rate,
+    harmful_reduction: reduction,
+    avg_entropy: avgEntropy,
+    avg_margin: avgMargin,
+    score,
+  };
+}
+
+function sortRows(rows: GateRow[]): GateRow[] {
+  return rows.slice().sort((a, b) => a.t1 - b.t1 || (a.t2 ?? 0) - (b.t2 ?? 0) || (a.t3 ?? 0) - (b.t3 ?? 0));
+}
+
+function summarizeFamily(rows: GateRow[]): {
+  best_reduction_at_85_coverage: GateRow | null;
+  best_coverage_at_40_reduction: GateRow | null;
+  absolute_best_reduction: GateRow;
+} {
+  const at85 = rows.filter((r) => r.coverage >= 0.85);
+  const at40 = rows.filter((r) => r.harmful_reduction >= 0.40);
+  return {
+    best_reduction_at_85_coverage: at85.length ? at85.sort((a, b) => b.harmful_reduction - a.harmful_reduction || b.coverage - a.coverage)[0] : null,
+    best_coverage_at_40_reduction: at40.length ? at40.sort((a, b) => b.coverage - a.coverage || b.harmful_reduction - a.harmful_reduction)[0] : null,
+    absolute_best_reduction: rows.slice().sort((a, b) => b.harmful_reduction - a.harmful_reduction || b.coverage - a.coverage)[0],
+  };
+}
+
+function histogramPmax(preds: Pred[]): Array<{ bin: string; count: number; percentage: number }> {
+  const bins = Array.from({ length: 10 }, (_, i) => ({
+    lo: i / 10,
+    hi: (i + 1) / 10,
+    count: 0,
+  }));
+  for (const p of preds) {
+    const idx = Math.min(9, Math.floor(p.pmax * 10));
+    bins[idx].count += 1;
+  }
+  return bins.map((b) => ({
+    bin: `${b.lo.toFixed(1)}-${b.hi.toFixed(1)}`,
+    count: b.count,
+    percentage: b.count / preds.length,
+  }));
+}
+
+function applyGuards(results: Record<GateKey, GateRow[]>, baselineHarmRate: number): void {
+  for (const rows of Object.values(results)) {
+    const bySweep = new Map<string, GateRow[]>();
+    for (const r of rows) {
+      if (r.harmful_rate < 0) throw new Error(`Negative harmful rate for ${r.gate}`);
+      const key = `${r.gate}|${r.t2 ?? "x"}|${r.t3 ?? "x"}`;
+      if (!bySweep.has(key)) bySweep.set(key, []);
+      bySweep.get(key)!.push(r);
+    }
+    for (const sweepRows of bySweep.values()) {
+      const sorted = sweepRows.slice().sort((a, b) => a.t1 - b.t1);
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].coverage - sorted[i - 1].coverage > 1e-12) {
+          throw new Error(`Coverage increased when threshold increased for ${sorted[i].gate}`);
+        }
+      }
+      for (const r of sorted.filter((x) => x.t1 >= 0.7 && x.coverage >= 0.05)) {
+        if (r.harmful_rate - baselineHarmRate > 1e-12) {
+          throw new Error(`High-threshold harmful rate exceeded baseline for ${r.gate} @ t1=${r.t1}`);
+        }
+      }
+    }
+  }
+}
+
 function main(): void {
-  console.log("=== Layer-2: Gating Validation ===");
-  assertNotExists(OUT_JSON);
-  assertNotExists(OUT_MD);
+  console.log("=== Layer-2: Strengthened Gating Validation ===");
   if (!fs.existsSync(DATASET_PATH)) throw new Error(`Missing input: ${DATASET_PATH}`);
   if (!fs.existsSync(GENERATION_TSV_PATH)) throw new Error(`Missing input: ${GENERATION_TSV_PATH}`);
+  const outJson = resolveOutputPath(OUT_JSON_V1, OUT_JSON_V11);
+  const outMd = resolveOutputPath(OUT_MD_V1, OUT_MD_V11);
 
   const rows = loadRowsWithTextId();
   const splits = splitByTextId(rows);
@@ -246,73 +395,65 @@ function main(): void {
   const preds = inferPredictions(testRows, useCalibration, temperature);
   const baselineAcc = accuracy(preds);
   const baselineHarm = harmfulStats(preds);
+  const pmaxHist = histogramPmax(preds);
 
-  type Row = {
-    threshold: number;
-    coverage: number;
-    committed: number;
-    abstained: number;
-    accuracy_committed: number;
-    harmful_rate_committed: number;
-    harmful_reduction_vs_baseline: number;
-    avg_entropy_committed: number;
-    avg_margin_committed: number;
+  const t1A = thresholdRange(0.3, 0.95, 0.01);
+  const t1BC = thresholdRange(0.2, 0.8, 0.01);
+  const marginGrid = [0.05, 0.1, 0.15, 0.2];
+  const entropyGrid = [0.85, 0.8, 0.75, 0.7];
+
+  const results: Record<GateKey, GateRow[]> = {
+    pmax: [],
+    pmax_strict: [],
+    pmax_margin: [],
+    pmax_margin_strict: [],
+    pmax_entropy: [],
+    pmax_entropy_strict: [],
   };
-  const sweep: Row[] = [];
 
-  for (let t = 0.3; t <= 0.95 + 1e-12; t += 0.01) {
-    const th = Number(t.toFixed(2));
-    const committed = preds.filter((p) => p.pmax >= th);
-    const cov = committed.length / preds.length;
-    const abstained = preds.length - committed.length;
-    const acc = committed.length ? accuracy(committed) : 0;
-    const harm = committed.length ? harmfulStats(committed).rate : 0;
-    if (harm < 0) throw new Error(`Negative harmful rate at threshold ${th}`);
-    const reduction = baselineHarm.rate === 0 ? 0 : (baselineHarm.rate - harm) / baselineHarm.rate;
-    const avgEntropy = committed.length ? sum(committed.map((p) => p.entropyNorm)) / committed.length : 0;
-    const avgMargin = committed.length ? sum(committed.map((p) => p.margin)) / committed.length : 0;
-    sweep.push({
-      threshold: th,
-      coverage: cov,
-      committed: committed.length,
-      abstained,
-      accuracy_committed: acc,
-      harmful_rate_committed: harm,
-      harmful_reduction_vs_baseline: reduction,
-      avg_entropy_committed: avgEntropy,
-      avg_margin_committed: avgMargin,
-    });
+  for (const t1 of t1A) {
+    results.pmax.push(evaluateGate(preds, baselineHarm, "pmax", false, t1, null, null));
+    results.pmax_strict.push(evaluateGate(preds, baselineHarm, "pmax_strict", true, t1, null, null));
   }
-
-  // Guards
-  for (let i = 1; i < sweep.length; i++) {
-    if (sweep[i].coverage - sweep[i - 1].coverage > 1e-12) {
-      throw new Error(`Coverage increased at threshold ${sweep[i].threshold}`);
+  for (const t2 of marginGrid) {
+    for (const t1 of t1BC) {
+      results.pmax_margin.push(evaluateGate(preds, baselineHarm, "pmax_margin", false, t1, t2, null));
+      results.pmax_margin_strict.push(evaluateGate(preds, baselineHarm, "pmax_margin_strict", true, t1, t2, null));
     }
   }
-  for (const r of sweep) {
-    if (r.harmful_rate_committed < 0) throw new Error(`Negative harmful rate at ${r.threshold}`);
-  }
-  // high-threshold guard (reported range only)
-  for (const r of sweep.filter((x) => x.threshold >= 0.85 && x.coverage >= 0.05)) {
-    if (r.harmful_rate_committed - baselineHarm.rate > 1e-12) {
-      throw new Error(`High-threshold harmful rate exceeded baseline at ${r.threshold}`);
+  for (const t3 of entropyGrid) {
+    for (const t1 of t1BC) {
+      results.pmax_entropy.push(evaluateGate(preds, baselineHarm, "pmax_entropy", false, t1, null, t3));
+      results.pmax_entropy_strict.push(evaluateGate(preds, baselineHarm, "pmax_entropy_strict", true, t1, null, t3));
     }
   }
 
-  const reportedRows = sweep.filter((r) => r.coverage >= 0.05); // skip extreme thresholds per instruction
-  if (!reportedRows.length) throw new Error("No reportable thresholds (coverage >=5%).");
-
-  // operating point selection
-  let selected = reportedRows.find((r) => r.coverage >= 0.85 && r.harmful_reduction_vs_baseline >= 0.40);
-  let fallbackUsed = false;
-  if (!selected) {
-    fallbackUsed = true;
-    const cands = reportedRows.filter((r) => r.harmful_reduction_vs_baseline >= 0.30);
-    selected = cands.length
-      ? cands.sort((a, b) => b.coverage - a.coverage || a.threshold - b.threshold)[0]
-      : reportedRows.sort((a, b) => b.coverage - a.coverage || a.threshold - b.threshold)[0];
+  // Report rows with >=5% coverage only.
+  for (const key of Object.keys(results) as GateKey[]) {
+    results[key] = sortRows(results[key].filter((r) => r.coverage >= 0.05));
+    if (!results[key].length) throw new Error(`No reportable rows for ${key}`);
   }
+
+  applyGuards(results, baselineHarm.rate);
+
+  const familySummary = {
+    pmax: summarizeFamily(results.pmax),
+    pmax_strict: summarizeFamily(results.pmax_strict),
+    pmax_margin: summarizeFamily(results.pmax_margin),
+    pmax_margin_strict: summarizeFamily(results.pmax_margin_strict),
+    pmax_entropy: summarizeFamily(results.pmax_entropy),
+    pmax_entropy_strict: summarizeFamily(results.pmax_entropy_strict),
+  };
+
+  const allRows = (Object.values(results).flat() as GateRow[]).filter((r) => r.coverage >= 0.05);
+  const satisfying = allRows.filter((r) => r.coverage >= 0.85 && r.harmful_reduction >= 0.4);
+  const constraintsMet = satisfying.length > 0;
+  const selected = constraintsMet
+    ? satisfying.sort((a, b) => b.coverage - a.coverage || b.harmful_reduction - a.harmful_reduction)[0]
+    : allRows.sort((a, b) => b.score - a.score || b.harmful_reduction - a.harmful_reduction || b.coverage - a.coverage)[0];
+  const selectionReason = constraintsMet
+    ? "Meets target constraints: coverage >= 85% and harmful reduction >= 40%."
+    : "No operating point satisfies both constraints; selected by balanced score = harmful_reduction - (1 - coverage).";
 
   const jsonOut = {
     source: {
@@ -324,85 +465,128 @@ function main(): void {
     baseline: {
       accuracy: baselineAcc,
       harmful_confusion_rate: baselineHarm,
-      coverage: 1.0,
+      coverage: 1,
     },
-    threshold_rows: reportedRows,
-    curves: {
-      coverage_vs_accuracy: reportedRows.map((r) => ({ threshold: r.threshold, coverage: r.coverage, accuracy: r.accuracy_committed })),
-      coverage_vs_harmful_rate: reportedRows.map((r) => ({ threshold: r.threshold, coverage: r.coverage, harmful_rate: r.harmful_rate_committed })),
-      coverage_vs_harmful_reduction: reportedRows.map((r) => ({ threshold: r.threshold, coverage: r.coverage, harmful_reduction: r.harmful_reduction_vs_baseline })),
-    },
+    gate_results: results,
+    family_summary: familySummary,
     selected_operating_point: {
-      threshold: selected.threshold,
+      gate: selected.gate,
+      t1: selected.t1,
+      t2: selected.t2,
+      t3: selected.t3,
+      strict: selected.strict,
       coverage: selected.coverage,
-      accuracy_committed: selected.accuracy_committed,
-      harmful_reduction: selected.harmful_reduction_vs_baseline,
+      accuracy: selected.accuracy,
+      harmful_rate: selected.harmful_rate,
+      harmful_reduction: selected.harmful_reduction,
       abstention_rate: selected.abstained / preds.length,
-      fallback_used: fallbackUsed,
+      score: selected.score,
+      constraints_met: constraintsMet,
+      selection_reason: selectionReason,
+    },
+    pmax_histogram: {
+      bins: pmaxHist,
+    },
+    backward_compatibility: {
+      threshold_rows: results.pmax,
+      curves: {
+        coverage_vs_accuracy: results.pmax.map((r) => ({ threshold: r.t1, coverage: r.coverage, accuracy: r.accuracy })),
+        coverage_vs_harmful_rate: results.pmax.map((r) => ({ threshold: r.t1, coverage: r.coverage, harmful_rate: r.harmful_rate })),
+        coverage_vs_harmful_reduction: results.pmax.map((r) => ({
+          threshold: r.t1,
+          coverage: r.coverage,
+          harmful_reduction: r.harmful_reduction,
+        })),
+      },
     },
   };
 
-  const jsonDir = path.dirname(OUT_JSON);
-  if (!fs.existsSync(jsonDir)) fs.mkdirSync(jsonDir, { recursive: true });
-  fs.writeFileSync(OUT_JSON, JSON.stringify(jsonOut, null, 2), "utf-8");
-
-  const keyThresholds = [0.3, 0.45, 0.6, 0.75, 0.85];
-  const keyed = keyThresholds
-    .map((t) => reportedRows.find((r) => Math.abs(r.threshold - t) < 1e-9))
-    .filter((x): x is Row => Boolean(x));
+  fs.mkdirSync(path.dirname(outJson), { recursive: true });
+  fs.writeFileSync(outJson, JSON.stringify(jsonOut, null, 2), "utf-8");
 
   const md: string[] = [];
-  md.push("# Gating Validation (Coverage vs Safety)");
+  md.push("# Gating Validation (Coverage vs Safety) — v1.1");
   md.push("");
   md.push(`Generated: ${new Date().toISOString()}`);
   md.push(`Probability source: ${useCalibration ? `calibrated (T=${temperature!.toFixed(2)})` : "uncalibrated"}`);
   md.push("");
-  md.push("## 1) Baseline metrics (No Gating)");
+  md.push("## 1) Baseline metrics");
   md.push("");
-  md.push(`- Accuracy: ${(baselineAcc * 100).toFixed(2)}%`);
-  md.push(`- Harmful confusion: ${baselineHarm.numerator}/${baselineHarm.denominator} (${(baselineHarm.rate * 100).toFixed(2)}%)`);
+  md.push(`- Accuracy: ${fmtPct(baselineAcc)}`);
+  md.push(`- Harmful confusion: ${baselineHarm.numerator}/${baselineHarm.denominator} (${fmtPct(baselineHarm.rate)})`);
   md.push(`- Coverage: 100%`);
   md.push("");
-  md.push("## 2) Curve Summary Table");
+  md.push("## 2) Gate family summary");
   md.push("");
-  md.push("| Threshold | Coverage | Accuracy(committed) | Harmful Rate(committed) | Harmful Reduction | Avg Entropy | Avg Margin | Abstained |");
-  md.push("|---:|---:|---:|---:|---:|---:|---:|---:|");
-  for (const r of keyed) {
-    md.push(
-      `| ${r.threshold.toFixed(2)} | ${(r.coverage * 100).toFixed(1)}% | ${(r.accuracy_committed * 100).toFixed(1)}% | ${(r.harmful_rate_committed * 100).toFixed(2)}% | ${(r.harmful_reduction_vs_baseline * 100).toFixed(1)}% | ${r.avg_entropy_committed.toFixed(4)} | ${r.avg_margin_committed.toFixed(4)} | ${r.abstained} |`
-    );
+  md.push("| Gate family | Best harmful reduction @ coverage>=85% | Best coverage @ harmful reduction>=40% | Absolute best harmful reduction |");
+  md.push("|---|---|---|---|");
+  for (const key of Object.keys(familySummary) as Array<keyof typeof familySummary>) {
+    const s = familySummary[key];
+    const c85 = s.best_reduction_at_85_coverage
+      ? `${fmtPct(s.best_reduction_at_85_coverage.harmful_reduction)} (cov ${fmtPct(s.best_reduction_at_85_coverage.coverage)})`
+      : "none";
+    const r40 = s.best_coverage_at_40_reduction
+      ? `${fmtPct(s.best_coverage_at_40_reduction.coverage)} (red ${fmtPct(s.best_coverage_at_40_reduction.harmful_reduction)})`
+      : "none";
+    const abs = `${fmtPct(s.absolute_best_reduction.harmful_reduction)} (cov ${fmtPct(s.absolute_best_reduction.coverage)})`;
+    md.push(`| ${key} | ${c85} | ${r40} | ${abs} |`);
   }
   md.push("");
-  md.push("## 3) Selected Operating Point");
+  if (!constraintsMet) {
+    md.push("**No operating point satisfies both constraints.**");
+    md.push("");
+  }
+  md.push("## 3) Tradeoff table (compact)");
   md.push("");
-  md.push(`Selected Threshold: ${selected.threshold.toFixed(2)}`);
-  md.push(`Coverage: ${(selected.coverage * 100).toFixed(1)}%`);
-  md.push(`Accuracy (committed): ${(selected.accuracy_committed * 100).toFixed(1)}%`);
-  md.push(`Harmful Reduction: ${(selected.harmful_reduction_vs_baseline * 100).toFixed(1)}%`);
-  md.push(`Abstention Rate: ${((selected.abstained / preds.length) * 100).toFixed(1)}%`);
-  if (fallbackUsed) {
-    md.push("- Fallback used: yes (no threshold met coverage>=85% AND harmful reduction>=40%).");
-  } else {
-    md.push("- Fallback used: no.");
+  md.push("| Gate | Threshold config | Coverage | Accuracy | Harmful rate | Harmful reduction |");
+  md.push("|---|---|---:|---:|---:|---:|");
+  const compactRows = [
+    familySummary.pmax.best_reduction_at_85_coverage ?? familySummary.pmax.absolute_best_reduction,
+    familySummary.pmax_strict.best_reduction_at_85_coverage ?? familySummary.pmax_strict.absolute_best_reduction,
+    familySummary.pmax_margin.best_reduction_at_85_coverage ?? familySummary.pmax_margin.absolute_best_reduction,
+    familySummary.pmax_margin_strict.best_reduction_at_85_coverage ?? familySummary.pmax_margin_strict.absolute_best_reduction,
+    familySummary.pmax_entropy.best_reduction_at_85_coverage ?? familySummary.pmax_entropy.absolute_best_reduction,
+    familySummary.pmax_entropy_strict.best_reduction_at_85_coverage ?? familySummary.pmax_entropy_strict.absolute_best_reduction,
+  ];
+  for (const r of compactRows) {
+    const cfg = `t1=${r.t1.toFixed(2)}${r.t2 !== null ? `, t2=${r.t2.toFixed(2)}` : ""}${r.t3 !== null ? `, t3=${r.t3.toFixed(2)}` : ""}`;
+    md.push(`| ${r.gate} | ${cfg} | ${fmtPct(r.coverage)} | ${fmtPct(r.accuracy)} | ${fmtPct(r.harmful_rate)} | ${fmtPct(r.harmful_reduction)} |`);
   }
   md.push("");
-  md.push("## 4) Interpretation");
+  md.push("## 4) Confidence Distribution (TEST)");
   md.push("");
-  md.push("- Gating is a safety mechanism: it reduces harmful errors by abstaining on low-confidence cases.");
-  md.push("- Committed-only accuracy can rise due to abstention; this is expected and should be interpreted with coverage.");
-  md.push("- Coverage and safety are a direct tradeoff; higher thresholds are more conservative.");
-  md.push(`- The selected point is ${selected.coverage < 0.8 ? "conservative" : "moderate/aggressive"} based on coverage ${(selected.coverage * 100).toFixed(1)}%.`);
+  md.push("| pmax bin | Count | Percentage |");
+  md.push("|---|---:|---:|");
+  for (const h of pmaxHist) md.push(`| ${h.bin} | ${h.count} | ${fmtPct(h.percentage)} |`);
+  md.push("");
+  md.push("## 5) Selected operating point");
+  md.push("");
+  md.push(`- Gate: ${selected.gate}`);
+  md.push(`- Threshold config: t1=${selected.t1.toFixed(2)}${selected.t2 !== null ? `, t2=${selected.t2.toFixed(2)}` : ""}${selected.t3 !== null ? `, t3=${selected.t3.toFixed(2)}` : ""}`);
+  md.push(`- Coverage: ${fmtPct(selected.coverage)}`);
+  md.push(`- Accuracy (committed): ${fmtPct(selected.accuracy)}`);
+  md.push(`- Harmful rate (committed): ${fmtPct(selected.harmful_rate)}`);
+  md.push(`- Harmful reduction: ${fmtPct(selected.harmful_reduction)}`);
+  md.push(`- Abstention rate: ${fmtPct(selected.abstained / preds.length)}`);
+  md.push(`- Selection rationale: ${selectionReason}`);
+  md.push("");
+  md.push("## 6) Interpretation");
+  md.push("");
+  md.push("- Gating is evaluated as a safety filter: harmful reduction is primary, and coverage quantifies usability cost.");
+  md.push("- Accuracy can rise from abstention; this is expected and should not be interpreted as model improvement.");
+  md.push("- The target (coverage >=85% and harmful reduction >=40%) is reported explicitly as achievable or not under current distributions.");
+  md.push("- Performance limits are tied to confidence concentration, class collapse (13->Ekman-6+Neutral), and reliability-weighted inference behavior; this step does not alter those mechanics.");
   md.push("");
 
-  const mdDir = path.dirname(OUT_MD);
-  if (!fs.existsSync(mdDir)) fs.mkdirSync(mdDir, { recursive: true });
-  fs.writeFileSync(OUT_MD, md.join("\n"), "utf-8");
+  fs.mkdirSync(path.dirname(outMd), { recursive: true });
+  fs.writeFileSync(outMd, md.join("\n"), "utf-8");
 
-  console.log(`Wrote: ${OUT_JSON}`);
-  console.log(`Wrote: ${OUT_MD}`);
-  console.log(
-    `Baseline harmful ${(baselineHarm.rate * 100).toFixed(2)}% | Selected th=${selected.threshold.toFixed(2)} | Coverage ${(selected.coverage * 100).toFixed(1)}% | Harmful reduction ${(selected.harmful_reduction_vs_baseline * 100).toFixed(1)}%`
-  );
+  console.log(`Wrote: ${outJson}`);
+  console.log(`Wrote: ${outMd}`);
+  console.log(`Baseline harmful ${fmtPct(baselineHarm.rate)}`);
+  console.log(`Best >=85% coverage reduction (pmax): ${familySummary.pmax.best_reduction_at_85_coverage ? fmtPct(familySummary.pmax.best_reduction_at_85_coverage.harmful_reduction) : "none"}`);
+  console.log(`Best >=40% reduction coverage (pmax): ${familySummary.pmax.best_coverage_at_40_reduction ? fmtPct(familySummary.pmax.best_coverage_at_40_reduction.coverage) : "none"}`);
+  console.log(`Selected: ${selected.gate} @ t1=${selected.t1.toFixed(2)}; coverage=${fmtPct(selected.coverage)} reduction=${fmtPct(selected.harmful_reduction)}`);
 }
 
 main();
