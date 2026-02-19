@@ -16,7 +16,8 @@
     "dev:test": "ts-node src/index.ts",
     "check:contracts": "npm test",
     "check:smoke": "bash scripts/smoke.sh",
-    "check:all": "npm run check:contracts && npm run check:smoke"
+    "check:all": "npm run check:contracts && npm run check:smoke",
+    "leakage-scan": "ts-node src/appraisal-lab/cli/leakage_scan.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
