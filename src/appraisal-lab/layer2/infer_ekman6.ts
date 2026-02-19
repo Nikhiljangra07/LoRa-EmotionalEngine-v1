@@ -2,20 +2,34 @@
  * Layer-2: Experimental Ekman-6 inference wrapper (isolated).
  *
  * Loads the Ekman-6 likelihood table, accepts LoRa-6 appraisal bins,
- * computes posterior in log space with IRR-based dimension weighting,
+ * computes posterior in log space with configurable dimension weighting,
  * and applies a reliability gate + harmful-pair conservative rule.
+ *
+ * Supports multiple configurations via Ekman6InferenceConfig:
+ *   - Prior mode: learned (from data) or uniform (1/K)
+ *   - Weight mode: linear_floor (κ-proportional) or tiered (step function)
+ *   - Pair-aware boost: temporarily raise discriminative dimension weights
+ *     when top-2 emotions form a known confusion pair
  *
  * NO integration with existing infer() or runtime code.
  * Fully isolated — imports only from sibling layer2 modules and Node built-ins.
  *
- * Usage as library:
+ * Usage:
  *   import { inferEkman6 } from './infer_ekman6';
  *   const result = inferEkman6({ valence: 'NEG', arousal: 'HIGH', ... });
+ *   const result2 = inferEkman6(bins, { ...DEFAULT_CONFIG, PRIOR_MODE: 'learned' });
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import type { CollapsedEmotion } from "./emotion_collapse_map";
+import { DEFAULT_CONFIG, Ekman6InferenceConfig } from "./ekman6_inference_config";
+
+// ============================================================
+// Re-exports for consumers
+// ============================================================
+
+export { DEFAULT_CONFIG, Ekman6InferenceConfig } from "./ekman6_inference_config";
 
 // ============================================================
 // Types
@@ -42,6 +56,8 @@ export interface Ekman6InferenceResult {
     entropy: number;
     entropyNorm: number;
     harmfulPairOverride: boolean;
+    pairBoostApplied: boolean;
+    weights: Record<string, number>;
   };
 }
 
@@ -58,6 +74,28 @@ const HARMFUL_PAIRS: [CollapsedEmotion, CollapsedEmotion][] = [
   ["ANGER", "FEAR"],
 ];
 const HARMFUL_PAIR_MARGIN = 0.15;
+
+// Confusion pairs for pair-aware discriminative boost
+const CONFUSION_PAIRS: [CollapsedEmotion, CollapsedEmotion][] = [
+  ["ANGER", "FEAR"],
+  ["ANGER", "SADNESS"],
+  ["FEAR", "SADNESS"],
+];
+
+// ============================================================
+// Aggregated IRR κ per LoRa dimension
+// Deterministically derived from data/layer2/irr_kappa_table.csv
+// via the source-column mapping in mapping_spec.md v1.1.
+// ============================================================
+
+const AGGREGATED_KAPPAS: Record<string, number> = {
+  valence: 0.729077,
+  arousal: 0.331807,
+  agency: 0.500846,
+  control: 0.399613,
+  certainty: 0.320924,
+  goalRelevance: 0.375800,
+};
 
 // ============================================================
 // Table types
@@ -91,7 +129,7 @@ function loadTable(): Ekman6Table {
 }
 
 // ============================================================
-// Inference
+// Weight computation
 // ============================================================
 
 const DIMENSIONS = [
@@ -103,16 +141,42 @@ const DIMENSIONS = [
   "goalRelevance",
 ] as const;
 
-export function inferEkman6(bins: AppraisalBins): Ekman6InferenceResult {
-  const table = loadTable();
-  const emotions = table.metadata.collapsed_emotions as CollapsedEmotion[];
-  const weights = table.metadata.dimension_weights;
+function computeWeights(config: Ekman6InferenceConfig): Record<string, number> {
+  const weights: Record<string, number> = {};
 
-  // Log-space posterior: log P(E|D) ∝ log P(E) + Σ w_i * log P(D_i | E)
+  for (const dim of DIMENSIONS) {
+    const kappa = AGGREGATED_KAPPAS[dim];
+
+    if (config.WEIGHT_MODE === "linear_floor") {
+      const raw = config.WEIGHT_FLOOR + config.WEIGHT_SLOPE * kappa;
+      weights[dim] = Math.max(config.WEIGHT_FLOOR, Math.min(1.0, raw));
+    } else {
+      // tiered
+      if (kappa >= 0.60) weights[dim] = 1.00;
+      else if (kappa >= 0.50) weights[dim] = 0.70;
+      else if (kappa >= 0.40) weights[dim] = 0.50;
+      else weights[dim] = 0.30;
+    }
+  }
+
+  return weights;
+}
+
+// ============================================================
+// Core posterior computation (pure, no side effects)
+// ============================================================
+
+function computePosterior(
+  bins: AppraisalBins,
+  table: Ekman6Table,
+  emotions: CollapsedEmotion[],
+  weights: Record<string, number>,
+  priors: Record<string, number>
+): Record<string, number> {
   const logPosterior: Record<string, number> = {};
 
   for (const emo of emotions) {
-    let logP = Math.log(table.priors[emo]);
+    let logP = Math.log(priors[emo]);
 
     for (const dim of DIMENSIONS) {
       const binVal = bins[dim];
@@ -120,14 +184,11 @@ export function inferEkman6(bins: AppraisalBins): Ekman6InferenceResult {
       if (!dimLikelihoods) {
         throw new Error(`Missing likelihoods for ${dim}/${emo}`);
       }
-
       const likelihood = dimLikelihoods[binVal];
       if (likelihood === undefined || likelihood <= 0) {
         throw new Error(`Missing or zero likelihood for ${dim}/${emo}/${binVal}`);
       }
-
-      const w = weights[dim] ?? 1.0;
-      logP += w * Math.log(likelihood);
+      logP += (weights[dim] ?? 1.0) * Math.log(likelihood);
     }
 
     logPosterior[emo] = logP;
@@ -146,7 +207,61 @@ export function inferEkman6(bins: AppraisalBins): Ekman6InferenceResult {
     posterior[emo] = Math.exp(logPosterior[emo] - logNorm);
   }
 
-  // Sort by probability descending
+  return posterior;
+}
+
+// ============================================================
+// Inference
+// ============================================================
+
+export function inferEkman6(
+  bins: AppraisalBins,
+  config: Ekman6InferenceConfig = DEFAULT_CONFIG
+): Ekman6InferenceResult {
+  const table = loadTable();
+  const emotions = table.metadata.collapsed_emotions as CollapsedEmotion[];
+
+  // Prior selection
+  const priors: Record<string, number> = {};
+  if (config.PRIOR_MODE === "uniform") {
+    const uniformP = 1 / emotions.length;
+    for (const emo of emotions) priors[emo] = uniformP;
+  } else {
+    for (const emo of emotions) priors[emo] = table.priors[emo];
+  }
+
+  // Weight computation
+  let weights = computeWeights(config);
+
+  // Initial posterior
+  let posterior = computePosterior(bins, table, emotions, weights, priors);
+
+  // Pair-aware discriminative boost
+  let pairBoostApplied = false;
+  if (config.PAIR_AWARE_BOOST) {
+    const sorted = emotions.slice().sort((a, b) => posterior[b] - posterior[a]);
+    if (sorted.length >= 2) {
+      const top2Set = new Set([sorted[0], sorted[1]]);
+      const isConfusionPair = CONFUSION_PAIRS.some(
+        ([a, b]) => top2Set.has(a) && top2Set.has(b)
+      );
+
+      if (isConfusionPair) {
+        // Boost discriminative dimensions (local copy, no global mutation)
+        const boosted = { ...weights };
+        boosted.control = Math.max(boosted.control, config.CONTROL_MIN_BOOST);
+        boosted.certainty = Math.max(boosted.certainty, config.CERTAINTY_MIN_BOOST);
+        boosted.arousal = Math.max(boosted.arousal, config.AROUSAL_MIN_BOOST);
+
+        // Recompute with boosted weights
+        posterior = computePosterior(bins, table, emotions, boosted, priors);
+        weights = boosted;
+        pairBoostApplied = true;
+      }
+    }
+  }
+
+  // Sort final posterior
   const sorted = emotions.slice().sort((a, b) => posterior[b] - posterior[a]);
   const topEmotion = sorted[0];
   const pmax = posterior[topEmotion];
@@ -163,7 +278,7 @@ export function inferEkman6(bins: AppraisalBins): Ekman6InferenceResult {
   const Hmax = K > 1 ? Math.log(K) : 1;
   const entropyNorm = H / Hmax;
 
-  // Gating decision (mirrors reliability_gate.ts logic)
+  // Gating decision
   let decision: GatingDecision;
   if (pmax >= PMAX_COMMIT && margin >= MARGIN_COMMIT && entropyNorm < ENTROPY_HEDGE) {
     decision = "COMMIT";
@@ -173,8 +288,7 @@ export function inferEkman6(bins: AppraisalBins): Ekman6InferenceResult {
     decision = "HEDGE";
   }
 
-  // Layer-2 experimental harmful-pair safeguard:
-  // If top-2 emotions form a harmful pair and margin is tight, force HEDGE.
+  // Harmful-pair safeguard (post-gate override)
   let harmfulPairOverride = false;
   if (margin < HARMFUL_PAIR_MARGIN && sorted.length >= 2) {
     const top2Set = new Set([sorted[0], sorted[1]]);
@@ -199,6 +313,8 @@ export function inferEkman6(bins: AppraisalBins): Ekman6InferenceResult {
       entropy: H,
       entropyNorm,
       harmfulPairOverride,
+      pairBoostApplied,
+      weights: { ...weights },
     },
   };
 }
