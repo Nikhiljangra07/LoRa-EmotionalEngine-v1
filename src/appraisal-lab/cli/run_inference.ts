@@ -22,6 +22,7 @@ import { AppraisalRow, LikelihoodTable, Emotion } from '../types';
 import { EMOTIONS } from '../schema';
 import { infer } from '../model/nb_inference';
 import { applyReliabilityGate } from '../model/reliability_gate';
+import { inferWithCalibration, CalibrationOptions } from '../model/calibrated_inference';
 
 // ---- Parse arguments ----
 const rowId = process.argv[2];
@@ -59,6 +60,21 @@ if (!row) {
   process.exit(1);
 }
 
+// ---- Parse calibration flags ----
+const calOpts: CalibrationOptions = {};
+const argv = process.argv.slice(3);
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--temperature' && argv[i + 1]) {
+    calOpts.temperature = parseFloat(argv[++i]);
+  } else if (argv[i].startsWith('--weight-') && argv[i + 1]) {
+    const dim = argv[i].slice('--weight-'.length);
+    const dimLower = dim.charAt(0).toLowerCase() + dim.slice(1);
+    calOpts.dimensionWeights = calOpts.dimensionWeights ?? {};
+    calOpts.dimensionWeights[dimLower] = parseFloat(argv[++i]);
+  }
+}
+const hasCalibration = calOpts.temperature !== undefined || calOpts.dimensionWeights !== undefined;
+
 // ---- Run inference ----
 const result = infer(row.appraisals, table);
 
@@ -93,6 +109,20 @@ for (const entry of sorted) {
 lines.push("");
 lines.push(`Predicted: ${result.predicted} (confidence: ${(result.confidence * 100).toFixed(2)}%)`);
 lines.push(`Match:     ${result.predicted === row.emotion ? "CORRECT" : "INCORRECT"}`);
+// ---- Calibrated posterior (if flags provided) ----
+if (hasCalibration) {
+  const calDist = inferWithCalibration(row.appraisals, table, calOpts);
+  lines.push("");
+  lines.push(`Calibrated Posterior (T=${calOpts.temperature ?? 1}${calOpts.dimensionWeights ? ', custom weights' : ''}):`);
+  const calSorted = EMOTIONS
+    .map((e: Emotion) => ({ emotion: e, prob: calDist[e] }))
+    .sort((a, b) => b.prob - a.prob);
+  for (const entry of calSorted) {
+    const bar = "#".repeat(Math.round(entry.prob * 40));
+    lines.push(`  ${entry.emotion.padEnd(10)} ${(entry.prob * 100).toFixed(2).padStart(6)}%  ${bar}`);
+  }
+}
+
 const gate = applyReliabilityGate(result.distribution);
 lines.push("");
 lines.push("Reliability Gate:");

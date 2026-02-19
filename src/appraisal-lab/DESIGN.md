@@ -2,7 +2,7 @@
 
 **Module name:** Appraisal Inference Layer (Appraisal-Lab)
 **Location:** `src/appraisal-lab/`
-**Status:** Layer 1.5 (Dataset Completion)
+**Status:** Layer 1 + Layer 1.5 Complete (Audit Locked)
 
 ---
 
@@ -412,3 +412,183 @@ src/appraisal-lab/
 - **No architectural contamination** — does not touch or depend on any other project module
 - **Deterministic** — all generators produce identical output for the same seed
 - **Safe to delete** — removing `src/appraisal-lab/` has zero impact on the rest of the project
+
+---
+
+## 9. Layer-1 Completion — Audit Lock (LoRa V1)
+
+### 1. Dataset Provenance
+
+**Real dataset:**
+
+| Property | Value |
+|----------|-------|
+| Source | ISEAR-style CSV (`dataset/eng_dataset.csv`) |
+| Rows | 7,102 |
+| Emotions | ANGER (1,701), FEAR (2,252), JOY (1,616), SADNESS (1,533) |
+| Appraisal mapping | Deterministic rule-based (Layer-1 skeleton, `dataset/appraisal_mapper.ts`) |
+| Output file | `dataset/isear_appraisal_dataset.json` |
+
+**Synthetic dataset:**
+
+| Property | Value |
+|----------|-------|
+| File | `dataset/synthetic_disgust_neutral.json` |
+| Rows | 2,400 |
+| Emotions | DISGUST (1,200), NEUTRAL (1,200) |
+| Generation method | Controlled template generation with seeded PRNG |
+| Appraisal vectors | Locked per emotion (see §3) |
+| Provenance | Generator tag in merged output (`generator: "OPUS_v1"`) |
+
+**Merged dataset:**
+
+| Property | Value |
+|----------|-------|
+| File | `dataset/isear_appraisal_dataset_extended.json` |
+| Rows | 9,502 |
+| Provenance field: `source` | `"ISEAR"` or `"SYNTHETIC"` on every row |
+| Provenance field: `generator` | `"OPUS_v1"` for synthetic rows; `null` for ISEAR |
+| Provenance field: `created_at` | `null` for all rows (determinism policy) |
+| ID collision count | 0 (enforced by prefixing rules) |
+
+Synthetic data exists for class coverage only, not for scientific grounding. It does not represent empirically validated appraisal-emotion associations.
+
+---
+
+### 2. Leakage Prevention Policy
+
+A hard banlist scan runs against all synthetic rows before merge acceptance.
+
+**DISGUST banlist** (word-boundary, case-insensitive):
+`disgust(ed|ing)?`, `gross`, `nasty`, `repuls(e|ed|ive|ing)?`, `sickening`, `revolting`, `filthy`
+
+**NEUTRAL banlist** (word-boundary, case-insensitive):
+`neutral`, `no emotion`, `emotionless`, `blank`, `indifferent`
+
+**Intentionally excluded from NEUTRAL banlist** (too common, high false-positive rate):
+`fine`, `okay`, `nothing`, `calm`
+
+**Implementation:**
+
+| Component | File |
+|-----------|------|
+| Core scanner | `quality/leakage_scan.ts` |
+| CLI gate | `cli/leakage_scan.ts` |
+| Test suite | `__tests__/leakage_scan.test.ts` |
+
+**Policy:** Zero violations required. Any violation causes `npm run leakage-scan` to exit with code 1. No warnings mode. No soft pass. No ignore flag.
+
+---
+
+### 3. Evaluation Protocol (Layer-1)
+
+Three evaluation modes are implemented in `cli/eval_modes.ts`. All use deterministic seeded shuffle (seed 2024, LCG + Fisher-Yates) before 80/20 train/test split.
+
+**Mode A — REAL:**
+
+| Property | Value |
+|----------|-------|
+| Input | `dataset/isear_appraisal_dataset.json` |
+| Emotions evaluated | ANGER, FEAR, JOY, SADNESS |
+| Split | Seeded shuffle → 80/20 |
+| Metrics | Accuracy, confusion matrix, per-class precision/recall |
+
+**Mode B — SYNTHETIC:**
+
+| Property | Value |
+|----------|-------|
+| Input | Synthetic rows from merged dataset (`source === "SYNTHETIC"`) |
+| Supported emotions | DISGUST (in EMOTIONS enum) |
+| Unsupported emotions | NEUTRAL (not in EMOTIONS enum — excluded from evaluation) |
+| Purpose | Structural compatibility check, not performance evaluation |
+
+When all rows have unsupported labels, the mode emits: `"Synthetic-only mode contains labels not supported by current model. This is a compatibility check, not performance evaluation."` Results are marked `STRUCTURAL LIMITATION`.
+
+**Mode C — MERGED:**
+
+| Property | Value |
+|----------|-------|
+| Input | `dataset/isear_appraisal_dataset_extended.json` |
+| Supported emotions | ANGER, FEAR, JOY, SADNESS, DISGUST (5-class) |
+| Unsupported emotions | NEUTRAL (excluded, logged with count) |
+| Metrics | Accuracy, 5×5 confusion matrix, per-class precision/recall |
+
+Unsupported labels are partitioned before evaluation. They do not enter the train/test split and do not distort accuracy or confusion matrix values.
+
+Layer-1 evaluation validates plumbing and separability, not real-world performance.
+
+---
+
+### 4. Reliability and Calibration Hooks (Layer-1)
+
+**Reliability gate** (`model/reliability_gate.ts`):
+
+Accepts a posterior distribution and returns a gating decision based on three metrics:
+
+| Metric | Formula |
+|--------|---------|
+| pmax | max(p) |
+| margin | p₁ − p₂ (top two probabilities) |
+| entropyNorm | H / H_max where H = −Σ pᵢ log(pᵢ), H_max = log(K) |
+
+Decision policy:
+
+| Condition | Decision |
+|-----------|----------|
+| pmax ≥ 0.60 AND margin ≥ 0.15 AND entropyNorm < 0.80 | **COMMIT** |
+| entropyNorm ≥ 0.80 | **NEUTRAL** |
+| Otherwise | **HEDGE** |
+
+**Calibration hooks** (`model/calibrated_inference.ts`):
+
+| Hook | Default | Effect |
+|------|---------|--------|
+| Temperature (T) | 1.0 | T > 1 flattens posterior; T < 1 sharpens it |
+| Dimension weights (wᵢ) | 1.0 for all dimensions | Scales each dimension's log-conditional contribution |
+
+When all defaults are active, `inferWithCalibration()` delegates to `infer()` and returns an identical posterior. Both hooks are fully optional and removable without affecting base inference.
+
+No tuning has been performed in Layer-1. Hooks are inactive by default.
+
+---
+
+### 5. What Layer-1 Does NOT Claim
+
+Layer-1 does **not** claim:
+
+- Emotional intelligence
+- Conversational empathy
+- Real-world calibration
+- Personalized user priors
+- Scientific validation of appraisal-emotion distributions
+- Clinical or therapeutic applicability
+- Generalization beyond the training distribution
+
+Layer-1 **does** provide:
+
+- Deterministic Naive Bayes inference over 6 appraisal dimensions
+- Governance gating (reliability decisions on every prediction)
+- Controlled dataset pipeline with full provenance
+- Auditability (every synthetic row traceable to source and generator)
+- Structural separability (each emotion class is distinguishable under rule-based vectors)
+- Automated quality gates (leakage scan, schema validation, ID collision checks)
+
+---
+
+### 6. Requirements for Layer-2 (Scientific Grounding)
+
+Layer-2 is not implemented. When initiated, it will require:
+
+1. **Appraisal-labeled dataset** — 300–600 rows minimum, each annotated with ground-truth appraisal dimension values by human raters.
+2. **Annotation protocol** — Explicit coding guide for all 6 dimensions, including edge-case resolution rules and worked examples.
+3. **Inter-rater agreement** — Report Cohen's kappa or percent agreement per dimension. Minimum threshold: kappa ≥ 0.60.
+4. **Empirical P(DimensionBin | Emotion)** — Replace rule-based mappings with frequency-derived probability distributions from the annotated dataset.
+5. **Smoothing justification** — Document and justify choice of smoothing method (Laplace, Lidstone, etc.) and its parameterization.
+6. **Calibration validation** — Report expected calibration error (ECE) or produce a reliability diagram showing predicted confidence vs. actual accuracy.
+7. **Threshold policy validation** — Empirically validate COMMIT/HEDGE/NEUTRAL thresholds against held-out data. Report abstention rate and accuracy-when-committed.
+8. **Error analysis on confusion pairs** — Identify and document systematic misclassification patterns (e.g., ANGER↔FEAR, SADNESS↔DISGUST).
+9. **Known failure modes** — Document scenarios where the model is expected to fail, including out-of-distribution inputs, ambiguous stimuli, and cultural/contextual variation.
+
+---
+
+Layer-1 + Layer-1.5 (Dataset Completion) are complete as of this revision. System remains isolated inside `src/appraisal-lab/`.
