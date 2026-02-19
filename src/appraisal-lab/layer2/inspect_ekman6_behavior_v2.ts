@@ -24,13 +24,13 @@ import { inferEkman6, AppraisalBins, Ekman6InferenceConfig, DEFAULT_CONFIG } fro
 // Test vectors (same 5 as v1, with valid bin spaces)
 // ============================================================
 
-interface TestCase {
+export interface TestCase {
   label: string;
   bins: AppraisalBins;
   expectation: string;
 }
 
-const TEST_CASES: TestCase[] = [
+export const TEST_CASES: TestCase[] = [
   {
     label: "Classic ANGER",
     bins: {
@@ -103,19 +103,43 @@ const TEST_CASES: TestCase[] = [
     },
     expectation: "ANGER over SADNESS with tighter margin",
   },
+  {
+    label: "anger_vs_sadness_angerish",
+    bins: {
+      valence: "NEG",
+      arousal: "HIGH",
+      agency: "OTHER",
+      control: "HIGH",
+      certainty: "HIGH",
+      goalRelevance: "HIGH",
+    },
+    expectation: "ANGER should outrank SADNESS",
+  },
+  {
+    label: "anger_vs_sadness_sadish",
+    bins: {
+      valence: "NEG",
+      arousal: "MED",
+      agency: "SITUATION",
+      control: "LOW",
+      certainty: "HIGH",
+      goalRelevance: "HIGH",
+    },
+    expectation: "SADNESS or FEAR should outrank ANGER",
+  },
 ];
 
 // ============================================================
 // 4 ablation configurations
 // ============================================================
 
-interface AblationConfig {
+export interface AblationConfig {
   label: string;
   tag: string;
   config: Ekman6InferenceConfig;
 }
 
-const ABLATIONS: AblationConfig[] = [
+export const ABLATIONS: AblationConfig[] = [
   {
     label: "A) Learned priors + tiered weights (baseline)",
     tag: "A",
@@ -202,7 +226,12 @@ function parseReportPathArg(): string | null {
 // Main
 // ============================================================
 
-function main(): void {
+export function runEkman6AblationInspection(
+  ablations: AblationConfig[] = ABLATIONS,
+  testCases: TestCase[] = TEST_CASES,
+  reportPath?: string,
+  reportTitle = "Ekman6 Behavior Inspection v1.2"
+): void {
   console.log("=== Layer-2: Ekman-6 Ablation Inspector (v2) ===");
   console.log("");
 
@@ -215,13 +244,13 @@ function main(): void {
     "|--------|--------|-------|------|--------|--------|----------|--------|"
   );
 
-  for (const abl of ABLATIONS) {
+  for (const abl of ablations) {
     console.log("═".repeat(64));
     console.log(`  ${abl.label}`);
     console.log("═".repeat(64));
     console.log("");
 
-    for (const tc of TEST_CASES) {
+    for (const tc of testCases) {
       const result = inferEkman6(tc.bins, abl.config);
       const d = result.diagnostics;
       const top3 = topN(result.posterior, 3);
@@ -251,13 +280,12 @@ function main(): void {
   }
   console.log("");
 
-  const reportPath = parseReportPathArg();
   if (reportPath) {
     const abs = path.isAbsolute(reportPath)
       ? reportPath
       : path.join(process.cwd(), reportPath);
     const mdLines: string[] = [];
-    mdLines.push("# Ekman6 Behavior Inspection v1.2");
+    mdLines.push(`# ${reportTitle}`);
     mdLines.push("");
     mdLines.push(`Generated: ${new Date().toISOString()}`);
     mdLines.push("");
@@ -279,45 +307,51 @@ function main(): void {
   console.log("");
 
   // Compare anger across configs
-  const angerBins = TEST_CASES[0].bins;
-  const rA = inferEkman6(angerBins, ABLATIONS[0].config);
-  const rB = inferEkman6(angerBins, ABLATIONS[1].config);
-  const rC = inferEkman6(angerBins, ABLATIONS[2].config);
-  const rD = inferEkman6(angerBins, ABLATIONS[3].config);
+  if (ablations.length >= 4 && testCases.length >= 4) {
+    const angerBins = testCases[0].bins;
+    const rA = inferEkman6(angerBins, ablations[0].config);
+    const rB = inferEkman6(angerBins, ablations[1].config);
+    const rC = inferEkman6(angerBins, ablations[2].config);
+    const rD = inferEkman6(angerBins, ablations[3].config);
 
-  console.log("  Classic ANGER — top emotion progression:");
-  console.log(`    A (learned+tiered):      ${rA.topEmotion} (${fmt(rA.diagnostics.pmax)})`);
-  console.log(`    B (uniform+tiered):      ${rB.topEmotion} (${fmt(rB.diagnostics.pmax)})`);
-  console.log(`    C (uniform+floor):       ${rC.topEmotion} (${fmt(rC.diagnostics.pmax)})`);
-  console.log(`    D (uniform+floor+boost): ${rD.topEmotion} (${fmt(rD.diagnostics.pmax)})${rD.diagnostics.pairBoostApplied ? " [BOOSTED]" : ""}`);
-  console.log("");
+    console.log("  Classic ANGER — top emotion progression:");
+    console.log(`    A (learned+tiered):      ${rA.topEmotion} (${fmt(rA.diagnostics.pmax)})`);
+    console.log(`    B (uniform+tiered):      ${rB.topEmotion} (${fmt(rB.diagnostics.pmax)})`);
+    console.log(`    C (uniform+floor):       ${rC.topEmotion} (${fmt(rC.diagnostics.pmax)})`);
+    console.log(`    D (uniform+floor+boost): ${rD.topEmotion} (${fmt(rD.diagnostics.pmax)})${rD.diagnostics.pairBoostApplied ? " [BOOSTED]" : ""}`);
+    console.log("");
 
-  // Compare fear across configs
-  const fearBins = TEST_CASES[1].bins;
-  const fA = inferEkman6(fearBins, ABLATIONS[0].config);
-  const fB = inferEkman6(fearBins, ABLATIONS[1].config);
-  const fC = inferEkman6(fearBins, ABLATIONS[2].config);
-  const fD = inferEkman6(fearBins, ABLATIONS[3].config);
+    // Compare fear across configs
+    const fearBins = testCases[1].bins;
+    const fA = inferEkman6(fearBins, ablations[0].config);
+    const fB = inferEkman6(fearBins, ablations[1].config);
+    const fC = inferEkman6(fearBins, ablations[2].config);
+    const fD = inferEkman6(fearBins, ablations[3].config);
 
-  console.log("  Classic FEAR — top emotion progression:");
-  console.log(`    A (learned+tiered):      ${fA.topEmotion} (${fmt(fA.diagnostics.pmax)})`);
-  console.log(`    B (uniform+tiered):      ${fB.topEmotion} (${fmt(fB.diagnostics.pmax)})`);
-  console.log(`    C (uniform+floor):       ${fC.topEmotion} (${fmt(fC.diagnostics.pmax)})`);
-  console.log(`    D (uniform+floor+boost): ${fD.topEmotion} (${fmt(fD.diagnostics.pmax)})${fD.diagnostics.pairBoostApplied ? " [BOOSTED]" : ""}`);
-  console.log("");
+    console.log("  Classic FEAR — top emotion progression:");
+    console.log(`    A (learned+tiered):      ${fA.topEmotion} (${fmt(fA.diagnostics.pmax)})`);
+    console.log(`    B (uniform+tiered):      ${fB.topEmotion} (${fmt(fB.diagnostics.pmax)})`);
+    console.log(`    C (uniform+floor):       ${fC.topEmotion} (${fmt(fC.diagnostics.pmax)})`);
+    console.log(`    D (uniform+floor+boost): ${fD.topEmotion} (${fmt(fD.diagnostics.pmax)})${fD.diagnostics.pairBoostApplied ? " [BOOSTED]" : ""}`);
+    console.log("");
 
-  // Neutral check
-  const neutBins = TEST_CASES[3].bins;
-  const nD = inferEkman6(neutBins, ABLATIONS[3].config);
-  console.log(`  Neutral routine (config D): top=${nD.topEmotion}, pmax=${fmt(nD.diagnostics.pmax)}, decision=${nD.decision}`);
-  if (nD.topEmotion === "JOY") {
-    console.log("    *** WARNING: Neutral collapsed into JOY ***");
-  } else {
-    console.log("    OK — Neutral did not collapse into JOY.");
+    // Neutral check
+    const neutBins = testCases[3].bins;
+    const nD = inferEkman6(neutBins, ablations[3].config);
+    console.log(`  Neutral routine (config D): top=${nD.topEmotion}, pmax=${fmt(nD.diagnostics.pmax)}, decision=${nD.decision}`);
+    if (nD.topEmotion === "JOY") {
+      console.log("    *** WARNING: Neutral collapsed into JOY ***");
+    } else {
+      console.log("    OK — Neutral did not collapse into JOY.");
+    }
+    console.log("");
   }
-  console.log("");
 
   console.log("Done. No files modified.");
+}
+
+function main(): void {
+  runEkman6AblationInspection(ABLATIONS, TEST_CASES, parseReportPathArg() ?? undefined);
 }
 
 main();
