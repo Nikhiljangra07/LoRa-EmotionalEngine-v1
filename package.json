@@ -36,7 +36,8 @@
     "layer2:build-envent-likelihood": "ts-node src/appraisal-lab/layer2/build_envent_likelihood.ts",
     "layer2:compare-envent-likelihood": "ts-node src/appraisal-lab/layer2/compare_envent_likelihoods.ts",
     "layer2:evaluate-v1": "ts-node src/appraisal-lab/layer2/evaluate_model_v1.ts",
-    "layer2:calibrate": "ts-node src/appraisal-lab/layer2/calibrate_emotion_classifier.ts"
+    "layer2:calibrate": "ts-node src/appraisal-lab/layer2/calibrate_emotion_classifier.ts",
+    "layer2:validate-gating": "ts-node src/appraisal-lab/layer2/validate_gating.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
