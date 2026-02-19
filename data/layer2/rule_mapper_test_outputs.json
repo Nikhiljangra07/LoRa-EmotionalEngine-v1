@@ -1,0 +1,3367 @@
+[
+  {
+    "text_id": "2231",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51227",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6831",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51053",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52252",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6804",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "4706",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52857",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6598",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31021",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3948",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "41871",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "61097",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3884",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51882",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31181",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31360",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "294",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "340",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3138",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6835",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52591",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52434",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51092",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3140",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "910",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3641",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "5257",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5700",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "41693",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51826",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5109",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "31179",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3450",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4943",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "495",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "5653",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3260",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "5158",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52706",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52562",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "4517",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "71",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "61071",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31415",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "41529",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6450",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6101",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52704",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6799",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6392",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51287",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "41319",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51136",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "41642",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "41049",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "822",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51738",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3137",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "4780",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "41208",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "2144",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5550",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6418",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "816",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52196",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52282",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3603",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "69",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "441",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51577",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3462",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51487",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51275",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52118",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "686",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51929",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3686",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "2161",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3189",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51531",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3873",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52176",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "5873",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3804",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3442",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52369",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51774",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3797",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51575",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5769",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "458",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52558",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52225",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3712",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "363",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6124",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "261",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3338",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "382",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4337",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "466",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3830",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "41378",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52614",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51897",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "224",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3704",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51484",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5254",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52821",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6235",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6987",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "281",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3225",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52371",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51901",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31203",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3709",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6366",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51591",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3481",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6339",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51258",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "744",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6954",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3118",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "31177",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51145",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "39",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6329",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "31307",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3401",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51503",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "41167",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5629",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4496",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4150",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "41780",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51054",
+    "original_emotion": "guilt",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3223",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31285",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3836",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5642",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6524",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51613",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5639",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4400",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "31141",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "3427",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "751",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "84",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52520",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5964",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4976",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52046",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6836",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "4981",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5105",
+    "original_emotion": "anger",
+    "mapped_emotion": "ANGER",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "OTHER",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 0.5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 3,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "52738",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51278",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "2228",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "51710",
+    "original_emotion": "pride",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6815",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "764",
+    "original_emotion": "fear",
+    "mapped_emotion": "FEAR",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "HIGH",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "LOW",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 1,
+      "agency": 1,
+      "control": 0,
+      "certainty": 0,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 5,
+      "agency": 5,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51131",
+    "original_emotion": "joy",
+    "mapped_emotion": "JOY",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "POS",
+      "arousal": "MED",
+      "agency": "SELF",
+      "control": "HIGH",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 1,
+      "arousal": 0.5,
+      "agency": 0,
+      "control": 1,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 5,
+      "arousal": 3,
+      "agency": 1,
+      "control": 5,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "6258",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "31124",
+    "original_emotion": "shame",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6933",
+    "original_emotion": "sadness",
+    "mapped_emotion": "SADNESS",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "LOW",
+      "agency": "SITUATION",
+      "control": "LOW",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0,
+      "agency": 1,
+      "control": 0,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 1,
+      "agency": 5,
+      "control": 1,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "3292",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "41236",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "31338",
+    "original_emotion": "trust",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "5298",
+    "original_emotion": "boredom",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "6810",
+    "original_emotion": "relief",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "4327",
+    "original_emotion": "disgust",
+    "mapped_emotion": "DISGUST",
+    "skipped": false,
+    "reason": null,
+    "bins": {
+      "valence": "NEG",
+      "arousal": "MED",
+      "agency": "OTHER",
+      "control": "MED",
+      "certainty": "HIGH",
+      "goalRelevance": "HIGH"
+    },
+    "continuous": {
+      "valence": 0,
+      "arousal": 0.5,
+      "agency": 0.5,
+      "control": 0.5,
+      "certainty": 1,
+      "goalRelevance": 1
+    },
+    "scale5": {
+      "valence": 1,
+      "arousal": 3,
+      "agency": 3,
+      "control": 3,
+      "certainty": 5,
+      "goalRelevance": 5
+    }
+  },
+  {
+    "text_id": "51556",
+    "original_emotion": "no-emotion",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52428",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "41654",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  },
+  {
+    "text_id": "52452",
+    "original_emotion": "surprise",
+    "mapped_emotion": null,
+    "skipped": true,
+    "reason": "unsupported_emotion_for_layer1_mapper",
+    "continuous": null,
+    "scale5": null,
+    "bins": null
+  }
+]
