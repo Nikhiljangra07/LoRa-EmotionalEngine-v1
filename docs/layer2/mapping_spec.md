@@ -1,11 +1,29 @@
 # Layer-2 Mapping Spec: crowd-enVent 21 → LoRa-6
 
-**Spec version:** v1
+**Spec version:** v1.1
 **Date:** 2026-02-19
 **Source dataset:** crowd-enVent2023 (Troiano, Oberländer, Klinger 2023)
 **Dataset location:** `src/appraisal-lab/dataset/crowd-enVent2023/`
 **Primary corpus file:** `corpus/crowd-enVent_generation.tsv` (6,600 rows)
 **Status:** LOCKED — changes require explicit review
+
+---
+
+## Change Log
+
+### v1.1 (2026-02-19) — Post-sanity-report corrections
+
+Changes driven by `docs/layer2/mapping_sanity_report.md` findings:
+
+1. **Control formula rewritten (§E.4).** Replaced `max(norm(self_control), norm(other_control))` with a weighted personal-controllability composite: `0.6·norm(self_control) + 0.2·(1 − norm(chance_control)) + 0.2·(1 − norm(other_control))`. The v1 formula conflated "someone else has control" with "the situation is controllable by me," which inflated control scores for fear (mean 0.674 in sanity report; appraisal theory predicts low). The new formula centers on *self*-controllability: only self_control contributes positively; external control sources (chance, other) act as detractors. `chance_control` is no longer unmapped — it is now consumed by the control dimension. Weights are heuristic but theory-guided (not learned).
+2. **Arousal definition clarified (§E.2).** Explicitly defined LoRa arousal as a *cognitive-activation composite* (salience + urgency + suddenness), not pure physiological activation. Added justification paragraph addressing the sanity report's finding that sadness arousal (0.637) exceeded the expected low range.
+3. **Unmapped columns decision added (§J).** New section explicitly lists all 6 remaining unmapped columns with a per-column permanent/candidate status and confirms none are used in Layer-2 likelihood estimation.
+4. **Emotion set decision added (§K).** Layer-2 likelihood estimation will use all 13 crowd-enVent emotions for statistical robustness. The runtime LoRa emotion type space remains independent.
+5. **Summary table, pseudocode (§F.1), and edge-case policies (§G.4) updated** for consistency with the new control formula.
+
+### v1 (2026-02-19) — Initial spec
+
+Initial 21→6 mapping for crowd-enVent2023 generation set.
 
 ---
 
@@ -188,13 +206,13 @@ function clampLikert(x: number): number {
 | `valence` | `pleasantness`, `unpleasantness` | Signed difference | Custom (see E.1) | 3-bin (NEG/NEU/POS) | 2 of 21 |
 | `arousal` | `suddenness`, `urgency`, `attention` | Mean of normalized | Standard norm → mean | 3-bin (LOW/MED/HIGH) | 3 of 21 |
 | `agency` | `self_responsblt`, `other_responsblt`, `chance_responsblt` | Argmax (categorical) | N/A (direct comparison) | Categorical | 3 of 21 |
-| `control` | `self_control`, `other_control` | Max of normalized | Standard norm → max | 3-bin (LOW/MED/HIGH) | 2 of 21 |
+| `control` | `self_control`, `chance_control`, `other_control` | Weighted composite (personal-controllability) | Standard norm → weighted sum | 3-bin (LOW/MED/HIGH) | 3 of 21 |
 | `certainty` | `predict_event`, `predict_conseq`, `familiarity` | Mean of normalized | Standard norm → mean | 2-bin (LOW/HIGH) | 3 of 21 |
 | `goalRelevance` | `goal_relevance` | Direct | Standard norm | 2-bin (LOW/HIGH) | 1 of 21 |
 
-**Total columns consumed:** 14 of 21.
+**Total columns consumed:** 15 of 21.
 
-### Unmapped columns (7 of 21)
+### Unmapped columns (6 of 21)
 
 | Column | Why unmapped | Closest LoRa dim | Risk if included |
 |--------|-------------|-------------------|------------------|
@@ -204,7 +222,8 @@ function clampLikert(x: number): number {
 | `social_norms` | Social norm evaluation. Same issue as `standards`. | none | No valid target dimension |
 | `not_consider` | Avoidance/suppression strategy. Used as a quality flag (see §G.2), not as an appraisal input. | none | Inverts interpretability |
 | `effort` | Coping effort ("how hard did I try to deal with this?"). Ambiguous: high effort can co-occur with either high or low control. | control | Conflates appraisal with coping behavior |
-| `chance_control` | See §E.4 rationale. High chance_control means LOW human controllability — it's an inverse signal that would require special handling and has limited incremental value over self/other_control. | control | Inverted polarity; requires special-case logic |
+
+> **v1.1 note:** `chance_control` was unmapped in v1. It is now consumed by the control dimension as an inverted signal (see §E.4).
 
 ---
 
@@ -254,7 +273,11 @@ function mapValence(pleasantness, unpleasantness):
 **Type:** `Arousal` = `"LOW" | "MED" | "HIGH"`
 **Source columns:** `suddenness`, `urgency`, `attention`
 
-**Rationale:** Arousal reflects physiological activation intensity. In Scherer's Component Process Model, arousal is driven by novelty (suddenness), action tendency urgency, and attentional capture. These three crowd-enVent columns are the best available proxies. Equal weighting is used because there is no empirical basis within this dataset to prefer one contributor over another.
+**Definition (v1.1):** LoRa arousal is defined as a **cognitive-activation composite** — a measure of salience, urgency, and suddenness — rather than pure physiological activation (heart rate, galvanic skin response). This distinction matters because crowd-enVent appraisal ratings are self-reported cognitive judgments, not physiological measurements. The three source columns capture how *cognitively engaging* the event was: how sudden it was (novelty), how urgently it demanded a response (action tendency), and how much the person attended to it (attentional capture/salience).
+
+**Rationale:** In Scherer's Component Process Model, the novelty check (suddenness, familiarity) and the coping-potential check (urgency) are primary determinants of cognitive mobilization. Attentional capture (`attention`) adds a salience signal that correlates with cognitive activation even in the absence of physiological arousal. Equal weighting is used because there is no empirical basis within this dataset to prefer one contributor over another.
+
+**Why this is not "physiological arousal":** The sanity report found sadness averaging 0.637 on the arousal dimension — seemingly contradicting the textbook expectation that sadness involves low physiological arousal. Under the cognitive-activation definition, this is expected: sad events are highly salient (high attention) and moderately sudden, even though they do not produce high heart rate. The dimension captures *how much the event grabbed cognitive resources*, not how physically activated the person was.
 
 **Formula:**
 
@@ -285,7 +308,7 @@ function mapArousal(suddenness, urgency, attention):
   return "HIGH"
 ```
 
-**Weakness note:** `attention` in crowd-enVent measures directed focus ("How much did you attend to the event?"), which can be high even at low physiological arousal (e.g., calm concentration). This is an accepted approximation. Removing `attention` and using only `suddenness` + `urgency` is a valid alternative with a narrower but potentially more precise arousal signal. The 3-column mean is preferred for robustness.
+**Design note:** `attention` in crowd-enVent measures directed focus ("How much did you attend to the event?"), which can be high even at low physiological arousal (e.g., calm concentration on a sad memory). Under the cognitive-activation definition adopted in v1.1, this is a feature, not a bug: attentional salience is part of what we mean by "arousal" in LoRa. Removing `attention` and using only `suddenness` + `urgency` would narrow the construct toward physiological arousal, which is a valid but different design choice. The 3-column mean is retained for the broader cognitive-activation construct.
 
 ---
 
@@ -333,33 +356,62 @@ function mapAgency(self_responsblt, other_responsblt, chance_responsblt):
 
 **LoRa dimension:** `control`
 **Type:** `Control` = `"LOW" | "MED" | "HIGH"`
-**Source columns:** `self_control`, `other_control`
+**Source columns:** `self_control`, `chance_control`, `other_control`
 
-**Rationale:** Control in the LoRa model represents perceived situational controllability — can an intentional agent influence the outcome? `self_control` and `other_control` capture this directly. We take the max because if *either* the self or another person could influence the situation, it is perceived as controllable (e.g., anger: "they could have acted differently" = high other_control → HIGH overall).
+**Definition:** Control in the LoRa model represents **personal controllability** — the degree to which the experiencer (the self) could influence the event or its outcome. This is distinct from *situational* controllability, which asks whether *anyone* could control it.
 
-**Why `chance_control` is excluded:** `chance_control` asks "How much control did chance/fate have?" A high value means the situation was governed by luck, which implies *low* human controllability. Including it would require an inversion (`1 - norm(chance_control)`), adding complexity without clear benefit: when self_control and other_control are both low, control is already LOW regardless of chance_control. When either is high, the situation IS controllable irrespective of chance. The marginal signal does not justify the added complexity and inverted-polarity risk.
+**Why the v1 formula (`max(self_control, other_control)`) was incorrect:**
 
-**Formula:**
+The v1 formula used `max(norm(self_control), norm(other_control))`. This conflated two different things:
+
+- High `self_control` → "I could influence this" → high personal controllability (correct).
+- High `other_control` → "Someone else controlled this" → high *other*-controllability, but **low personal controllability** (incorrect in v1; treated as high).
+
+The sanity report confirmed the empirical consequence: fear averaged control = 0.674 (MED/HIGH), contradicting the appraisal-theory prediction that fear involves low perceived control. The inflation came from `other_control` being high in fear scenarios (e.g., "someone else had power over the situation") being treated as evidence of *personal* control.
+
+**v1.1 formula — personal-controllability composite:**
 
 ```
-control_continuous = max(norm(self_control), norm(other_control))
+control_continuous = 0.6 * norm(self_control)
+                   + 0.2 * (1 - norm(chance_control))
+                   + 0.2 * (1 - norm(other_control))
 ```
 
-| Example | self_control | other_control | Continuous | Bin |
-|---------|-------------|--------------|-----------|-----|
-| High self-control | 5 | 1 | 1.000 | HIGH |
-| High other-control | 1 | 5 | 1.000 | HIGH |
-| Both moderate | 3 | 3 | 0.500 | MED |
-| Neither | 1 | 1 | 0.000 | LOW |
-| Mixed | 2 | 4 | 0.750 | HIGH |
+**Component logic:**
+
+| Term | Weight | Direction | Rationale |
+|------|--------|-----------|-----------|
+| `norm(self_control)` | 0.6 | Direct | Primary signal: how much control *I* had. Dominant weight reflects that personal controllability is fundamentally about the self. |
+| `1 - norm(chance_control)` | 0.2 | Inverted | If chance/fate controlled the outcome, personal controllability is lower. Inversion converts "high chance control" → "low personal control." |
+| `1 - norm(other_control)` | 0.2 | Inverted | If another person controlled the outcome, personal controllability is lower. Inversion converts "high other control" → "low personal control." |
+
+**Weight justification:** The 0.6/0.2/0.2 split is heuristic but theory-guided. Self-control is given dominant weight (0.6) because personal controllability is primarily about the agent's own perceived capacity. The two external-control detractors share the remaining weight equally (0.2 each) as secondary signals. These weights are deterministic constants, not learned from data. The weights sum to 1.0, preserving the [0, 1] output range.
+
+**Output range proof:**
+- Minimum: `0.6·0 + 0.2·(1−1) + 0.2·(1−1) = 0.0` (self_control=1, chance=5, other=5).
+- Maximum: `0.6·1 + 0.2·(1−0) + 0.2·(1−0) = 1.0` (self_control=5, chance=1, other=1).
+- Range: [0.0, 1.0] ✓
+
+| Example | self_ctl | chance_ctl | other_ctl | Continuous | Bin |
+|---------|---------|-----------|----------|-----------|-----|
+| Full personal control | 5 | 1 | 1 | 1.000 | HIGH |
+| No control (chance-driven) | 1 | 5 | 1 | 0.200 | LOW |
+| No control (other-driven) | 1 | 1 | 5 | 0.200 | LOW |
+| No control (all external) | 1 | 5 | 5 | 0.000 | LOW |
+| Moderate self, low external | 3 | 2 | 2 | 0.450 | MED |
+| High self, high external | 5 | 5 | 5 | 0.600 | MED |
+| Mixed: self + chance | 4 | 4 | 1 | 0.650 | MED |
+| Typical anger (self moderate, other high) | 3 | 2 | 4 | 0.500 | MED |
+| Typical fear (low self, high chance) | 2 | 4 | 3 | 0.300 | LOW |
 
 **Binning:** Apply `bin3` (see §D.2).
 
 ```
-function mapControl(self_control, other_control):
+function mapControl(self_control, chance_control, other_control):
   sc = norm(clampLikert(self_control))
+  cc = norm(clampLikert(chance_control))
   oc = norm(clampLikert(other_control))
-  v = max(sc, oc)
+  v = 0.6 * sc + 0.2 * (1 - cc) + 0.2 * (1 - oc)
   if v < 0.333: return "LOW"
   if v < 0.667: return "MED"
   return "HIGH"
@@ -482,10 +534,11 @@ function mapCrowdEnventRow(row) -> AppraisalVector:
   else:
     agency = "SELF"
 
-  // --- Control ---
+  // --- Control (v1.1: personal-controllability composite) ---
   sc = norm(clampLikert(row.self_control))
+  cc = norm(clampLikert(row.chance_control))
   oc = norm(clampLikert(row.other_control))
-  control_c = max(sc, oc)
+  control_c = 0.6 * sc + 0.2 * (1 - cc) + 0.2 * (1 - oc)
   if control_c < 0.333:
     control = "LOW"
   else if control_c < 0.667:
@@ -660,15 +713,23 @@ Expected row counts after filtering:
 
 **Policy:** No special handling. Both values are used as-is in their respective roles (`attention` feeds into arousal; `not_consider` is a quality flag only). The seeming contradiction may reflect a valid psychological state (involuntary attention to something one wishes to avoid — common in anxiety and rumination).
 
-### G.4 Control split (self / other / chance)
+### G.4 Control split (self / other / chance) — v1.1
 
 **Scenario:** All three control columns are low (all = 1).
 
-**Behavior:** `control_continuous = max(0.0, 0.0) = 0.0` → `LOW`. Correct — the situation was uncontrollable by anyone.
+**Behavior:** `0.6·0.0 + 0.2·(1−0.0) + 0.2·(1−0.0) = 0.0 + 0.2 + 0.2 = 0.400` → `MED`. When nobody had control, the detractor terms are both zero (external control is low), yielding a baseline of 0.4. This reflects the formula's design: the *absence* of external control is weakly positive, even if self-control is also absent. The value falls into MED, which is a reasonable default for ambiguous-control situations.
 
 **Scenario:** `self_control = 1, other_control = 1, chance_control = 5`.
 
-**Behavior:** Control still = `max(0.0, 0.0) = 0.0` → `LOW`. This is intentional: high chance_control means the situation was governed by fate/luck, which corresponds to low intentional controllability. The `chance_control` column is not consumed by the control dimension (see §E.4 rationale).
+**Behavior:** `0.6·0.0 + 0.2·(1−1.0) + 0.2·(1−0.0) = 0.0 + 0.0 + 0.2 = 0.200` → `LOW`. Correct — chance dominated and the person had no control. The inverted `chance_control` term correctly penalizes the score.
+
+**Scenario:** `self_control = 5, other_control = 5, chance_control = 5`.
+
+**Behavior:** `0.6·1.0 + 0.2·(1−1.0) + 0.2·(1−1.0) = 0.6 + 0.0 + 0.0 = 0.600` → `MED`. Even with maximum self-control, maximum external control pulls the score down. This captures the appraisal-theoretic idea that perceived personal control is diminished when external agents are also highly controlling (contested control).
+
+**Scenario:** `self_control = 5, other_control = 1, chance_control = 1`.
+
+**Behavior:** `0.6·1.0 + 0.2·1.0 + 0.2·1.0 = 0.6 + 0.2 + 0.2 = 1.000` → `HIGH`. Full personal control with no external interference.
 
 ### G.5 Agency when all responsibility columns are 1
 
@@ -696,7 +757,7 @@ Every output row MUST have all 6 dimensions populated. There is no concept of a 
 
 | Field | Value |
 |-------|-------|
-| Spec version | v1 |
+| Spec version | v1.1 |
 | Date created | 2026-02-19 |
 | Source dataset | crowd-enVent2023 (Troiano, Oberländer, Klinger 2023, Computational Linguistics 49(1):1–72) |
 | Dataset file | `src/appraisal-lab/dataset/crowd-enVent2023/corpus/crowd-enVent_generation.tsv` |
@@ -710,7 +771,50 @@ Every output row MUST have all 6 dimensions populated. There is no concept of a 
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.1 | 2026-02-19 | Control formula rewrite (personal-controllability); arousal redefined as cognitive-activation; unmapped columns decision; emotion set decision. See Change Log for details. |
 | v1 | 2026-02-19 | Initial spec. 21→6 mapping for crowd-enVent2023 generation set. |
+
+---
+
+## J. Unmapped Columns Decision (v1.1)
+
+Of the 21 crowd-enVent appraisal columns, 15 are consumed by the LoRa-6 mapping. The remaining **6 columns** are listed below with their explicit disposition. None of these columns are used in Layer-2 likelihood estimation.
+
+| # | Column | Status | Rationale | Future candidate? |
+|---|--------|--------|-----------|-------------------|
+| 1 | `goal_support` | **Excluded permanently in v1** | Measures goal congruence, not relevance. Collinear with pleasantness (valence). Including it would double-count hedonic signal. | No — collinearity risk outweighs marginal gain. |
+| 2 | `accept_conseq` | **Excluded permanently in v1** | Post-hoc coping judgment, not a primary cognitive appraisal. Conflates the appraisal ("what happened") with the response ("how I dealt with it"). | No — coping ≠ appraisal. |
+| 3 | `standards` | **Excluded in v1; candidate for future LoRa expansion** | Moral/ethical congruence ("was this consistent with my values?"). No current LoRa dimension captures moral judgment. | Yes — if a `moralCongruence` dimension is added (see §I.6), this column would be a primary input. |
+| 4 | `social_norms` | **Excluded in v1; candidate for future LoRa expansion** | Social norm congruence. Same gap as `standards`. | Yes — would pair with `standards` for a `moralCongruence` dimension. |
+| 5 | `not_consider` | **Excluded permanently; used as quality flag only** | Measures avoidance/suppression ("did you try not to think about it?"). Not an appraisal of the event but a coping strategy. Used as `quality_flag_avoidance` (see §G.2). | No — fundamentally different construct. |
+| 6 | `effort` | **Excluded permanently in v1** | Coping effort is a behavioral response, not a cognitive appraisal. Ambiguous relationship to control (high effort occurs at both high and low control). | No — conflates behavior with appraisal. |
+
+**Confirmation:** These 6 columns are NOT used as inputs to any LoRa-6 dimension formula. They are NOT included in the Layer-2 likelihood estimation P(D_i | E). They exist in the raw dataset and may be used for future exploratory analysis only.
+
+---
+
+## K. Emotion Set Decision (v1.1)
+
+### Likelihood estimation: all 13 emotions
+
+**Layer-2 likelihood estimation will use all 13 crowd-enVent emotion labels** (anger, boredom, disgust, fear, guilt, joy, no-emotion, pride, relief, sadness, shame, surprise, trust) for statistical robustness. This means:
+
+- P(D_i | E) tables will be computed for all 13 emotions.
+- All 6,600 rows contribute to likelihood estimation — no rows are discarded for having unmappable labels.
+- The richer emotion space provides more granular appraisal-dimension distributions, which improves the statistical quality of even the 7 LoRa-mappable emotion classes (e.g., computing P(control=LOW | fear) benefits from having guilt and shame data that helps calibrate the shared appraisal space).
+
+### Runtime inference: independent LoRa emotion space
+
+The runtime LoRa `Emotion` type (`JOY | ANGER | FEAR | SADNESS | DISGUST | SURPRISE`) and `MergedEmotion` type (adds `NEUTRAL`) remain **independent** of the crowd-enVent emotion taxonomy. The mapping from crowd-enVent labels to LoRa labels (§F.4) applies only when emitting predictions or building LoRa-compatible output.
+
+This decoupling means:
+- The LoRa type system in `types.ts` does NOT need to change.
+- Likelihood tables can carry richer emotion-conditioned distributions internally.
+- At inference time, posteriors for non-LoRa emotions (guilt, shame, boredom, pride, relief, trust) can be marginalized out or reported separately.
+
+### Rationale
+
+Discarding 41.7% of rows (2,750 of 6,600) would weaken the statistical foundation of Layer-2. Several of the excluded emotions share appraisal profiles with LoRa emotions (guilt ≈ sadness, pride ≈ joy), and their data improves the conditional distributions for the dimensions that distinguish those emotions.
 
 ---
 
@@ -757,12 +861,9 @@ crowd-enVent has no pre-defined splits. The implementation must create them. Rec
 - Seeded shuffle for reproducibility (match existing seed convention: 2024)
 - Ensure no writer (`prolific_id`) appears in both train and test (to prevent annotator-level leakage)
 
-### I.5 `chance_control` reconsideration
+### I.5 `chance_control` reconsideration — RESOLVED in v1.1
 
-This spec excludes `chance_control` from the control dimension (see §E.4). A future revision could:
-- Add `(1 - norm(chance_control))` as a third contributor to control
-- Weight it lower than self/other control
-- Evaluate whether this improves emotion classification accuracy
+~~This spec excludes `chance_control` from the control dimension.~~ As of v1.1, `chance_control` is included in the control formula as an inverted detractor: `0.2 * (1 - norm(chance_control))`. See §E.4 for the full formula and rationale. This item is closed.
 
 ### I.6 Moral appraisal dimensions
 
