@@ -1,0 +1,157 @@
+{
+  "split_sizes": {
+    "train": 4620,
+    "dev": 992,
+    "test": 988
+  },
+  "classification": {
+    "accuracy": 0.4767206477732793,
+    "macro_f1": 0.42248956464930243,
+    "per_class": {
+      "ANGER": {
+        "precision": 0.27485380116959063,
+        "recall": 0.573170731707317,
+        "f1": 0.3715415019762846,
+        "support": 82
+      },
+      "DISGUST": {
+        "precision": 0.3364485981308411,
+        "recall": 0.43902439024390244,
+        "f1": 0.38095238095238093,
+        "support": 82
+      },
+      "FEAR": {
+        "precision": 0.25882352941176473,
+        "recall": 0.2682926829268293,
+        "f1": 0.26347305389221565,
+        "support": 82
+      },
+      "JOY": {
+        "precision": 0.7723880597014925,
+        "recall": 0.6272727272727273,
+        "f1": 0.6923076923076923,
+        "support": 330
+      },
+      "NEUTRAL": {
+        "precision": 0.4740740740740741,
+        "recall": 0.3878787878787879,
+        "f1": 0.42666666666666664,
+        "support": 165
+      },
+      "SADNESS": {
+        "precision": 0.4576271186440678,
+        "recall": 0.32727272727272727,
+        "f1": 0.38162544169611307,
+        "support": 165
+      },
+      "SURPRISE": {
+        "precision": 0.3942307692307692,
+        "recall": 0.5,
+        "f1": 0.44086021505376344,
+        "support": 82
+      }
+    },
+    "confusion_matrix": {
+      "ANGER": {
+        "ANGER": 47,
+        "DISGUST": 15,
+        "FEAR": 8,
+        "JOY": 1,
+        "NEUTRAL": 4,
+        "SADNESS": 6,
+        "SURPRISE": 1
+      },
+      "DISGUST": {
+        "ANGER": 26,
+        "DISGUST": 36,
+        "FEAR": 5,
+        "JOY": 0,
+        "NEUTRAL": 7,
+        "SADNESS": 8,
+        "SURPRISE": 0
+      },
+      "FEAR": {
+        "ANGER": 25,
+        "DISGUST": 10,
+        "FEAR": 22,
+        "JOY": 2,
+        "NEUTRAL": 9,
+        "SADNESS": 13,
+        "SURPRISE": 1
+      },
+      "JOY": {
+        "ANGER": 9,
+        "DISGUST": 5,
+        "FEAR": 7,
+        "JOY": 207,
+        "NEUTRAL": 31,
+        "SADNESS": 15,
+        "SURPRISE": 56
+      },
+      "NEUTRAL": {
+        "ANGER": 13,
+        "DISGUST": 21,
+        "FEAR": 13,
+        "JOY": 28,
+        "NEUTRAL": 64,
+        "SADNESS": 22,
+        "SURPRISE": 4
+      },
+      "SADNESS": {
+        "ANGER": 43,
+        "DISGUST": 16,
+        "FEAR": 27,
+        "JOY": 7,
+        "NEUTRAL": 17,
+        "SADNESS": 54,
+        "SURPRISE": 1
+      },
+      "SURPRISE": {
+        "ANGER": 8,
+        "DISGUST": 4,
+        "FEAR": 3,
+        "JOY": 23,
+        "NEUTRAL": 3,
+        "SADNESS": 0,
+        "SURPRISE": 41
+      }
+    },
+    "harmful_confusion_rate": {
+      "numerator": 74,
+      "denominator": 988,
+      "rate": 0.07489878542510121
+    }
+  },
+  "appraisal_metrics": {
+    "valence": {
+      "mae_scale5": 0.26720647773279355,
+      "spearman": 0.9140415638833761,
+      "bin_accuracy": 0.8704453441295547
+    },
+    "arousal": {
+      "mae_scale5": 0.9311740890688259,
+      "spearman": 0.33269294470701394,
+      "bin_accuracy": 0.5566801619433198
+    },
+    "agency": {
+      "mae_scale5": 0.9554655870445344,
+      "spearman": 0.17135135679177202,
+      "bin_accuracy": 0.5961538461538461
+    },
+    "control": {
+      "mae_scale5": 1.1214574898785425,
+      "spearman": 0.3614694901466443,
+      "bin_accuracy": 0.4473684210526316
+    },
+    "certainty": {
+      "mae_scale5": 1.2105263157894737,
+      "spearman": 0.40010522754730027,
+      "bin_accuracy": 0.6973684210526315
+    },
+    "goalRelevance": {
+      "mae_scale5": 0.8340080971659919,
+      "spearman": 0.5352231265992841,
+      "bin_accuracy": 0.791497975708502
+    }
+  }
+}
