@@ -6,7 +6,7 @@
  * and applies a reliability gate + harmful-pair conservative rule.
  *
  * Supports multiple configurations via Ekman6InferenceConfig:
- *   - Prior mode: learned (from data) or uniform (1/K)
+ *   - Prior mode: learned (from data), uniform (1/K), or blend
  *   - Weight mode: linear_floor (κ-proportional) or tiered (step function)
  *   - Pair-aware boost: temporarily raise discriminative dimension weights
  *     when top-2 emotions form a known confusion pair
@@ -17,7 +17,7 @@
  * Usage:
  *   import { inferEkman6 } from './infer_ekman6';
  *   const result = inferEkman6({ valence: 'NEG', arousal: 'HIGH', ... });
- *   const result2 = inferEkman6(bins, { ...DEFAULT_CONFIG, PRIOR_MODE: 'learned' });
+ *   const result2 = inferEkman6(bins, { ...DEFAULT_CONFIG, priorMode: 'learned' });
  */
 
 import * as fs from "fs";
@@ -61,17 +61,10 @@ export interface Ekman6InferenceResult {
   };
 }
 
-// ============================================================
-// Gate thresholds (mirrored from reliability_gate.ts, not imported)
-// ============================================================
-
-const PMAX_COMMIT = 0.60;
-const MARGIN_COMMIT = 0.15;
-const ENTROPY_HEDGE = 0.80;
-
 // Layer-2 experimental harmful-pair safeguard
 const HARMFUL_PAIRS: [CollapsedEmotion, CollapsedEmotion][] = [
   ["ANGER", "FEAR"],
+  ["ANGER", "DISGUST"],
 ];
 const HARMFUL_PAIR_MARGIN = 0.15;
 
@@ -128,6 +121,58 @@ function loadTable(): Ekman6Table {
   return _cachedTable!;
 }
 
+function normalizeProbMap(map: Record<string, number>): Record<string, number> {
+  const total = Object.values(map).reduce((a, b) => a + b, 0);
+  if (!isFinite(total) || total <= 0) {
+    throw new Error(`Invalid probability map total: ${total}`);
+  }
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(map)) {
+    out[k] = v / total;
+  }
+  return out;
+}
+
+function computePriors(
+  priorMode: Ekman6InferenceConfig["priorMode"],
+  priorBlendLambda: number,
+  learnedPriors: Record<string, number>,
+  emotions: CollapsedEmotion[]
+): Record<string, number> {
+  const K = emotions.length;
+  const uniformP = 1 / K;
+
+  if (priorMode === "uniform") {
+    const out: Record<string, number> = {};
+    for (const emo of emotions) out[emo] = uniformP;
+    return out;
+  }
+
+  if (priorMode === "learned") {
+    const out: Record<string, number> = {};
+    for (const emo of emotions) {
+      const p = learnedPriors[emo];
+      if (p === undefined || !isFinite(p) || p <= 0) {
+        throw new Error(`Invalid learned prior for ${emo}: ${p}`);
+      }
+      out[emo] = p;
+    }
+    return normalizeProbMap(out);
+  }
+
+  // blend: π* = (1-λ)π_uniform + λπ_learned
+  const lambda = Math.max(0, Math.min(1, priorBlendLambda));
+  const blended: Record<string, number> = {};
+  for (const emo of emotions) {
+    const learned = learnedPriors[emo];
+    if (learned === undefined || !isFinite(learned) || learned < 0) {
+      throw new Error(`Invalid learned prior for ${emo}: ${learned}`);
+    }
+    blended[emo] = (1 - lambda) * uniformP + lambda * learned;
+  }
+  return normalizeProbMap(blended);
+}
+
 // ============================================================
 // Weight computation
 // ============================================================
@@ -147,9 +192,9 @@ function computeWeights(config: Ekman6InferenceConfig): Record<string, number> {
   for (const dim of DIMENSIONS) {
     const kappa = AGGREGATED_KAPPAS[dim];
 
-    if (config.WEIGHT_MODE === "linear_floor") {
-      const raw = config.WEIGHT_FLOOR + config.WEIGHT_SLOPE * kappa;
-      weights[dim] = Math.max(config.WEIGHT_FLOOR, Math.min(1.0, raw));
+    if (config.weightMode === "linear_floor") {
+      const raw = config.weightFloor + config.weightSlope * kappa;
+      weights[dim] = Math.max(config.weightFloor, Math.min(1.0, raw));
     } else {
       // tiered
       if (kappa >= 0.60) weights[dim] = 1.00;
@@ -222,13 +267,12 @@ export function inferEkman6(
   const emotions = table.metadata.collapsed_emotions as CollapsedEmotion[];
 
   // Prior selection
-  const priors: Record<string, number> = {};
-  if (config.PRIOR_MODE === "uniform") {
-    const uniformP = 1 / emotions.length;
-    for (const emo of emotions) priors[emo] = uniformP;
-  } else {
-    for (const emo of emotions) priors[emo] = table.priors[emo];
-  }
+  const priors = computePriors(
+    config.priorMode,
+    config.priorBlendLambda,
+    table.priors,
+    emotions
+  );
 
   // Weight computation
   let weights = computeWeights(config);
@@ -238,7 +282,7 @@ export function inferEkman6(
 
   // Pair-aware discriminative boost
   let pairBoostApplied = false;
-  if (config.PAIR_AWARE_BOOST) {
+  if (config.pairAwareBoost) {
     const sorted = emotions.slice().sort((a, b) => posterior[b] - posterior[a]);
     if (sorted.length >= 2) {
       const top2Set = new Set([sorted[0], sorted[1]]);
@@ -249,9 +293,9 @@ export function inferEkman6(
       if (isConfusionPair) {
         // Boost discriminative dimensions (local copy, no global mutation)
         const boosted = { ...weights };
-        boosted.control = Math.max(boosted.control, config.CONTROL_MIN_BOOST);
-        boosted.certainty = Math.max(boosted.certainty, config.CERTAINTY_MIN_BOOST);
-        boosted.arousal = Math.max(boosted.arousal, config.AROUSAL_MIN_BOOST);
+        boosted.control = Math.max(boosted.control, config.controlMinBoost);
+        boosted.certainty = Math.max(boosted.certainty, config.certaintyMinBoost);
+        boosted.arousal = Math.max(boosted.arousal, config.arousalMinBoost);
 
         // Recompute with boosted weights
         posterior = computePosterior(bins, table, emotions, boosted, priors);
@@ -280,9 +324,9 @@ export function inferEkman6(
 
   // Gating decision
   let decision: GatingDecision;
-  if (pmax >= PMAX_COMMIT && margin >= MARGIN_COMMIT && entropyNorm < ENTROPY_HEDGE) {
+  if (pmax >= config.pmaxCommit && margin >= config.marginCommit && entropyNorm < config.entropyHedge) {
     decision = "COMMIT";
-  } else if (entropyNorm >= ENTROPY_HEDGE) {
+  } else if (entropyNorm >= config.entropyHedge) {
     decision = "NEUTRAL";
   } else {
     decision = "HEDGE";
