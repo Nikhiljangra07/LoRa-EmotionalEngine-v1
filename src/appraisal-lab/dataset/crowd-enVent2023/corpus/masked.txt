@@ -1,0 +1,172 @@
+List of words and phrases masked with "...", for each #emotion. Note that we targeted their occurrence concerning the writers (e.g., "surprise" is not to be masked in "I had a surprise party", "happy" is not to be removed in "I am happy because my friend's happy").
+
+#anger
+angerer 
+anger
+ANGER
+angry
+infuriating
+furious
+
+#boredom
+boredom
+BOREDOM
+bored
+bore
+boring
+Boredom
+Bored
+
+#disgust
+disgusting
+disgusted
+disgusts
+disgust
+DISGUST
+discust
+Disgust
+disguise
+revolting
+revolted
+
+#fear
+dreading
+dread
+fears
+fearful
+fearfuI
+feared
+fear
+prettified
+petrify
+FEAR
+Fear
+afraid
+scared
+scary
+scariest
+scares
+scare
+frightened
+terrifying
+terrified
+
+#guilt
+guilty
+guilt
+GUILT
+Guilty
+guild
+Guilt
+
+#joy
+delighted
+glad
+euphoria
+overjoyed
+joyful
+joyous
+joy
+JOY
+Joy
+happy
+hoy
+jou
+happiness
+excitement
+
+#pride
+prideful
+pride
+PRIDE
+proud
+
+#relief
+relief
+RELIEF
+relieved
+relieve
+relieving
+Relief
+reliel
+RELEF
+
+#sadness
+heartbreaking
+heartbroken
+excruciating
+sadness
+SADNESS
+sadly
+saddening
+saddest
+sadder
+sad
+
+#shame
+shameful
+ashamed
+shamed
+shame
+SHAME
+Shame
+embarrassing
+embarrassed
+embaressed
+
+#surprise
+surprised
+surprises
+surprise
+SURPRISE
+surprising
+suprised
+Surprise
+
+#trust
+entrusted
+trustworthy
+trusting
+trusted
+trust
+TRUST
+trustful
+Trusting
+Trust
+
+#no-emotion
+NO PARTICULAR EMOTION
+NO Particular Emotion
+no particular emotions
+no particular emotion
+no emotion in particular
+no emotion at all
+no emotions
+no emotion
+not emotion
+any particular emotion at all
+any particular emotion
+any deep feeling
+emotionally numb
+any one particular emotion
+any novel emotions
+indifferent
+nothing particular
+no particular
+emotionally removed
+no real emotional feeling
+whatever emotion
+any emotional involvement
+empathy
+any kind of emotional response
+relatively normal
+a emotional reaction
+many emotions
+any emotions
+any emotion
+whatsoever
+no feelings
+feelings
+didn't particularly affect
+neutral
+
