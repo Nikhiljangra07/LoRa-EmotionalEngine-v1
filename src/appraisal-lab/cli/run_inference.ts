@@ -21,6 +21,7 @@ import * as path from 'path';
 import { AppraisalRow, LikelihoodTable, Emotion } from '../types';
 import { EMOTIONS } from '../schema';
 import { infer } from '../model/nb_inference';
+import { applyReliabilityGate } from '../model/reliability_gate';
 
 // ---- Parse arguments ----
 const rowId = process.argv[2];
@@ -92,6 +93,14 @@ for (const entry of sorted) {
 lines.push("");
 lines.push(`Predicted: ${result.predicted} (confidence: ${(result.confidence * 100).toFixed(2)}%)`);
 lines.push(`Match:     ${result.predicted === row.emotion ? "CORRECT" : "INCORRECT"}`);
+const gate = applyReliabilityGate(result.distribution);
+lines.push("");
+lines.push("Reliability Gate:");
+lines.push(`  pmax:         ${gate.pmax.toFixed(4)}`);
+lines.push(`  margin:       ${gate.margin.toFixed(4)}`);
+lines.push(`  entropyNorm:  ${gate.entropyNorm.toFixed(4)}`);
+lines.push(`  decision:     ${gate.decision}`);
+
 lines.push("");
 lines.push("=== End ===");
 
