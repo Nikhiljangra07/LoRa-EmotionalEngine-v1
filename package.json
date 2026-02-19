@@ -17,7 +17,8 @@
     "check:contracts": "npm test",
     "check:smoke": "bash scripts/smoke.sh",
     "check:all": "npm run check:contracts && npm run check:smoke",
-    "leakage-scan": "ts-node src/appraisal-lab/cli/leakage_scan.ts"
+    "leakage-scan": "ts-node src/appraisal-lab/cli/leakage_scan.ts",
+    "eval-modes": "ts-node src/appraisal-lab/cli/eval_modes.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
