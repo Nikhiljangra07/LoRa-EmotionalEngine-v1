@@ -244,7 +244,79 @@ The locked `Emotion` type in `types.ts` does not include `"NEUTRAL"`. Before mer
 
 ---
 
-## 5. Validation Checklist
+## 5. Layer-1 Step 1 Complete — Merge + Provenance
+
+### What the merger does
+
+The merge module (`dataset/merge_datasets.ts`) combines the real ISEAR dataset and the synthetic DISGUST/NEUTRAL dataset into a single extended file with provenance metadata on every row. It:
+
+1. Loads both source JSON files
+2. Validates all rows against their respective schemas (fail-fast on invalid data)
+3. Maps synthetic rows (`sentiment`/`content`) to the merged schema (`emotion`/`text`) and applies locked appraisal vectors
+4. Injects provenance fields on every row
+5. Prefixes IDs to guarantee cross-source collision freedom
+6. Writes pretty-printed JSON output
+
+### Output file
+
+```
+src/appraisal-lab/dataset/isear_appraisal_dataset_extended.json
+```
+
+### How to run
+
+```bash
+# Full merge (writes output file)
+npx ts-node src/appraisal-lab/cli/merge_datasets.ts
+
+# Dry run (report only, no file written)
+npx ts-node src/appraisal-lab/cli/merge_datasets.ts --dry-run
+
+# Custom paths
+npx ts-node src/appraisal-lab/cli/merge_datasets.ts \
+  --isear dataset/isear_appraisal_dataset.json \
+  --synthetic dataset/synthetic_disgust_neutral.json \
+  --out dataset/isear_appraisal_dataset_extended.json \
+  --synthetic-generator OPUS_v1
+```
+
+### Provenance fields
+
+Every row in the merged output contains these fields:
+
+| Field | Type | ISEAR rows | SYNTHETIC rows |
+|-------|------|------------|----------------|
+| `source` | `"ISEAR" \| "SYNTHETIC"` | `"ISEAR"` | `"SYNTHETIC"` |
+| `generator` | `string \| null` | `null` | `"OPUS_v1"` (or CLI override) |
+| `created_at` | `string \| null` | `null` | `null` (determinism policy) |
+
+**created_at policy:** Set to `null` for all rows to ensure the merged output is fully deterministic and reproducible across runs. If a timestamp is needed, it can be injected via a future CLI flag.
+
+### ID rules
+
+| Source | Prefix rule | Example |
+|--------|-------------|---------|
+| ISEAR | Keep as-is if already starts with `ISEAR`; else prepend `ISEAR_` | `ISEAR-10941` → `ISEAR-10941` |
+| SYNTHETIC | Keep as-is if already starts with `SYN_`; else prepend `SYN_` | `synthetic_disgust_0001` → `SYN_synthetic_disgust_0001` |
+
+If a row has no `id` field, a deterministic hash is generated from `normalizeTextForId(text) + emotion + index` using SHA-256 (truncated to 12 hex chars).
+
+### Locked appraisal vectors (synthetic)
+
+| Emotion | Valence | Arousal | Agency | Control | Certainty | GoalRelevance |
+|---------|---------|---------|--------|---------|-----------|---------------|
+| DISGUST | NEG | MED | SITUATION | LOW | HIGH | HIGH |
+| NEUTRAL | NEU | LOW | SITUATION | MED | HIGH | LOW |
+
+### Tests
+
+```bash
+npx jest src/appraisal-lab/__tests__/merge_datasets.test.ts
+```
+
+---
+
+## 6. Validation Checklist
 
 Run after any merge or dataset modification.
 
@@ -289,7 +361,7 @@ Run after any merge or dataset modification.
 
 ---
 
-## 6. File Inventory
+## 7. File Inventory
 
 ```
 src/appraisal-lab/
@@ -306,6 +378,8 @@ src/appraisal-lab/
     dataset.sample.json                            ← small reference sample
     isear_appraisal_dataset.json                   ← real data mapped to AppraisalRow format
     synthetic_disgust_neutral.json                 ← synthetic DISGUST + NEUTRAL (2,400 rows)
+    isear_appraisal_dataset_extended.json          ← merged output with provenance (generated)
+    merge_datasets.ts                              ← merge logic module
 
   model/
     likelihood_builder.ts                          ← Laplace-smoothed NB likelihood tables
@@ -319,17 +393,19 @@ src/appraisal-lab/
     run_inference.ts                               ← CLI: infer on single row
     build_isear_appraisal_dataset.ts               ← CLI: ISEAR CSV → AppraisalRow JSON
     generate_synthetic.ts                          ← CLI: generate DISGUST + NEUTRAL synthetic data
+    merge_datasets.ts                              ← CLI: merge ISEAR + synthetic with provenance
 
   __tests__/
     dataset_generator.test.ts                      ← Layer 1 generator tests
     likelihood_builder.test.ts                     ← likelihood table tests
     nb_inference.test.ts                           ← inference engine tests
     isear_pipeline.test.ts                         ← ISEAR loader + mapper tests
+    merge_datasets.test.ts                         ← merge module tests
 ```
 
 ---
 
-## 7. Isolation Guarantees
+## 8. Isolation Guarantees
 
 - **No imports from outside `src/appraisal-lab/`** — fully self-contained
 - **No external dependencies** — only Node.js built-ins (`fs`, `path`) in CLI scripts

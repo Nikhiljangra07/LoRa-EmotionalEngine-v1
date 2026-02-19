@@ -114,6 +114,17 @@ npx jest src/appraisal-lab
 
 All tests are deterministic and require no generated files on disk.
 
+### 6. Merge ISEAR + Synthetic Datasets
+
+```bash
+npx ts-node src/appraisal-lab/cli/merge_datasets.ts
+```
+
+- Merges `isear_appraisal_dataset.json` (7,102 ISEAR rows) + `synthetic_disgust_neutral.json` (2,400 synthetic rows)
+- Output: `src/appraisal-lab/dataset/isear_appraisal_dataset_extended.json`
+- Every row includes provenance fields: `source`, `generator`, `created_at`
+- Use `--dry-run` to preview the merge report without writing
+
 ## Replacing the Dataset with Real Data
 
 To swap in real labeled data:

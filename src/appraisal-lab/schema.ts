@@ -7,7 +7,7 @@
 
 import {
   Emotion, Valence, Arousal, Agency, Control, Certainty, GoalRelevance,
-  AppraisalRow,
+  AppraisalRow, MergedAppraisalRow, MergedEmotion, DataSource,
 } from './types';
 
 // ============================================================
@@ -59,4 +59,45 @@ export function validateRow(row: AppraisalRow): boolean {
   if (!(CERTAINTY_BINS as readonly string[]).includes(row.appraisals.certainty)) return false;
   if (!(GOAL_RELEVANCE_BINS as readonly string[]).includes(row.appraisals.goalRelevance)) return false;
   return true;
+}
+
+// ============================================================
+// Merged dataset validation (Layer 1.5)
+// ============================================================
+
+export const MERGED_EMOTIONS: readonly MergedEmotion[] = [
+  ...EMOTIONS, "NEUTRAL",
+] as const;
+
+export const DATA_SOURCES: readonly DataSource[] = [
+  "ISEAR", "SYNTHETIC",
+] as const;
+
+/** Validate provenance fields on a merged row. */
+export function validateProvenanceFields(row: MergedAppraisalRow): boolean {
+  if (!(DATA_SOURCES as readonly string[]).includes(row.source)) return false;
+  if (row.generator !== null && typeof row.generator !== "string") return false;
+  if (row.created_at !== null && typeof row.created_at !== "string") return false;
+  return true;
+}
+
+/** Validate that a merged row ID has the required source prefix. */
+export function validateMergedRowId(id: string): boolean {
+  if (!id || typeof id !== "string") return false;
+  return id.startsWith("ISEAR") || id.startsWith("SYN_");
+}
+
+/** Validate a full merged row: base fields + appraisal dimensions + provenance. */
+export function validateMergedRow(row: MergedAppraisalRow): boolean {
+  if (!validateMergedRowId(row.id)) return false;
+  if (!row.text || typeof row.text !== "string") return false;
+  if (!(MERGED_EMOTIONS as readonly string[]).includes(row.emotion)) return false;
+  if (!row.appraisals) return false;
+  if (!(VALENCE_BINS as readonly string[]).includes(row.appraisals.valence)) return false;
+  if (!(AROUSAL_BINS as readonly string[]).includes(row.appraisals.arousal)) return false;
+  if (!(AGENCY_BINS as readonly string[]).includes(row.appraisals.agency)) return false;
+  if (!(CONTROL_BINS as readonly string[]).includes(row.appraisals.control)) return false;
+  if (!(CERTAINTY_BINS as readonly string[]).includes(row.appraisals.certainty)) return false;
+  if (!(GOAL_RELEVANCE_BINS as readonly string[]).includes(row.appraisals.goalRelevance)) return false;
+  return validateProvenanceFields(row);
 }

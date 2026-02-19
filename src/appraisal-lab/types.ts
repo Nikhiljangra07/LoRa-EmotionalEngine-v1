@@ -51,6 +51,31 @@ export interface AppraisalRow {
 }
 
 // ============================================================
+// Merged dataset types (Layer 1.5 — merge + provenance)
+// ============================================================
+
+/** Extended emotion set that includes NEUTRAL from synthetic data. */
+export type MergedEmotion = Emotion | "NEUTRAL";
+
+/** Provenance source tag for merged rows. */
+export type DataSource = "ISEAR" | "SYNTHETIC";
+
+/** Provenance metadata attached to every merged row. */
+export interface ProvenanceFields {
+  source: DataSource;
+  generator: string | null;
+  created_at: string | null;
+}
+
+/** A row in the merged dataset: base fields + provenance. */
+export interface MergedAppraisalRow extends ProvenanceFields {
+  id: string;
+  text: string;
+  emotion: MergedEmotion;
+  appraisals: AppraisalVector;
+}
+
+// ============================================================
 // Model structures
 // ============================================================
 
