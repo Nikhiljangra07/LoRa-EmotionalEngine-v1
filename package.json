@@ -18,7 +18,11 @@
     "check:smoke": "bash scripts/smoke.sh",
     "check:all": "npm run check:contracts && npm run check:smoke",
     "leakage-scan": "ts-node src/appraisal-lab/cli/leakage_scan.ts",
-    "eval-modes": "ts-node src/appraisal-lab/cli/eval_modes.ts"
+    "eval-modes": "ts-node src/appraisal-lab/cli/eval_modes.ts",
+    "layer2:validate-mapping": "ts-node src/appraisal-lab/cli/validate_mapping.ts",
+    "layer2:build-dataset": "ts-node src/appraisal-lab/layer2/build_likelihood_dataset.ts",
+    "layer2:build-likelihood-table": "ts-node src/appraisal-lab/layer2/build_likelihood_table.ts",
+    "layer2:inspect-likelihood": "ts-node src/appraisal-lab/layer2/inspect_likelihood_direction.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
