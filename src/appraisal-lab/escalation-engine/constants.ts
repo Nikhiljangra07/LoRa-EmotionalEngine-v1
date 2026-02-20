@@ -23,6 +23,8 @@ export const BETA_H = 3.0;
 
 // Hard cap for risk scalar to bound numeric behavior.
 export const R_MAX = Z_CRIT * 3;
+// Controls max instantaneous risk after adding shock (prevents single-message absurd spikes).
+export const R_CRIT_CAP_MULT = 1.2;
 
 // K-of-M persistence for promotions.
 export const RISE_ON_K = 3;

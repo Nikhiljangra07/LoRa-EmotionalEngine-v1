@@ -112,6 +112,25 @@ describe("escalation-engine scenarios", () => {
     expect(criticalStep.outputs.flags.enteredCritical).toBe(true);
   });
 
+  test("controlled spike raises score but avoids instant saturation", () => {
+    let state = createEscalationState();
+    for (let i = 0; i < MIN_WARMUP + 20; i += 1) {
+      state = step(state, i % 2 === 0 ? 0.049 : 0.051, 0.01, false).state;
+    }
+
+    const baseline = step(state, 0.05, 0.01, false);
+    state = baseline.state;
+
+    const controlledShock = step(state, 0.0503, 0.01, true);
+    expect(controlledShock.outputs.score).toBeGreaterThan(baseline.outputs.score);
+    expect(Number.isFinite(controlledShock.outputs.score)).toBe(true);
+    expect(controlledShock.outputs.score).toBeGreaterThanOrEqual(0);
+    expect(controlledShock.outputs.score).toBeLessThanOrEqual(1);
+    expect(controlledShock.outputs.score).toBeLessThan(0.98);
+    expect(controlledShock.outputs.reasons).toContain("SHOCK");
+    expect(controlledShock.outputs.level).not.toBe(EscalationLevel.CRITICAL);
+  });
+
   test("recovery steps down gradually with no ping-pong", () => {
     let state = createEscalationState();
     for (let i = 0; i < MIN_WARMUP; i += 1) {
