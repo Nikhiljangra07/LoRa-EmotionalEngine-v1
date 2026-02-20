@@ -137,3 +137,80 @@ describe("pressure-engine audit", () => {
     }
   });
 });
+
+describe("hardening_against_invalid_inputs", () => {
+  it("handles NaN inputs without propagating NaN", () => {
+    const state = createPressureState(10);
+
+    const { outputs } = updatePressureState(state, {
+      pressureAfterDecay: Number.NaN,
+      gain: Number.NaN,
+      activation: Number.NaN,
+      deltaMessageSeconds: Number.NaN,
+    });
+
+    expect(Number.isFinite(outputs.pressure)).toBe(true);
+    expect(Number.isFinite(outputs.deltaPressure)).toBe(true);
+    expect(Number.isFinite(outputs.slope)).toBe(true);
+    expect(Number.isFinite(outputs.volatility)).toBe(true);
+    expect(outputs.pressure).toBeGreaterThanOrEqual(0);
+  });
+
+  it("handles Infinity inputs without propagating Infinity", () => {
+    const state = createPressureState(10);
+
+    const { outputs } = updatePressureState(state, {
+      pressureAfterDecay: Number.POSITIVE_INFINITY,
+      gain: Number.NEGATIVE_INFINITY,
+      activation: Number.POSITIVE_INFINITY,
+      deltaMessageSeconds: Number.POSITIVE_INFINITY,
+    });
+
+    expect(Number.isFinite(outputs.pressure)).toBe(true);
+    expect(Number.isFinite(outputs.deltaPressure)).toBe(true);
+    expect(Number.isFinite(outputs.slope)).toBe(true);
+    expect(Number.isFinite(outputs.volatility)).toBe(true);
+    expect(outputs.pressure).toBeGreaterThanOrEqual(0);
+  });
+});
+
+it("handles negative deltaMessageSeconds safely", () => {
+  const state = createPressureState(5);
+
+  const { outputs } = updatePressureState(state, {
+    pressureAfterDecay: 5,
+    gain: 1,
+    activation: 0.5,
+    deltaMessageSeconds: -10,
+  });
+
+  expect(outputs.slope).toBe(0);
+  expect(Number.isFinite(outputs.pressure)).toBe(true);
+  expect(outputs.pressure).toBeGreaterThanOrEqual(0);
+});
+
+it("does_not_apply_decay_internally_activation_zero_equals_pressureAfterDecay", () => {
+  const state = createPressureState(20);
+
+  const { outputs } = updatePressureState(state, {
+    pressureAfterDecay: 15,
+    gain: 1.3,
+    activation: 0,
+    deltaMessageSeconds: 100,
+  });
+
+  expect(outputs.pressure).toBeCloseTo(15, 8);
+});
+
+it("does_not_increase_pressure_without_activation_or_shock", () => {
+  const state = createPressureState(10);
+
+  const { outputs } = updatePressureState(state, {
+    pressureAfterDecay: 8,
+    gain: 10,
+    activation: 0,
+    deltaMessageSeconds: 10,
+  });
+
+  expect(outputs.pressure).toBeLessThanOrEqual(8);
+});
