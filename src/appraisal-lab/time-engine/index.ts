@@ -5,4 +5,10 @@ export {
   applyTimeDecay,
   exponentialDecay,
 } from "./decay-engine";
+export {
+  DEFAULT_BASELINE_LATENCY_SECONDS,
+  computeGainModifier,
+  detectBurst,
+  detectSilence,
+} from "./latency-detector";
 export type { TimeDeltaResult, UnixTimestampSeconds } from "./types";
