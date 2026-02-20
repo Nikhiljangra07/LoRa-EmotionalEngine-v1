@@ -132,3 +132,38 @@
 - Tune `SHOCK_THRESHOLD` and `SHOCK_GAIN` from observed activation-jump distributions (e.g., percentile-based thresholding).
 - Re-validate `WINDOW_N` using held-out conversational sequences to balance responsiveness vs noise smoothing.
 - Recommended calibration dataset: deterministic replay logs of time-engine outputs (`pressureAfterDecay`, `gain`, `activation`, `deltaMessageSeconds`) paired with downstream target trajectories.
+
+## 7) Spec Clarifications (Hardening Pass)
+
+### Domain Invariant
+
+Pressure is defined as a non-negative magnitude (load scalar).
+It represents accumulated regulatory load, not signed affect.
+
+Therefore:
+- `pressure >= 0` is a mathematical invariant.
+- Negative activation does not produce negative pressure.
+- Final boundary clamp enforces this invariant.
+
+### Shock Boolean Rule
+
+Let:
+- `deltaActivation = activation - prevActivation`
+
+Shock boolean:
+- `is_shock = (deltaActivation > SHOCK_THRESHOLD)`
+
+Shock magnitude:
+- `shock = max(0, deltaActivation - SHOCK_THRESHOLD) * SHOCK_GAIN`
+
+Boundary:
+- `deltaActivation == SHOCK_THRESHOLD` -> `is_shock = false`
+- `deltaActivation > SHOCK_THRESHOLD` -> `is_shock = true`
+
+### No Internal Decay Contract
+
+Pressure-engine does NOT apply temporal decay.
+It assumes `pressureAfterDecay` is already time-decayed by time-engine.
+
+When `activation = 0` and no shock:
+- `pressure_out == pressureAfterDecay`
