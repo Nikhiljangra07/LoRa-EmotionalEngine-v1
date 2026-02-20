@@ -15,6 +15,7 @@ import {
   RISE_OFF_M,
   RISE_ON_K,
   RISE_ON_M,
+  R_CRIT_CAP_MULT,
   R_MAX,
   W_BASELINE,
   Z_CALM_MAX,
@@ -166,9 +167,11 @@ export function updateEscalationState(
   const zSlopePos = Math.max(zSlope, 0);
   const zVolPos = Math.max(zVol, 0);
 
+  const baseRisk = Math.max(zSlopePos, ALPHA_V * zVolPos);
   const shockBoost = isShock ? BETA_H : 0;
-  const rawR = Math.max(zSlopePos, ALPHA_V * zVolPos, shockBoost);
-  const r = clamp(finiteOrZero(rawR), 0, R_MAX);
+  const rRaw = finiteOrZero(baseRisk + shockBoost);
+  const rSpikeCapped = Math.min(rRaw, Z_CRIT * R_CRIT_CAP_MULT);
+  const r = clamp(rSpikeCapped, 0, R_MAX);
   const score = clamp01(r / Z_CRIT);
 
   const warnHit = r >= Z_WARN;

@@ -9,6 +9,7 @@ describe("escalation-engine stress", () => {
   test("30-day deterministic simulation stays stable", () => {
     let state = createEscalationState();
     let seed = 135791357;
+    let saturatedCount = 0;
 
     for (let i = 0; i < 259200; i += 1) {
       seed = lcgNext(seed);
@@ -23,6 +24,9 @@ describe("escalation-engine stress", () => {
         isShock,
       });
       state = result.state;
+      if (result.outputs.score === 1) {
+        saturatedCount += 1;
+      }
 
       if (i % 1000 === 0) {
         if (!Number.isFinite(result.outputs.r)) {
@@ -46,6 +50,9 @@ describe("escalation-engine stress", () => {
         }
       }
     }
+
+    const saturationRate = saturatedCount / 259200;
+    expect(saturationRate).toBeLessThanOrEqual(0.01);
   });
 
   test("extreme values and MAD collapse remain finite", () => {
