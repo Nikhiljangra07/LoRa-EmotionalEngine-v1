@@ -11,4 +11,9 @@ export {
   detectBurst,
   detectSilence,
 } from "./latency-detector";
+export {
+  SESSION_THRESHOLD_SECONDS,
+  applySessionDecay,
+  isNewSession,
+} from "./session-boundary";
 export type { TimeDeltaResult, UnixTimestampSeconds } from "./types";
