@@ -114,7 +114,7 @@ describe("family-engine v0 scenario tests", () => {
     expect(result.dominantFamily).toBe(EkmanFamily.SURPRISE);
   });
 
-  test("all zeros => fallback SURPRISE=1 with zero confidence", () => {
+  test("all zeros => fallback neutral baseline with zero confidence", () => {
     const result = classifyFamily({
       valence: 0,
       arousal: 0,
@@ -130,8 +130,68 @@ describe("family-engine v0 scenario tests", () => {
 
     assertInvariants(result);
     expect(result.dominantFamily).toBe(EkmanFamily.SURPRISE);
-    expect(result.familyWeights.SURPRISE).toBe(1);
+    expect(result.familyWeights.SURPRISE).toBeCloseTo(4 / 9, 6);
     expect(result.confidence).toBe(0);
-    expect(result.reasons).toContain("FALLBACK_NO_SIGNAL");
+    expect(result.reasons).toContain("FALLBACK_NEUTRAL_BASELINE");
+  });
+
+  test("negative high arousal without anger cues => FEAR weight >= ANGER weight", () => {
+    const result = classifyFamily({
+      valence: -0.6,
+      arousal: 0.8,
+      expressionStrength: 0.3,
+      signals: {
+        capsRatio: 0,
+        punctuationHits: 0,
+        emojiHits: 0,
+        repetitionScore: 0.1,
+        questionMarks: 0,
+      },
+    });
+
+    assertInvariants(result);
+    expect(result.familyWeights.FEAR).toBeGreaterThanOrEqual(result.familyWeights.ANGER);
+  });
+
+  test("negative mid arousal + repetition => DISGUST > ANGER", () => {
+    const result = classifyFamily({
+      valence: -0.6,
+      arousal: 0.4,
+      expressionStrength: 0.3,
+      signals: {
+        capsRatio: 0.05,
+        punctuationHits: 0,
+        emojiHits: 0,
+        repetitionScore: 0.8,
+        questionMarks: 0,
+      },
+    });
+
+    assertInvariants(result);
+    expect(result.familyWeights.DISGUST).toBeGreaterThan(result.familyWeights.ANGER);
+  });
+
+  test("all zeros fallback keeps surprise near baseline and avoids hard one-hot", () => {
+    const result = classifyFamily({
+      valence: 0,
+      arousal: 0,
+      expressionStrength: 0,
+      signals: {
+        capsRatio: 0,
+        punctuationHits: 0,
+        emojiHits: 0,
+        repetitionScore: 0,
+        questionMarks: 0,
+      },
+    });
+
+    assertInvariants(result);
+    expect(result.familyWeights.SURPRISE).toBeCloseTo(4 / 9, 6);
+    expect(result.familyWeights.SURPRISE).toBeLessThan(1);
+    expect(result.familyWeights.JOY).toBeLessThan(1);
+    expect(result.familyWeights.SADNESS).toBeLessThan(1);
+    expect(result.familyWeights.FEAR).toBeLessThan(1);
+    expect(result.familyWeights.ANGER).toBeLessThan(1);
+    expect(result.familyWeights.DISGUST).toBeLessThan(1);
   });
 });

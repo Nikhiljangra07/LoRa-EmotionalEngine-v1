@@ -40,23 +40,21 @@ function sanitizeFinite(value: number): number {
   return clamp(value, -CLAMP_MAX, CLAMP_MAX);
 }
 
-function emptyVector(): FamilyVector {
-  return {
-    JOY: 0,
-    ANGER: 0,
-    FEAR: 0,
-    SADNESS: 0,
-    SURPRISE: 0,
-    DISGUST: 0,
-  };
-}
-
 const TIE_BREAK_ORDER: EkmanFamily[] = [
   EkmanFamily.SURPRISE,
   EkmanFamily.JOY,
   EkmanFamily.SADNESS,
   EkmanFamily.FEAR,
   EkmanFamily.ANGER,
+  EkmanFamily.DISGUST,
+];
+
+const ALL_FAMILIES: EkmanFamily[] = [
+  EkmanFamily.JOY,
+  EkmanFamily.ANGER,
+  EkmanFamily.FEAR,
+  EkmanFamily.SADNESS,
+  EkmanFamily.SURPRISE,
   EkmanFamily.DISGUST,
 ];
 
@@ -101,11 +99,43 @@ export function classifyFamily(inputs: FamilyInputs): FamilyOutputs {
 
   const joyBase = Math.max(0, valence) * (0.6 + 0.4 * arousal);
   const sadnessBase = Math.max(0, -valence) * (0.6 + 0.4 * (1 - arousal));
-  const angerBase = Math.max(0, -valence) * arousal * (0.5 + 0.5 * expressionStrength);
-  const fearBase = Math.max(0, -valence) * arousal * 0.8;
+  const angerBaseUnscaled = Math.max(0, -valence) * arousal * (0.5 + 0.5 * expressionStrength);
+  const fearBaseUnscaled = Math.max(0, -valence) * arousal * 0.8;
   const neutral = 1 - Math.min(1, Math.abs(valence) / 0.8);
   const surpriseBase = arousal * Math.max(0, neutral);
-  const disgustBase = Math.max(0, -valence) * (0.7 - 0.4 * arousal);
+  const disgustBaseInitial = Math.max(0, -valence) * (0.7 - 0.4 * arousal);
+
+  const angerHasDominanceCue =
+    capsRatio > CAPS_HIGH ||
+    punctuationHits > 3 ||
+    repetitionScore > REPEAT_HIGH ||
+    expressionStrength > ES_HIGH;
+  const angerBase = Math.max(
+    0,
+    Number.isFinite(angerBaseUnscaled)
+      ? angerBaseUnscaled * (angerHasDominanceCue ? 1 : 0.75)
+      : 0
+  );
+
+  const fearBase = Math.max(
+    0,
+    Number.isFinite(fearBaseUnscaled)
+      ? fearBaseUnscaled * (questionMarks >= QMARK_HIGH ? 1.15 : 0.9)
+      : 0
+  );
+
+  let disgustScale = 1;
+  if (repetitionScore > REPEAT_HIGH && valence < VAL_NEG) {
+    disgustScale *= 1.2;
+  }
+  if (capsRatio < 0.1 && arousal < 0.5 && valence < VAL_NEG) {
+    disgustScale *= 1.1;
+  }
+  disgustScale = clamp(disgustScale, 1, 1.5);
+  const disgustBase = Math.max(
+    0,
+    Number.isFinite(disgustBaseInitial) ? disgustBaseInitial * disgustScale : 0
+  );
 
   const angerModRaw =
     0.2 * (capsRatio / Math.max(CAPS_HIGH, EPS)) +
@@ -144,14 +174,34 @@ export function classifyFamily(inputs: FamilyInputs): FamilyOutputs {
 
   const totalRaw = raw.JOY + raw.ANGER + raw.FEAR + raw.SADNESS + raw.SURPRISE + raw.DISGUST;
   if (!Number.isFinite(totalRaw) || totalRaw <= EPS) {
+    const fallbackBase: FamilyVector = {
+      SURPRISE: 0.4,
+      JOY: 0.1,
+      SADNESS: 0.1,
+      FEAR: 0.1,
+      ANGER: 0.1,
+      DISGUST: 0.1,
+    };
+    const fallbackTotal =
+      fallbackBase.JOY +
+      fallbackBase.ANGER +
+      fallbackBase.FEAR +
+      fallbackBase.SADNESS +
+      fallbackBase.SURPRISE +
+      fallbackBase.DISGUST;
+
     return {
       familyWeights: {
-        ...emptyVector(),
-        SURPRISE: 1,
+        JOY: fallbackBase.JOY / fallbackTotal,
+        ANGER: fallbackBase.ANGER / fallbackTotal,
+        FEAR: fallbackBase.FEAR / fallbackTotal,
+        SADNESS: fallbackBase.SADNESS / fallbackTotal,
+        SURPRISE: fallbackBase.SURPRISE / fallbackTotal,
+        DISGUST: fallbackBase.DISGUST / fallbackTotal,
       },
       dominantFamily: EkmanFamily.SURPRISE,
       confidence: 0,
-      reasons: ["FALLBACK_NO_SIGNAL"],
+      reasons: ["FALLBACK_NEUTRAL_BASELINE"],
     };
   }
 
@@ -164,11 +214,55 @@ export function classifyFamily(inputs: FamilyInputs): FamilyOutputs {
     DISGUST: clamp01(raw.DISGUST / totalRaw),
   };
 
+  const allowExtremeDominance = Math.abs(valence) > 0.9 && arousal > 0.9;
+  const dominanceCap = 0.95 - 1e-12;
+  if (!allowExtremeDominance) {
+    const preGuardDominant = pickDominant(familyWeights);
+    const dominantWeight = familyWeights[preGuardDominant];
+    if (dominantWeight > dominanceCap) {
+      const overflow = dominantWeight - dominanceCap;
+      familyWeights[preGuardDominant] = dominanceCap;
+
+      const otherFamilies = ALL_FAMILIES.filter((family) => family !== preGuardDominant);
+      const otherSum = otherFamilies.reduce((sum, family) => sum + familyWeights[family], 0);
+      if (otherSum <= EPS) {
+        const increment = overflow / otherFamilies.length;
+        for (const family of otherFamilies) {
+          familyWeights[family] = clamp01(familyWeights[family] + increment);
+        }
+      } else {
+        for (const family of otherFamilies) {
+          const share = familyWeights[family] / otherSum;
+          familyWeights[family] = clamp01(familyWeights[family] + overflow * share);
+        }
+      }
+    }
+  }
+
+  const guardedSum =
+    familyWeights.JOY +
+    familyWeights.ANGER +
+    familyWeights.FEAR +
+    familyWeights.SADNESS +
+    familyWeights.SURPRISE +
+    familyWeights.DISGUST;
+  if (guardedSum > EPS) {
+    familyWeights.JOY = clamp01(familyWeights.JOY / guardedSum);
+    familyWeights.ANGER = clamp01(familyWeights.ANGER / guardedSum);
+    familyWeights.FEAR = clamp01(familyWeights.FEAR / guardedSum);
+    familyWeights.SADNESS = clamp01(familyWeights.SADNESS / guardedSum);
+    familyWeights.SURPRISE = clamp01(familyWeights.SURPRISE / guardedSum);
+    familyWeights.DISGUST = clamp01(familyWeights.DISGUST / guardedSum);
+  }
+
   const dominantFamily = pickDominant(familyWeights);
   const [top1, top2] = topTwo(familyWeights);
   const gap = clamp01(top1 - top2);
   const signalStrength = clamp01(0.5 * expressionStrength + 0.5 * arousal);
-  const confidence = clamp01(gap * (0.6 + 0.4 * signalStrength));
+  let confidence = clamp01(gap * (0.6 + 0.4 * signalStrength));
+  if (totalRaw <= 0.15) {
+    confidence = clamp01(confidence * 0.5);
+  }
 
   const reasons: string[] = [];
   if (valence > VAL_POS) {
