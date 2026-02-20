@@ -55,6 +55,8 @@ export function updatePressureState(
   const shock = Math.max(0, deltaActivation - SHOCK_THRESHOLD) * SHOCK_GAIN;
   pressure += shock;
   pressure = asFinite(pressure, prevPressure);
+  // Guardrail boundary: prevent negative pressure drift under extreme negative activations.
+  pressure = Math.max(0, pressure);
 
   const deltaPressure = asFinite(pressure - prevPressure, 0);
   const slope =
