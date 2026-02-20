@@ -16,4 +16,6 @@ export {
   applySessionDecay,
   isNewSession,
 } from "./session-boundary";
+export { updatePressureWithTime } from "./update-flow";
+export type { TimeUpdateResult } from "./update-flow";
 export type { TimeDeltaResult, UnixTimestampSeconds } from "./types";
