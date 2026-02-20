@@ -84,6 +84,24 @@ function assertValidOutput(outputs: FamilyOutputs): void {
   expect(families).toContain(outputs.dominantFamily);
 }
 
+function maxWeight(outputs: FamilyOutputs): number {
+  const w = outputs.familyWeights;
+  return Math.max(w.JOY, w.ANGER, w.FEAR, w.SADNESS, w.SURPRISE, w.DISGUST);
+}
+
+function sanitizeForGate(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (value < min) {
+    return min;
+  }
+  if (value > max) {
+    return max;
+  }
+  return value;
+}
+
 function snapshotOutput(outputs: FamilyOutputs): string {
   const w = outputs.familyWeights;
   const round9 = (n: number): string => n.toFixed(9);
@@ -106,6 +124,14 @@ describe("family-engine deterministic stress", () => {
       const input = buildInput(seed, i);
       const output = classifyFamily(input);
       assertValidOutput(output);
+
+      const effectiveValence = sanitizeForGate(input.valence, -1, 1);
+      const effectiveArousal = sanitizeForGate(input.arousal, 0, 1);
+      const allowExtremeDominance =
+        Math.abs(effectiveValence) > 0.9 && effectiveArousal > 0.9;
+      if (!allowExtremeDominance) {
+        expect(maxWeight(output)).toBeLessThanOrEqual(0.95);
+      }
     }
   });
 

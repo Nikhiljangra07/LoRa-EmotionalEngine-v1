@@ -78,3 +78,20 @@ Covered areas:
 - No external dependencies introduced.
 - Only TypeScript/Node standard behavior used.
 - No filesystem/network/time side effects in module logic.
+
+## Hardening Patch v0.1
+
+- Anger/Fear separation logic:
+  - Anger base now soft-penalizes (`x0.75`) when no anger cue is present (caps/punctuation/repetition/high ES).
+  - Fear base is explicitly uncertainty-gated (`x1.15` with high question marks, otherwise `x0.9`).
+- Neutral fallback redistribution:
+  - Replaced one-hot surprise fallback with a neutral baseline mix and exact normalization.
+  - Reason tag updated to `FALLBACK_NEUTRAL_BASELINE`.
+- Disgust reinforcement:
+  - Added rejection-pattern multipliers for negative valence + repetition and low-caps/low-arousal negative stance.
+  - Reinforcement is capped at `1.5x` original disgust base.
+- Confidence dampening on weak signals:
+  - Confidence is halved when total raw mass is weak (`totalRaw <= 0.15`).
+- No architecture changes:
+  - Public API signatures unchanged.
+  - Module remains deterministic, isolated, and dependency-free.
