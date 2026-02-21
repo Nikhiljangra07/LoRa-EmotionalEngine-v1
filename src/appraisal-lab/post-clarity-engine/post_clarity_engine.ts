@@ -4,9 +4,14 @@ import {
   MAX_POST_WINDOW_SECONDS,
   POST_WINDOW_SECONDS,
   PRESSURE_CRIT,
+  REPEAT_HIGH,
+  RING_BUFFER_N,
   RELAPSE_EXTENSION_SECONDS,
+  SPIRAL_THRESHOLD,
   SLOPE_CRIT,
   TAU_AGENCY_SECONDS,
+  TAU_SPIRAL_SECONDS,
+  URGENCY_GAIN_HIGH,
 } from "./constants";
 import type {
   PostClarityInputs,
@@ -39,6 +44,9 @@ export function createPostClarityState(): PostClarityState {
     cooldownSeconds: 0,
     relapseCount: 0,
     n: 0,
+    spiralScore: 0,
+    recentRepetition: [],
+    recentUrgency: [],
   };
 }
 
@@ -128,12 +136,57 @@ export function updatePostClarityState(
     reasons.push("POST_MODE_ACTIVE");
   }
 
+  // PASS 2 - spiral evidence logic
+  const rep = clamp01(finiteOrZero(input.repetitionScore ?? 0));
+  const gain = Math.max(0, finiteOrZero(input.gain ?? 1));
+
+  const previousRepetition = Array.isArray(state.recentRepetition)
+    ? state.recentRepetition
+    : [];
+  const previousUrgency = Array.isArray(state.recentUrgency) ? state.recentUrgency : [];
+
+  const recentRepetition = [...previousRepetition, rep];
+  if (recentRepetition.length > RING_BUFFER_N) {
+    recentRepetition.shift();
+  }
+
+  const recentUrgency = [...previousUrgency, gain];
+  if (recentUrgency.length > RING_BUFFER_N) {
+    recentUrgency.shift();
+  }
+
+  const repImpulse = rep > REPEAT_HIGH ? rep : 0;
+  const urgencyImpulse = gain >= URGENCY_GAIN_HIGH ? clamp01(gain - 1) : 0;
+  const slopeImpulse = pressureSlope > 0 && postModeUntilSeconds > 0
+    ? clamp01(pressureSlope / 0.2)
+    : 0;
+
+  const spiralImpulseRaw =
+    0.5 * repImpulse + 0.3 * urgencyImpulse + 0.2 * slopeImpulse;
+  const spiralImpulse = clamp01(spiralImpulseRaw);
+
+  const decaySpiral = Math.exp(-deltaMessageSeconds / TAU_SPIRAL_SECONDS);
+  const spiralScore = clamp01(
+    clamp01(finiteOrZero(state.spiralScore)) * decaySpiral + spiralImpulse
+  );
+
+  const recoveryPath: "SPIRAL" | "UNKNOWN" =
+    spiralScore >= SPIRAL_THRESHOLD && postModeUntilSeconds > 0
+      ? "SPIRAL"
+      : "UNKNOWN";
+  if (recoveryPath === "SPIRAL") {
+    reasons.push("SPIRAL_ACTIVE");
+  }
+
   const nextState: PostClarityState = {
     agencyDeficit,
     postModeUntilSeconds,
     cooldownSeconds,
     relapseCount,
     n: nextN,
+    spiralScore,
+    recentRepetition,
+    recentUrgency,
   };
 
   return {
@@ -143,6 +196,7 @@ export function updatePostClarityState(
       agencyDeficit,
       isRelapse,
       reasons,
+      recoveryPath,
     },
   };
 }

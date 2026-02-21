@@ -10,3 +10,10 @@ export const PRESSURE_CRIT = 12.0;
 export const SLOPE_CRIT = 0.15;
 
 export const EPS = 1e-6;
+
+export const TAU_SPIRAL_SECONDS = 1200; // 20 minutes
+export const SPIRAL_THRESHOLD = 0.65;
+export const SPIRAL_GAP_MIN = 0.15; // future-proof
+export const REPEAT_HIGH = 0.6;
+export const URGENCY_GAIN_HIGH = 1.15;
+export const RING_BUFFER_N = 8;
