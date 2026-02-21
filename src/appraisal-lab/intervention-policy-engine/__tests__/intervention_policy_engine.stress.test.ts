@@ -74,4 +74,59 @@ describe("intervention-policy-engine stress", () => {
 
     expect(checked).toBe(10000);
   });
+
+  test("deterministic matrix across policy boundaries", () => {
+    const recoveryPaths = ["SPIRAL", "SUBSTITUTE", "UNKNOWN"] as const;
+    let checked = 0;
+
+    for (const escalationLevel of [-1, 0, 1, 2, 3, 4]) {
+      for (const collapseEvent of [true, false]) {
+        for (const postModeActive of [true, false]) {
+          for (const recoveryPath of recoveryPaths) {
+            for (const agencyDeficit of [0, 0.4, 0.7, 1]) {
+              expect(() =>
+                deriveInterventionPolicy({
+                  escalationLevel,
+                  escalationScore: 0.5,
+                  collapseEvent,
+                  collapseDirection: collapseEvent ? "OUTWARD" : "NONE",
+                  postModeActive,
+                  recoveryPath,
+                  agencyDeficit,
+                })
+              ).not.toThrow();
+
+              const policy = deriveInterventionPolicy({
+                escalationLevel,
+                escalationScore: 0.5,
+                collapseEvent,
+                collapseDirection: collapseEvent ? "OUTWARD" : "NONE",
+                postModeActive,
+                recoveryPath,
+                agencyDeficit,
+              });
+
+              expect(toneModes.has(policy.toneMode)).toBe(true);
+              expect(pacingModes.has(policy.pacingMode)).toBe(true);
+              expect(validationModes.has(policy.validationMode)).toBe(true);
+              expect(actionModes.has(policy.actionMode)).toBe(true);
+              expect(policy.interruptionLevel).toBeGreaterThanOrEqual(0);
+              expect(policy.interruptionLevel).toBeLessThanOrEqual(3);
+
+              if (policy.toneMode === "NEUTRAL") {
+                expect(policy.actionMode).toBe("NONE");
+              }
+              if (policy.actionMode === "INTERRUPT_LOOP") {
+                expect(policy.interruptionLevel).toBeGreaterThanOrEqual(2);
+              }
+
+              checked += 1;
+            }
+          }
+        }
+      }
+    }
+
+    expect(checked).toBe(6 * 2 * 2 * 3 * 4);
+  });
 });

@@ -1,4 +1,4 @@
-import { AGENCY_HIGH, ESC_CRITICAL, ESC_RISING } from "..";
+import { AGENCY_HIGH, AGENCY_MED, ESC_CRITICAL, ESC_RISING } from "..";
 import { deriveInterventionPolicy } from "..";
 
 const baseInput = {
@@ -39,6 +39,16 @@ describe("intervention-policy-engine", () => {
     expect(policy.reasons).toContain("ESC_RISING");
   });
 
+  test("boundary: escalationLevel exactly ESC_RISING", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      escalationLevel: ESC_RISING,
+      escalationScore: 0.01,
+    });
+    expect(policy.reasons).toContain("ESC_RISING");
+    expect(policy.toneMode).toBe("DE_ESCALATE");
+  });
+
   test("escalation critical", () => {
     const policy = deriveInterventionPolicy({
       ...baseInput,
@@ -52,6 +62,16 @@ describe("intervention-policy-engine", () => {
     expect(policy.interruptionLevel).toBe(3);
     expect(policy.guardrails).toContain("NO_ACTION_ESCALATION");
     expect(policy.reasons).toContain("ESC_CRITICAL");
+  });
+
+  test("boundary: escalationLevel exactly ESC_CRITICAL", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      escalationLevel: ESC_CRITICAL,
+      escalationScore: 0.2,
+    });
+    expect(policy.reasons).toContain("ESC_CRITICAL");
+    expect(policy.interruptionLevel).toBe(3);
   });
 
   test("collapse", () => {
@@ -123,5 +143,99 @@ describe("intervention-policy-engine", () => {
     expect(policy.toneMode).toBe("STABILIZE");
     expect(policy.reasons).toContain("COLLAPSE_EVENT");
     expect(policy.reasons).not.toContain("POST_SPIRAL");
+  });
+
+  test("postModeActive + UNKNOWN recoveryPath does not enter post branches", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      postModeActive: true,
+      recoveryPath: "UNKNOWN",
+      escalationLevel: 0,
+    });
+    expect(policy.reasons).toContain("BASELINE");
+    expect(policy.reasons).not.toContain("POST_SPIRAL");
+    expect(policy.reasons).not.toContain("POST_SUBSTITUTE");
+  });
+
+  test("agencyDeficit exactly AGENCY_HIGH adds restore guardrail", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      postModeActive: true,
+      recoveryPath: "SUBSTITUTE",
+      agencyDeficit: AGENCY_HIGH,
+    });
+    expect(policy.guardrails).toContain("RESTORE_AGENCY");
+    expect(policy.reasons).toContain("AGENCY_HIGH");
+  });
+
+  test("agencyDeficit exactly AGENCY_MED does not add agency-high overlays", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      postModeActive: true,
+      recoveryPath: "SUBSTITUTE",
+      agencyDeficit: AGENCY_MED,
+    });
+    expect(policy.guardrails).not.toContain("RESTORE_AGENCY");
+    expect(policy.reasons).not.toContain("AGENCY_HIGH");
+  });
+
+  test("negative escalationLevel resolves safely to baseline", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      escalationLevel: -1,
+      escalationScore: 0.9,
+    });
+    expect(policy.reasons).toContain("BASELINE");
+    expect(policy.interruptionLevel).toBe(0);
+  });
+
+  test("high escalationScore with low escalationLevel does not trigger critical", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      escalationLevel: 0,
+      escalationScore: 0.999,
+    });
+    expect(policy.reasons).toContain("BASELINE");
+    expect(policy.reasons).not.toContain("ESC_CRITICAL");
+    expect(policy.toneMode).toBe("NEUTRAL");
+  });
+
+  test("non-finite escalationLevel and agencyDeficit are sanitized to baseline-safe defaults", () => {
+    const policy = deriveInterventionPolicy({
+      ...baseInput,
+      escalationLevel: Number.NaN,
+      agencyDeficit: Number.POSITIVE_INFINITY,
+      postModeActive: false,
+    });
+    expect(policy.reasons).toContain("BASELINE");
+    expect(policy.guardrails).not.toContain("RESTORE_AGENCY");
+  });
+
+  test("agency-high overlay no-op when includes already true path is simulated", () => {
+    const originalIncludes = Array.prototype.includes;
+    Array.prototype.includes = function includesOverride(
+      this: unknown[],
+      searchElement: unknown,
+      fromIndex?: number
+    ): boolean {
+      if (searchElement === "RESTORE_AGENCY" || searchElement === "AGENCY_HIGH") {
+        return true;
+      }
+      return originalIncludes.call(this, searchElement, fromIndex);
+    };
+
+    try {
+      const policy = deriveInterventionPolicy({
+        ...baseInput,
+        postModeActive: true,
+        recoveryPath: "SUBSTITUTE",
+        agencyDeficit: AGENCY_HIGH,
+      });
+
+      expect(policy.guardrails).toEqual(["AVOID_OVERVALIDATION"]);
+      expect(policy.reasons).toEqual(["POST_SUBSTITUTE"]);
+    } finally {
+      Array.prototype.includes = originalIncludes;
+    }
   });
 });
