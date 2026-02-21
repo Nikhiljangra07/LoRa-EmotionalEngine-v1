@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1771636163174" clover="3.2.0">
-  <project timestamp="1771636163174" name="All files">
-    <metrics statements="30" coveredstatements="30" conditionals="26" coveredconditionals="22" methods="6" coveredmethods="5" elements="62" coveredelements="57" complexity="0" loc="30" ncloc="30" packages="1" files="3" classes="3"/>
+<coverage generated="1771636356207" clover="3.2.0">
+  <project timestamp="1771636356207" name="All files">
+    <metrics statements="30" coveredstatements="30" conditionals="26" coveredconditionals="26" methods="6" coveredmethods="6" elements="62" coveredelements="62" complexity="0" loc="30" ncloc="30" packages="1" files="3" classes="3"/>
     <file name="constants.ts" path="/Users/nikhil/Desktop/lora-v1-frontend/src/appraisal-lab/intervention-policy-engine/constants.ts">
       <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       <line num="1" count="2" type="stmt"/>
@@ -10,36 +10,36 @@
       <line num="5" count="2" type="stmt"/>
     </file>
     <file name="index.ts" path="/Users/nikhil/Desktop/lora-v1-frontend/src/appraisal-lab/intervention-policy-engine/index.ts">
-      <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="5" coveredmethods="4"/>
-      <line num="1" count="5" type="stmt"/>
-      <line num="2" count="10010" type="stmt"/>
+      <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="5" coveredmethods="5"/>
+      <line num="1" count="6" type="stmt"/>
+      <line num="2" count="10595" type="stmt"/>
     </file>
     <file name="intervention_policy_engine.ts" path="/Users/nikhil/Desktop/lora-v1-frontend/src/appraisal-lab/intervention-policy-engine/intervention_policy_engine.ts">
-      <metrics statements="24" coveredstatements="24" conditionals="26" coveredconditionals="22" methods="1" coveredmethods="1"/>
+      <metrics statements="24" coveredstatements="24" conditionals="26" coveredconditionals="26" methods="1" coveredmethods="1"/>
       <line num="1" count="2" type="stmt"/>
       <line num="4" count="2" type="stmt"/>
-      <line num="7" count="10008" type="cond" truecount="1" falsecount="1"/>
-      <line num="10" count="10008" type="stmt"/>
-      <line num="11" count="10008" type="stmt"/>
-      <line num="12" count="10008" type="stmt"/>
-      <line num="13" count="10008" type="cond" truecount="1" falsecount="1"/>
-      <line num="20" count="10008" type="cond" truecount="2" falsecount="0"/>
-      <line num="21" count="591" type="stmt"/>
-      <line num="30" count="9417" type="cond" truecount="4" falsecount="0"/>
-      <line num="31" count="1569" type="stmt"/>
-      <line num="40" count="7848" type="cond" truecount="4" falsecount="0"/>
-      <line num="41" count="1571" type="stmt"/>
-      <line num="50" count="6277" type="cond" truecount="2" falsecount="0"/>
-      <line num="51" count="2511" type="stmt"/>
-      <line num="60" count="3766" type="cond" truecount="2" falsecount="0"/>
-      <line num="61" count="2510" type="stmt"/>
-      <line num="71" count="1256" type="stmt"/>
-      <line num="82" count="10008" type="cond" truecount="4" falsecount="0"/>
-      <line num="83" count="2002" type="cond" truecount="1" falsecount="1"/>
-      <line num="84" count="2002" type="stmt"/>
-      <line num="86" count="2002" type="cond" truecount="1" falsecount="1"/>
-      <line num="87" count="2002" type="stmt"/>
-      <line num="91" count="10008" type="stmt"/>
+      <line num="7" count="10593" type="cond" truecount="2" falsecount="0"/>
+      <line num="10" count="10593" type="stmt"/>
+      <line num="11" count="10593" type="stmt"/>
+      <line num="12" count="10593" type="stmt"/>
+      <line num="13" count="10593" type="cond" truecount="2" falsecount="0"/>
+      <line num="20" count="10593" type="cond" truecount="2" falsecount="0"/>
+      <line num="21" count="879" type="stmt"/>
+      <line num="30" count="9714" type="cond" truecount="4" falsecount="0"/>
+      <line num="31" count="1617" type="stmt"/>
+      <line num="40" count="8097" type="cond" truecount="4" falsecount="0"/>
+      <line num="41" count="1622" type="stmt"/>
+      <line num="50" count="6475" type="cond" truecount="2" falsecount="0"/>
+      <line num="51" count="2576" type="stmt"/>
+      <line num="60" count="3899" type="cond" truecount="2" falsecount="0"/>
+      <line num="61" count="2575" type="stmt"/>
+      <line num="71" count="1324" type="stmt"/>
+      <line num="82" count="10593" type="cond" truecount="4" falsecount="0"/>
+      <line num="83" count="2148" type="cond" truecount="2" falsecount="0"/>
+      <line num="84" count="2147" type="stmt"/>
+      <line num="86" count="2148" type="cond" truecount="2" falsecount="0"/>
+      <line num="87" count="2147" type="stmt"/>
+      <line num="91" count="10593" type="stmt"/>
     </file>
   </project>
 </coverage>
