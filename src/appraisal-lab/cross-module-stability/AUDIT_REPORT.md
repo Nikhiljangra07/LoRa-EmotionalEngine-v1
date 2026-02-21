@@ -23,10 +23,29 @@ Per step, modules are called in this strict order:
 - **Suite A**: family oscillation trajectory stability over 600 steps
 - **Suite B**: escalation vs substitute conflict priority integrity
 - **Suite C**: 100k-step long-session stability with deterministic seeded signals
+- **Suite D (TrueCritical)**: explicit hard-saturation path (critical + collapse + post-mode + substitute)
 - **Hardening v0.1 micro-scenarios**: sanitization, pressure-driven collapse, long-gap, inward-collapse direction
 
 Suite A/C now include bounded deterministic burst packets that trigger occasional escalation
 without runaway critical drift, so they exercise non-trivial cross-module dynamics.
+
+## Suite C Long-Run Stability Model
+
+Suite C is tuned as a background-usage longevity model rather than a saturation test.
+
+- **90% background steps**: low-noise valence in `[-0.3, 0.3]`, arousal in `[0.2, 0.6]`, low-mid expression.
+- **9% moderate stress steps**: negative valence in `[-0.6, -0.3]`, arousal in `[0.6, 0.8]`.
+- **1% micro-burst candidates**: high-stress profile, but hard-gated by deterministic spacing and budget.
+
+Burst protections:
+
+- Burst length is capped to 2-3 steps.
+- Burst starts require at least 20,000 steps since the previous burst.
+- Total bursts are bounded to fewer than 10 in the 100k run.
+
+Stability budgets in tests enforce that Suite C remains a long-run background profile
+while still proving occasional pipeline reactivity. True saturation behavior is isolated
+to Suite D.
 
 ## Invariants Checked
 

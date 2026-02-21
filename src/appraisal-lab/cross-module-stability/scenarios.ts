@@ -19,6 +19,11 @@ export function getCrossModuleScenarios(): ScenarioSpec[] {
       traceSampleEvery: TRACE_SAMPLE_EVERY_DEFAULT,
     },
     {
+      name: "SUITE_D_TRUE_CRITICAL",
+      steps: 40,
+      traceSampleEvery: 1,
+    },
+    {
       name: "SUITE_SANITIZE_MICRO",
       steps: 5,
       traceSampleEvery: 1,

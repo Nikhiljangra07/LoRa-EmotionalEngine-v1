@@ -57,6 +57,12 @@ type SyntheticStepSignals = {
   positiveReframeScore: number;
 };
 
+type SuiteCLongRunState = {
+  burstRemaining: number;
+  burstCount: number;
+  lastBurstStart: number;
+};
+
 function fnv1a(input: string): string {
   let hash = HASH_OFFSET >>> 0;
   for (let i = 0; i < input.length; i += 1) {
@@ -107,7 +113,8 @@ function asCollapseMoodCategory(input: string): CollapseMoodCategory {
 function buildSignals(
   scenario: ScenarioSpec,
   i: number,
-  prng: ReturnType<typeof createDeterministicPrng>
+  prng: ReturnType<typeof createDeterministicPrng>,
+  suiteCState?: SuiteCLongRunState
 ): SyntheticStepSignals {
   if (scenario.name === "SUITE_A_FAMILY_OSCILLATION") {
     const valenceSeq = [0.6, -0.6, -0.4, -0.7, 0.1, -0.8];
@@ -204,6 +211,152 @@ function buildSignals(
       punctuationHits: 1,
       emojiHits: 0,
       repetitionScore: 0.05,
+      questionMarks: 1,
+      validationSeekingScore: 0.2,
+      topicShiftScore: 0.2,
+      positiveReframeScore: 0.2,
+    };
+  }
+
+  if (scenario.name === "SUITE_C_LONG_SESSION_STABILITY") {
+    const state = suiteCState ?? {
+      burstRemaining: 0,
+      burstCount: 0,
+      lastBurstStart: 0,
+    };
+    const spacingSatisfied = i - state.lastBurstStart >= 20000;
+
+    if (state.burstRemaining > 0) {
+      state.burstRemaining -= 1;
+      return {
+        deltaMessageSeconds: 10 + Math.floor(prng.nextFloat01() * 8),
+        valence: -0.8 + prng.nextFloat01() * 0.2,
+        arousal: 0.78 + prng.nextFloat01() * 0.1,
+        expressionStrength: 0.75 + prng.nextFloat01() * 0.12,
+        capsRatio: 0.45 + prng.nextFloat01() * 0.15,
+        punctuationHits: 2 + Math.floor(prng.nextFloat01() * 3),
+        emojiHits: 0,
+        repetitionScore: 0.5 + prng.nextFloat01() * 0.15,
+        questionMarks: 2 + Math.floor(prng.nextFloat01() * 2),
+        validationSeekingScore: 0.15 + prng.nextFloat01() * 0.2,
+        topicShiftScore: 0.2 + prng.nextFloat01() * 0.2,
+        positiveReframeScore: 0.05 + prng.nextFloat01() * 0.15,
+      };
+    }
+
+    const classRoll = prng.nextFloat01();
+    if (classRoll >= 0.99 && state.burstCount < 2 && spacingSatisfied) {
+      const burstLen = prng.nextFloat01() < 0.5 ? 2 : 3;
+      state.burstRemaining = burstLen - 1;
+      state.burstCount += 1;
+      state.lastBurstStart = i;
+      return {
+        deltaMessageSeconds: 9 + Math.floor(prng.nextFloat01() * 7),
+        valence: -0.8 + prng.nextFloat01() * 0.2,
+        arousal: 0.8 + prng.nextFloat01() * 0.08,
+        expressionStrength: 0.78 + prng.nextFloat01() * 0.1,
+        capsRatio: 0.48 + prng.nextFloat01() * 0.15,
+        punctuationHits: 3 + Math.floor(prng.nextFloat01() * 2),
+        emojiHits: 0,
+        repetitionScore: 0.55 + prng.nextFloat01() * 0.15,
+        questionMarks: 2 + Math.floor(prng.nextFloat01() * 2),
+        validationSeekingScore: 0.2 + prng.nextFloat01() * 0.2,
+        topicShiftScore: 0.2 + prng.nextFloat01() * 0.2,
+        positiveReframeScore: 0.05 + prng.nextFloat01() * 0.1,
+      };
+    }
+
+    if (classRoll < 0.9) {
+      return {
+        deltaMessageSeconds: 60 + Math.floor(prng.nextFloat01() * 121),
+        valence: -0.3 + prng.nextFloat01() * 0.6,
+        arousal: 0.2 + prng.nextFloat01() * 0.4,
+        expressionStrength: 0.25 + prng.nextFloat01() * 0.25,
+        capsRatio: 0.04 + prng.nextFloat01() * 0.14,
+        punctuationHits: Math.floor(prng.nextFloat01() * 3),
+        emojiHits: Math.floor(prng.nextFloat01() * 2),
+        repetitionScore: 0.05 + prng.nextFloat01() * 0.2,
+        questionMarks: Math.floor(prng.nextFloat01() * 2),
+        validationSeekingScore: 0.08 + prng.nextFloat01() * 0.2,
+        topicShiftScore: 0.08 + prng.nextFloat01() * 0.2,
+        positiveReframeScore: 0.1 + prng.nextFloat01() * 0.25,
+      };
+    }
+
+    return {
+      deltaMessageSeconds: 22 + Math.floor(prng.nextFloat01() * 24),
+      valence: -0.6 + prng.nextFloat01() * 0.3,
+      arousal: 0.6 + prng.nextFloat01() * 0.2,
+      expressionStrength: 0.62 + prng.nextFloat01() * 0.2,
+      capsRatio: 0.3 + prng.nextFloat01() * 0.2,
+      punctuationHits: 2 + Math.floor(prng.nextFloat01() * 2),
+      emojiHits: 0,
+      repetitionScore: 0.35 + prng.nextFloat01() * 0.25,
+      questionMarks: 1 + Math.floor(prng.nextFloat01() * 2),
+      validationSeekingScore: 0.1 + prng.nextFloat01() * 0.2,
+      topicShiftScore: 0.1 + prng.nextFloat01() * 0.2,
+      positiveReframeScore: 0.08 + prng.nextFloat01() * 0.15,
+    };
+  }
+
+  if (scenario.name === "SUITE_D_TRUE_CRITICAL") {
+    if (i < 8) {
+      return {
+        deltaMessageSeconds: 75,
+        valence: 0.05,
+        arousal: 0.3,
+        expressionStrength: 0.35,
+        capsRatio: 0.06,
+        punctuationHits: 1,
+        emojiHits: 0,
+        repetitionScore: 0.1,
+        questionMarks: 1,
+        validationSeekingScore: 0,
+        topicShiftScore: 0,
+        positiveReframeScore: 0,
+      };
+    }
+    if (i < 19) {
+      return {
+        deltaMessageSeconds: 8 + (i % 3),
+        valence: -0.85,
+        arousal: 0.9,
+        expressionStrength: 0.95,
+        capsRatio: 0.8,
+        punctuationHits: 6,
+        emojiHits: 0,
+        repetitionScore: 0.85,
+        questionMarks: 3,
+        validationSeekingScore: 0.1,
+        topicShiftScore: 0.1,
+        positiveReframeScore: 0.05,
+      };
+    }
+    if (i < 32) {
+      return {
+        deltaMessageSeconds: 45,
+        valence: -0.35,
+        arousal: 0.45,
+        expressionStrength: 0.4,
+        capsRatio: 0.12,
+        punctuationHits: 1,
+        emojiHits: 0,
+        repetitionScore: 0.2,
+        questionMarks: 1,
+        validationSeekingScore: 0.96,
+        topicShiftScore: 0.9,
+        positiveReframeScore: 0.5,
+      };
+    }
+    return {
+      deltaMessageSeconds: 90,
+      valence: -0.05,
+      arousal: 0.25,
+      expressionStrength: 0.25,
+      capsRatio: 0.08,
+      punctuationHits: 1,
+      emojiHits: 0,
+      repetitionScore: 0.08,
       questionMarks: 1,
       validationSeekingScore: 0.2,
       topicShiftScore: 0.2,
@@ -327,33 +480,19 @@ function buildSignals(
     };
   }
 
-  const mix = prng.nextFloat01();
-  let deltaMessageSeconds = 60 + Math.floor(prng.nextFloat01() * 121);
-  if (mix < 0.35) {
-    deltaMessageSeconds = 5 + Math.floor(prng.nextFloat01() * 26);
-  } else if (mix > 0.92) {
-    deltaMessageSeconds = 600 + Math.floor(prng.nextFloat01() * 6601);
-  }
-  if (i % 5000 === 0 && i > 0) {
-    deltaMessageSeconds = 7200;
-  }
-  if (i % 5000 >= 200 && i % 5000 < 210) {
-    deltaMessageSeconds = 12;
-  }
-
   return {
-    deltaMessageSeconds,
-    valence: i % 5000 >= 200 && i % 5000 < 210 ? -0.45 : -1 + prng.nextFloat01() * 2,
-    arousal: i % 5000 >= 200 && i % 5000 < 210 ? 0.85 : prng.nextFloat01(),
-    expressionStrength: i % 5000 >= 200 && i % 5000 < 210 ? 0.9 : prng.nextFloat01(),
-    capsRatio: i % 5000 >= 200 && i % 5000 < 210 ? 0.7 : prng.nextFloat01(),
-    punctuationHits: i % 5000 >= 200 && i % 5000 < 210 ? 5 : Math.floor(prng.nextFloat01() * 7),
+    deltaMessageSeconds: 30 + Math.floor(prng.nextFloat01() * 90),
+    valence: -0.4 + prng.nextFloat01() * 0.8,
+    arousal: 0.2 + prng.nextFloat01() * 0.5,
+    expressionStrength: 0.2 + prng.nextFloat01() * 0.5,
+    capsRatio: prng.nextFloat01() * 0.3,
+    punctuationHits: Math.floor(prng.nextFloat01() * 4),
     emojiHits: Math.floor(prng.nextFloat01() * 4),
-    repetitionScore: i % 5000 >= 200 && i % 5000 < 210 ? 0.6 : prng.nextFloat01(),
-    questionMarks: i % 5000 >= 200 && i % 5000 < 210 ? 3 : Math.floor(prng.nextFloat01() * 5),
-    validationSeekingScore: prng.nextFloat01(),
-    topicShiftScore: prng.nextFloat01(),
-    positiveReframeScore: prng.nextFloat01(),
+    repetitionScore: 0.05 + prng.nextFloat01() * 0.35,
+    questionMarks: Math.floor(prng.nextFloat01() * 3),
+    validationSeekingScore: prng.nextFloat01() * 0.5,
+    topicShiftScore: prng.nextFloat01() * 0.5,
+    positiveReframeScore: prng.nextFloat01() * 0.5,
   };
 }
 
@@ -392,10 +531,16 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
   let sanitizationCount = 0;
   let collapseWithCalmEscalationCount = 0;
   let collapseWithHighEscalationCount = 0;
+  let criticalSaturationCount = 0;
+  let trueCriticalCount = 0;
+  const suiteCState: SuiteCLongRunState | undefined =
+    scenario.name === "SUITE_C_LONG_SESSION_STABILITY"
+      ? { burstRemaining: 0, burstCount: 0, lastBurstStart: 0 }
+      : undefined;
 
   for (let i = 0; i < scenario.steps; i += 1) {
     const sanitizationTags: string[] = [];
-    const sig = buildSignals(scenario, i, prng);
+    const sig = buildSignals(scenario, i, prng, suiteCState);
 
     const deltaMessageSeconds = Math.max(
       0,
@@ -540,10 +685,16 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
         escalationShock = true;
       }
     } else if (scenario.name === "SUITE_C_LONG_SESSION_STABILITY") {
-      if (i % 5000 >= 200 && i % 5000 < 206) {
-        escalationSlope = 0.008;
-        escalationVolatility = 0.014;
-        escalationShock = i % 2 === 0;
+      if (suiteCState && suiteCState.burstRemaining > 0) {
+        escalationSlope = 0.0035;
+        escalationVolatility = 0.006;
+        escalationShock = false;
+      }
+    } else if (scenario.name === "SUITE_D_TRUE_CRITICAL") {
+      if (i >= 10 && i <= 18) {
+        escalationSlope = 0.012;
+        escalationVolatility = 0.024;
+        escalationShock = true;
       }
     } else if (scenario.name === "SUITE_INWARD_COLLAPSE_MICRO") {
       if (i === 16) {
@@ -694,6 +845,12 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
     if (escalationOut.outputs.level === EscalationLevel.CRITICAL) {
       criticalSteps += 1;
     }
+    if (escalationOut.outputs.score === 1) {
+      criticalSaturationCount += 1;
+      if (escalationOut.outputs.level === EscalationLevel.CRITICAL) {
+        trueCriticalCount += 1;
+      }
+    }
     if (postOut.outputs.postModeActive) {
       postModeSteps += 1;
     }
@@ -783,6 +940,8 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
     sanitizationCount,
     collapseWithCalmEscalationCount,
     collapseWithHighEscalationCount,
+    criticalSaturationCount,
+    trueCriticalCount,
   };
 
   const hashInput = JSON.stringify({

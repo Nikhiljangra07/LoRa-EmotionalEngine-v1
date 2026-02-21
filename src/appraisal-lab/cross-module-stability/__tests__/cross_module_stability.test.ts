@@ -91,10 +91,33 @@ describe("cross-module stability harness", () => {
     expect(result.summary.maxVectorPressure).toBeLessThanOrEqual(1e6);
     expect(result.summary.maxFamilyPressure).toBeLessThanOrEqual(1e6);
     expect(result.summary.maxEscalationLevel).toBeGreaterThanOrEqual(1);
-    expect(result.summary.fractionCritical).toBeLessThanOrEqual(0.02);
-    expect(result.summary.collapseCount).toBeLessThanOrEqual(0.005 * result.steps);
-    expect(result.summary.postModeFraction).toBeLessThanOrEqual(0.1);
+    expect(result.summary.collapseCount).toBeLessThanOrEqual(50);
+    expect(result.summary.fractionCritical).toBeLessThanOrEqual(0.0005);
+    expect(result.summary.postModeFraction).toBeLessThanOrEqual(0.02);
+    expect(result.summary.criticalSaturationCount).toBeLessThanOrEqual(3);
     expect(result.summary.sanitizationCount).toBe(0);
+  });
+
+  test("SUITE D - TrueCritical Saturation", () => {
+    const scenario = byName("SUITE_D_TRUE_CRITICAL");
+    const result = runScenario(0xddd444, scenario);
+
+    console.log(
+      JSON.stringify({
+        suite: "D",
+        hash: result.summaryHash,
+        summary: result.summary,
+      })
+    );
+
+    expect(result.summary.collapseCount).toBeGreaterThanOrEqual(1);
+    expect(result.summary.maxEscalationLevel).toBe(3);
+    expect(result.summary.trueCriticalCount).toBeGreaterThanOrEqual(1);
+    expect(result.summary.everSubstitute).toBe(true);
+    const sawInterruptLoop = result.traceSample.some((s) =>
+      s.policyMovesTags.includes("INTERRUPT_LOOP")
+    );
+    expect(sawInterruptLoop).toBe(true);
   });
 
   test("determinism replay check", () => {
