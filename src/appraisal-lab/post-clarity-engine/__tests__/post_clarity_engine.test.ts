@@ -264,6 +264,99 @@ describe("post-clarity-engine", () => {
     expect(result.outputs.recoveryPath).toBe("UNKNOWN");
   });
 
+  test("I) exact mutex boundary returns UNKNOWN", () => {
+    const seededState = {
+      ...createPostClarityState(),
+      postModeUntilSeconds: 1000,
+      spiralScore: 0.8,
+      substituteScore: 0.8 - SUBSTITUTE_MUTEX_MARGIN,
+    };
+
+    const result = updatePostClarityState(seededState, {
+      collapseEvent: false,
+      collapseDirection: "NONE",
+      escalationLevel: 0,
+      escalationScore: 0,
+      pressure: 0,
+      pressureSlope: 0,
+      valence: 0,
+      // Starting exactly at mutex boundary; tiny decay narrows gap below margin.
+      deltaMessageSeconds: 1,
+      repetitionScore: 0,
+      gain: 1,
+      validationSeekingScore: 0,
+      topicShiftScore: 0,
+      positiveReframeScore: 0,
+    });
+
+    expect(result.outputs.recoveryPath).toBe("UNKNOWN");
+    expect(result.outputs.reasons).toContain("RECOVERY_AMBIGUOUS");
+  });
+
+  test("J) substitute evidence ignored after exact expiry boundary", () => {
+    const seededState = {
+      ...createPostClarityState(),
+      postModeUntilSeconds: 5,
+      substituteScore: SUBSTITUTE_THRESHOLD + 0.1,
+    };
+
+    const result = updatePostClarityState(seededState, {
+      collapseEvent: false,
+      collapseDirection: "NONE",
+      escalationLevel: 0,
+      escalationScore: 0,
+      pressure: 0,
+      pressureSlope: 0,
+      valence: 0,
+      deltaMessageSeconds: 5,
+      repetitionScore: 0,
+      gain: 1,
+      validationSeekingScore: 1,
+      topicShiftScore: 1,
+      positiveReframeScore: 1,
+    });
+
+    expect(result.state.postModeUntilSeconds).toBe(0);
+    expect(result.outputs.postModeActive).toBe(false);
+    expect(result.outputs.recoveryPath).toBe("UNKNOWN");
+  });
+
+  test("K) spiral and substitute both extreme clamp stays finite and bounded", () => {
+    const seededState = {
+      ...createPostClarityState(),
+      postModeUntilSeconds: 1000,
+      spiralScore: 10,
+      substituteScore: 10,
+      // Force non-array fallback guards for ring-buffer inputs.
+      recentRepetition: null,
+      recentUrgency: null,
+      recentSeeking: null,
+    } as unknown as ReturnType<typeof createPostClarityState>;
+
+    const result = updatePostClarityState(seededState, {
+      collapseEvent: false,
+      collapseDirection: "NONE",
+      escalationLevel: 0,
+      escalationScore: 0,
+      pressure: 0,
+      pressureSlope: 0,
+      valence: 0,
+      deltaMessageSeconds: 0,
+      repetitionScore: 0,
+      validationSeekingScore: 0,
+      topicShiftScore: 0,
+      positiveReframeScore: 0,
+    });
+
+    expect(result.state.spiralScore).toBeLessThanOrEqual(1);
+    expect(result.state.spiralScore).toBeGreaterThanOrEqual(0);
+    expect(result.state.substituteScore).toBeLessThanOrEqual(1);
+    expect(result.state.substituteScore).toBeGreaterThanOrEqual(0);
+    expect(["SPIRAL", "SUBSTITUTE", "UNKNOWN"]).toContain(
+      result.outputs.recoveryPath
+    );
+  });
+
   test("finite guards: NaN substitute inputs keep state finite", () => {
     const state = createPostClarityState();
     const result = updatePostClarityState(state, {
