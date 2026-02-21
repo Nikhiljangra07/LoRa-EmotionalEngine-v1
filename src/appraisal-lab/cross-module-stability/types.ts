@@ -2,6 +2,7 @@ export type ScenarioName =
   | "SUITE_A_FAMILY_OSCILLATION"
   | "SUITE_B_ESC_SUB_CONFLICT"
   | "SUITE_C_LONG_SESSION_STABILITY"
+  | "SUITE_D_TRUE_CRITICAL"
   | "SUITE_SANITIZE_MICRO"
   | "SUITE_PRESSURE_DRIVEN_COLLAPSE_MICRO"
   | "SUITE_LONG_GAP_MICRO"
@@ -68,6 +69,8 @@ export type ScenarioResult = {
     sanitizationCount: number;
     collapseWithCalmEscalationCount: number;
     collapseWithHighEscalationCount: number;
+    criticalSaturationCount: number;
+    trueCriticalCount: number;
   };
   traceSample: StepTrace[];
 };
