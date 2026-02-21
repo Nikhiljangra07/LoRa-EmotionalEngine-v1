@@ -1,12 +1,23 @@
 export type ScenarioName =
   | "SUITE_A_FAMILY_OSCILLATION"
   | "SUITE_B_ESC_SUB_CONFLICT"
-  | "SUITE_C_LONG_SESSION_STABILITY";
+  | "SUITE_C_LONG_SESSION_STABILITY"
+  | "SUITE_SANITIZE_MICRO"
+  | "SUITE_PRESSURE_DRIVEN_COLLAPSE_MICRO"
+  | "SUITE_LONG_GAP_MICRO"
+  | "SUITE_INWARD_COLLAPSE_MICRO";
 
 export type ScenarioSpec = {
   name: ScenarioName;
   steps: number;
   traceSampleEvery?: number;
+  faultInjection?:
+    | "NONE"
+    | "NON_FINITE_OUTPUT"
+    | "NEGATIVE_PRESSURE"
+    | "NEGATIVE_FAMILY"
+    | "NEGATIVE_TIMER"
+    | "PRESSURE_CAP";
 };
 
 export type StepTrace = {

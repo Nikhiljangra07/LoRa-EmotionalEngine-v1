@@ -23,6 +23,10 @@ Per step, modules are called in this strict order:
 - **Suite A**: family oscillation trajectory stability over 600 steps
 - **Suite B**: escalation vs substitute conflict priority integrity
 - **Suite C**: 100k-step long-session stability with deterministic seeded signals
+- **Hardening v0.1 micro-scenarios**: sanitization, pressure-driven collapse, long-gap, inward-collapse direction
+
+Suite A/C now include bounded deterministic burst packets that trigger occasional escalation
+without runaway critical drift, so they exercise non-trivial cross-module dynamics.
 
 ## Invariants Checked
 
@@ -38,6 +42,7 @@ Per step, modules are called in this strict order:
 - Each scenario run uses explicit seed-based deterministic PRNG only.
 - A stable FNV-1a summary hash is produced from summary + sampled trace.
 - Replay with same seed must produce identical summary hash and summary object.
+- Different seeds are asserted to produce different summary hashes.
 
 ## Run Command
 
