@@ -64,3 +64,45 @@ Maintained on every update:
 ## Test Command
 
 `npm test -- src/appraisal-lab/post-clarity-engine`
+
+## Pass 2 - Spiral Classifier
+
+Pass 2 extends this isolated module with spiral-path evidence while keeping substitute logic unimplemented.
+
+### Decay Formula
+
+- `decaySpiral = exp(-deltaMessageSeconds / 1200)`
+- `spiralScore_next = clamp01(spiralScore_prev * decaySpiral + spiralImpulse)`
+
+### Impulse Formula
+
+Inputs are sanitized first:
+- `rep = clamp01(repetitionScore ?? 0)`
+- `gain = max(0, finiteOrZero(gain ?? 1))`
+
+Condition-gated impulses:
+- `repImpulse = rep` only if `rep > 0.6`, else `0`
+- `urgencyImpulse = clamp01(gain - 1)` only if `gain >= 1.15`, else `0`
+- `slopeImpulse = clamp01(pressureSlope / 0.2)` only if `pressureSlope > 0 AND postModeUntilSeconds > 0`, else `0`
+
+Combined impulse:
+- `spiralImpulseRaw = 0.5*repImpulse + 0.3*urgencyImpulse + 0.2*slopeImpulse`
+- `spiralImpulse = clamp01(spiralImpulseRaw)`
+
+### Threshold Rule
+
+- `recoveryPath = "SPIRAL"` iff `spiralScore >= 0.65 AND postModeUntilSeconds > 0`
+- Else `recoveryPath = "UNKNOWN"`
+- `"SPIRAL_ACTIVE"` reason is emitted only when spiral path is active.
+
+### Isolation Guarantees
+
+- No imports from other engines/modules.
+- No policy outputs added.
+- Substitute logic remains intentionally unimplemented in Pass 2.
+- All changes are contained within `src/appraisal-lab/post-clarity-engine`.
+
+### Determinism Preserved
+
+- Spiral buffers (`recentRepetition`, `recentUrgency`) are fixed-size deterministic ring buffers (`N=8`).
+- Stress replay verifies identical final state, checksum, and recovery-path trace for the same seeded sequence.

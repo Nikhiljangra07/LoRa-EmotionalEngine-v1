@@ -13,6 +13,9 @@ export interface PostClarityInputs {
   valence: number; // -1..1
 
   deltaMessageSeconds: number; // >= 0
+
+  repetitionScore?: number; // 0..1
+  gain?: number; // >=0
 }
 
 export interface PostClarityState {
@@ -24,6 +27,9 @@ export interface PostClarityState {
   relapseCount: number;
 
   n: number; // message counter
+  spiralScore: number; // 0..1
+  recentRepetition: number[]; // ring buffer
+  recentUrgency: number[]; // ring buffer
 }
 
 export interface PostClarityOutputs {
@@ -31,4 +37,5 @@ export interface PostClarityOutputs {
   agencyDeficit: number;
   isRelapse: boolean;
   reasons: string[];
+  recoveryPath: "SPIRAL" | "UNKNOWN";
 }
