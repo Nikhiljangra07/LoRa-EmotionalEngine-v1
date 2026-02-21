@@ -164,6 +164,106 @@ describe("post-clarity-engine", () => {
     expect(decayed.outputs.recoveryPath).toBe("UNKNOWN");
   });
 
+  test("F) natural spiral activation from repetition + rising pressure", () => {
+    let state = createPostClarityState();
+    const entered = updatePostClarityState(state, {
+      collapseEvent: true,
+      collapseDirection: "OUTWARD",
+      escalationLevel: 0,
+      escalationScore: 0,
+      pressure: 0,
+      pressureSlope: 0,
+      valence: 0,
+      deltaMessageSeconds: 1,
+      gain: 1,
+    });
+    state = entered.state;
+
+    let latest = entered;
+    for (let i = 0; i < 6; i += 1) {
+      latest = updatePostClarityState(state, {
+        collapseEvent: false,
+        collapseDirection: "NONE",
+        escalationLevel: 2,
+        escalationScore: 0.6,
+        pressure: 10,
+        pressureSlope: 0.15,
+        valence: -0.2,
+        deltaMessageSeconds: 5,
+        repetitionScore: 0.95,
+        gain: 1,
+        validationSeekingScore: 0,
+        topicShiftScore: 0,
+        positiveReframeScore: 0,
+      });
+      state = latest.state;
+      if (latest.state.spiralScore >= SPIRAL_THRESHOLD) {
+        break;
+      }
+    }
+
+    expect(latest.state.spiralScore).toBeGreaterThanOrEqual(SPIRAL_THRESHOLD);
+    expect(latest.outputs.recoveryPath).toBe("SPIRAL");
+    expect(latest.outputs.reasons).toContain("SPIRAL_ACTIVE");
+    expect(
+      latest.state.substituteScore < latest.state.spiralScore ||
+        latest.state.spiralScore >=
+          latest.state.substituteScore + SUBSTITUTE_MUTEX_MARGIN
+    ).toBe(true);
+  });
+
+  test("G) spiral decays below threshold with long delta", () => {
+    const seededState = {
+      ...createPostClarityState(),
+      postModeUntilSeconds: 2000,
+      spiralScore: 0.9,
+    };
+
+    const result = updatePostClarityState(seededState, {
+      collapseEvent: false,
+      collapseDirection: "NONE",
+      escalationLevel: 0,
+      escalationScore: 0,
+      pressure: 0,
+      pressureSlope: 0,
+      valence: 0,
+      deltaMessageSeconds: 1200,
+      repetitionScore: 0,
+      gain: 1,
+    });
+
+    expect(result.state.spiralScore).toBeLessThan(SPIRAL_THRESHOLD);
+    expect(result.outputs.recoveryPath).toBe("UNKNOWN");
+  });
+
+  test("H) postMode expiry fully disables substitute activation", () => {
+    const seededState = {
+      ...createPostClarityState(),
+      postModeUntilSeconds: 1,
+      substituteScore: 0.9,
+    };
+
+    const result = updatePostClarityState(seededState, {
+      collapseEvent: false,
+      collapseDirection: "NONE",
+      escalationLevel: 0,
+      escalationScore: 0,
+      pressure: 0,
+      pressureSlope: 0,
+      valence: 0,
+      deltaMessageSeconds: 10,
+      repetitionScore: 0,
+      gain: 1,
+      validationSeekingScore: 1,
+      topicShiftScore: 1,
+      positiveReframeScore: 1,
+    });
+
+    expect(result.state.postModeUntilSeconds).toBe(0);
+    expect(result.outputs.postModeActive).toBe(false);
+    expect(result.outputs.recoveryPath).toBe("UNKNOWN");
+  });
+
   test("finite guards: NaN substitute inputs keep state finite", () => {
     const state = createPostClarityState();
     const result = updatePostClarityState(state, {
