@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1771634156547" clover="3.2.0">
+  <project timestamp="1771634156547" name="All files">
+    <metrics statements="138" coveredstatements="138" conditionals="80" coveredconditionals="80" methods="17" coveredmethods="8" elements="235" coveredelements="226" complexity="0" loc="138" ncloc="138" packages="1" files="3" classes="3"/>
+    <file name="constants.ts" path="/Users/nikhil/Desktop/lora-v1-frontend/src/appraisal-lab/post-clarity-engine/constants.ts">
+      <metrics statements="22" coveredstatements="22" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      <line num="1" count="2" type="stmt"/>
+      <line num="2" count="2" type="stmt"/>
+      <line num="3" count="2" type="stmt"/>
+      <line num="4" count="2" type="stmt"/>
+      <line num="6" count="2" type="stmt"/>
+      <line num="7" count="2" type="stmt"/>
+      <line num="9" count="2" type="stmt"/>
+      <line num="10" count="2" type="stmt"/>
+      <line num="12" count="2" type="stmt"/>
+      <line num="14" count="2" type="stmt"/>
+      <line num="15" count="2" type="stmt"/>
+      <line num="16" count="2" type="stmt"/>
+      <line num="17" count="2" type="stmt"/>
+      <line num="18" count="2" type="stmt"/>
+      <line num="19" count="2" type="stmt"/>
+      <line num="21" count="2" type="stmt"/>
+      <line num="22" count="2" type="stmt"/>
+      <line num="24" count="2" type="stmt"/>
+      <line num="25" count="2" type="stmt"/>
+      <line num="26" count="2" type="stmt"/>
+      <line num="28" count="2" type="stmt"/>
+      <line num="29" count="2" type="stmt"/>
+    </file>
+    <file name="index.ts" path="/Users/nikhil/Desktop/lora-v1-frontend/src/appraisal-lab/post-clarity-engine/index.ts">
+      <metrics statements="13" coveredstatements="13" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="2"/>
+      <line num="1" count="2" type="stmt"/>
+      <line num="2" count="2" type="stmt"/>
+      <line num="3" count="2" type="stmt"/>
+      <line num="4" count="2" type="stmt"/>
+      <line num="5" count="2" type="stmt"/>
+      <line num="6" count="2" type="stmt"/>
+      <line num="7" count="2" type="stmt"/>
+      <line num="8" count="2" type="stmt"/>
+      <line num="9" count="2" type="stmt"/>
+      <line num="10" count="2" type="stmt"/>
+      <line num="12" count="2" type="stmt"/>
+      <line num="13" count="16" type="stmt"/>
+      <line num="14" count="100017" type="stmt"/>
+    </file>
+    <file name="post_clarity_engine.ts" path="/Users/nikhil/Desktop/lora-v1-frontend/src/appraisal-lab/post-clarity-engine/post_clarity_engine.ts">
+      <metrics statements="103" coveredstatements="103" conditionals="80" coveredconditionals="80" methods="6" coveredmethods="6"/>
+      <line num="1" count="2" type="stmt"/>
+      <line num="27" count="1700255" type="cond" truecount="2" falsecount="0"/>
+      <line num="31" count="1504553" type="stmt"/>
+      <line num="35" count="100015" type="stmt"/>
+      <line num="39" count="200030" type="stmt"/>
+      <line num="40" count="200030" type="stmt"/>
+      <line num="41" count="200030" type="stmt"/>
+      <line num="44" count="2" type="stmt"/>
+      <line num="45" count="14" type="stmt"/>
+      <line num="59" count="2" type="stmt"/>
+      <line num="64" count="100015" type="stmt"/>
+      <line num="65" count="100015" type="stmt"/>
+      <line num="66" count="100015" type="stmt"/>
+      <line num="67" count="100015" type="stmt"/>
+      <line num="68" count="100015" type="stmt"/>
+      <line num="69" count="100015" type="stmt"/>
+      <line num="72" count="100015" type="stmt"/>
+      <line num="73" count="100015" type="stmt"/>
+      <line num="77" count="100015" type="stmt"/>
+      <line num="83" count="100015" type="stmt"/>
+      <line num="84" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="85" count="1034" type="stmt"/>
+      <line num="86" count="98981" type="cond" truecount="2" falsecount="0"/>
+      <line num="90" count="7284" type="stmt"/>
+      <line num="91" count="91697" type="cond" truecount="4" falsecount="0"/>
+      <line num="92" count="21856" type="stmt"/>
+      <line num="96" count="100015" type="stmt"/>
+      <line num="97" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="98" count="30174" type="stmt"/>
+      <line num="99" count="30174" type="stmt"/>
+      <line num="100" count="30174" type="stmt"/>
+      <line num="101" count="30174" type="stmt"/>
+      <line num="104" count="30174" type="stmt"/>
+      <line num="105" count="30174" type="stmt"/>
+      <line num="109" count="100015" type="stmt"/>
+      <line num="110" count="100015" type="stmt"/>
+      <line num="116" count="100015" type="stmt"/>
+      <line num="117" count="100015" type="stmt"/>
+      <line num="119" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="120" count="30174" type="cond" truecount="2" falsecount="0"/>
+      <line num="121" count="30170" type="stmt"/>
+      <line num="122" count="30170" type="stmt"/>
+      <line num="123" count="30170" type="stmt"/>
+      <line num="128" count="4" type="stmt"/>
+      <line num="133" count="100015" type="stmt"/>
+      <line num="134" count="100015" type="stmt"/>
+      <line num="135" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="136" count="30174" type="stmt"/>
+      <line num="138" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="139" count="30170" type="stmt"/>
+      <line num="141" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="142" count="100011" type="stmt"/>
+      <line num="146" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="147" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="149" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="152" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="154" count="100015" type="stmt"/>
+      <line num="155" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="156" count="99984" type="stmt"/>
+      <line num="159" count="100015" type="stmt"/>
+      <line num="160" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="161" count="99984" type="stmt"/>
+      <line num="164" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="165" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="166" count="100015" type="cond" truecount="4" falsecount="0"/>
+      <line num="171" count="100015" type="stmt"/>
+      <line num="172" count="100015" type="stmt"/>
+      <line num="174" count="100015" type="stmt"/>
+      <line num="175" count="100015" type="stmt"/>
+      <line num="180" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="181" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="182" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="184" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="185" count="100015" type="stmt"/>
+      <line num="186" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="187" count="99984" type="stmt"/>
+      <line num="190" count="100015" type="stmt"/>
+      <line num="191" count="100015" type="stmt"/>
+      <line num="192" count="100015" type="stmt"/>
+      <line num="195" count="100015" type="stmt"/>
+      <line num="196" count="100015" type="stmt"/>
+      <line num="198" count="100015" type="stmt"/>
+      <line num="199" count="100015" type="stmt"/>
+      <line num="205" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="207" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="209" count="100015" type="stmt"/>
+      <line num="210" count="100015" type="cond" truecount="4" falsecount="0"/>
+      <line num="211" count="1" type="stmt"/>
+      <line num="212" count="100014" type="cond" truecount="4" falsecount="0"/>
+      <line num="213" count="3" type="stmt"/>
+      <line num="214" count="100011" type="cond" truecount="4" falsecount="0"/>
+      <line num="215" count="100002" type="cond" truecount="2" falsecount="0"/>
+      <line num="216" count="1" type="stmt"/>
+      <line num="217" count="100001" type="cond" truecount="2" falsecount="0"/>
+      <line num="218" count="2" type="stmt"/>
+      <line num="220" count="99999" type="stmt"/>
+      <line num="221" count="99999" type="stmt"/>
+      <line num="225" count="100015" type="cond" truecount="2" falsecount="0"/>
+      <line num="226" count="2" type="stmt"/>
+      <line num="227" count="100013" type="cond" truecount="2" falsecount="0"/>
+      <line num="228" count="5" type="stmt"/>
+      <line num="231" count="100015" type="stmt"/>
+      <line num="244" count="100015" type="stmt"/>
+    </file>
+  </project>
+</coverage>
