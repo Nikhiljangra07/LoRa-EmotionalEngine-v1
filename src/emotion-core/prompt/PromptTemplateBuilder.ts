@@ -5,6 +5,7 @@ import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
 import type { PromptProfile } from '../types/logging.types';
+import { debugEnabled } from '../debug/debugGate';
 
 export class PromptTemplateBuilder {
   static build(
@@ -68,10 +69,12 @@ GLOBAL CONSTRAINTS
 - If uncertain, default to calm, warm presence
 `.trim();
 
-    console.log('[LoRa::Audit][PromptTemplate]', {
-      templateKey: 'base',
-      reason: 'single template builder',
-    });
+    if (debugEnabled) {
+      console.log('[LoRa::Audit][PromptTemplate]', {
+        templateKey: 'base',
+        reason: 'single template builder',
+      });
+    }
 
     return prompt;
   }

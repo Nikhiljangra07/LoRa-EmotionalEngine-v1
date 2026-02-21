@@ -3,10 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import { InputProcessor } from '../emotion-core/processors/InputProcessor';
 import { SessionManager } from './session/SessionManager';
-import { EIVComponentAssembler } from '../emotion-core/processors/EIVComponentAssembler';
-import { EIVScorer } from '../emotion-core/scorers/EIVScorer';
-import { EmotionalStateInterpreter } from '../emotion-core/processors/EmotionalStateInterpreter';
-import type { EmotionalState } from '../emotion-core/types/analysis.types';
 import { getLLMHealth } from './llmTelemetry';
 
 const app = express();
@@ -49,43 +45,25 @@ app.post('/chat', async (req, res) => {
     const engine = sessionManager.getEngine(DEFAULT_SESSION_ID);
     const { analyzerOutputs, signalPacket } =
       InputProcessor.process(message);
-    const components =
-      EIVComponentAssembler.assemble(analyzerOutputs);
-    const eivResult = EIVScorer.calculate(components);
-    const interpreted = EmotionalStateInterpreter.interpret(
-      analyzerOutputs,
-      eivResult.value
-    );
-    const emotionalState: EmotionalState = {
-      dominant: 'NEUTRAL',
-      arousal: interpreted.arousal,
-      valence: interpreted.valence,
-      confidence: analyzerOutputs.valence.confidence,
-    };
 
     const result = await engine.processMessage(
       analyzerOutputs,
-      emotionalState,
+      undefined,
       false,
       {},
       undefined,
       signalPacket
     );
 
-    console.log('[LoRa::Audit][Adapter]', {
-      message,
-      reply: result.llmOutput,
-    });
-
     if (debugEnabled) {
-      console.log('[LoRa::Adapter]', { message, reply: result.llmOutput });
+      console.log('[LoRa::Audit][Adapter]', {
+        message,
+        reply: result.llmOutput,
+      });
     }
 
     return res.json({ reply: result.llmOutput });
-  } catch (error) {
-    if (debugEnabled) {
-      console.log('[LoRa::Adapter]', 'error');
-    }
+  } catch {
     return res.status(500).json({ reply: '' });
   }
 });

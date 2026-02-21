@@ -1,3 +1,10 @@
+// ═══════════════════════════════════════════════════════════════════
+// ORPHAN / NOT WIRED — DO NOT USE IN RUNTIME
+// This logger is not imported by any runtime code path. It exists as
+// a dev-only instrumentation stub for Phase-3 verification. Do not
+// import into production modules.
+// ═══════════════════════════════════════════════════════════════════
+
 /**
  * DEV-ONLY INSTRUMENTATION
  * -----------------------

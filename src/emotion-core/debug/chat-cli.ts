@@ -7,12 +7,8 @@ import '../../bootstrap';
 import readline from "readline";
 import { EngineOrchestrator } from "../engines/EngineOrchestrator";
 import { InputProcessor } from "../processors/InputProcessor";
-import type { EmotionalState } from "../types/analysis.types";
 import { DecisionLogger } from "../logging/DecisionLogger";
 import { OpenAIResponder } from "../llm/OpenAIResponder";
-import { EIVComponentAssembler } from "../processors/EIVComponentAssembler";
-import { EIVScorer } from "../scorers/EIVScorer";
-import { EmotionalStateInterpreter } from "../processors/EmotionalStateInterpreter";
 import { debugEnabled } from "./debugGate";
 
 const COMMANDS = ["/help", "/exit", "/quit"];
@@ -96,24 +92,12 @@ export const runChatCLI = () => {
             },
           } as typeof signalPacket)
         : signalPacket;
-      const components = EIVComponentAssembler.assemble(analyzerOutputs);
-      const eivResult = EIVScorer.calculate(components);
-      const interpreted = EmotionalStateInterpreter.interpret(
-        analyzerOutputs,
-        eivResult.value
-      );
-      const emotionalState: EmotionalState = {
-        dominant: "NEUTRAL",
-        arousal: interpreted.arousal,
-        valence: interpreted.valence,
-        confidence: analyzerOutputs.valence.confidence,
-      };
 
       const flags = { ambiguityDetected: false };
       try {
         const result = await engine.processMessage(
           analyzerOutputs,
-          emotionalState,
+          undefined,
           false,
           flags,
           undefined,
@@ -140,7 +124,6 @@ export const runChatCLI = () => {
             score: analyzerOutputs.expressionStrength.score,
             confidence: analyzerOutputs.expressionStrength.confidence,
           });
-          console.log("[LoRa::Wiring]", "emotionalState", emotionalState);
           console.log(
             "[LoRa::Wiring]",
             "guidanceMode:",

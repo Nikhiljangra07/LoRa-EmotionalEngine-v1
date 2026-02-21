@@ -1,3 +1,10 @@
+// ═══════════════════════════════════════════════════════════════════
+// ORPHAN / NOT WIRED — DO NOT USE IN RUNTIME
+// This module is not consumed by any runtime code path (EngineOrchestrator,
+// adapter, prompt builder). It exists as a design reference for future
+// policy-driven prompt construction. Do not import into production modules.
+// ═══════════════════════════════════════════════════════════════════
+
 // src/emotion-core/processors/PromptPolicyBuilder.ts
 
 import { EmotionalState } from './EmotionalStateInterpreter';
