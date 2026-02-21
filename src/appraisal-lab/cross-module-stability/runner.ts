@@ -78,17 +78,6 @@ function finiteOrZero(value: number, sanitizationTags: string[]): number {
   return value;
 }
 
-function zeroV(): VFamilyVector {
-  return {
-    JOY: 0,
-    ANGER: 0,
-    FEAR: 0,
-    SADNESS: 0,
-    SURPRISE: 0,
-    DISGUST: 0,
-  };
-}
-
 function asMoodVector(v: VFamilyVector): MoodFamilyVector {
   return {
     [EmotionFamily.JOY]: v.JOY,
@@ -113,11 +102,6 @@ function asCollapseMoodCategory(input: string): CollapseMoodCategory {
     return input as CollapseMoodCategory;
   }
   return CollapseMoodCategory.NEUTRAL;
-}
-
-function familyFromIndex(index: number): string {
-  const seq = ["JOY", "ANGER", "FEAR", "SADNESS", "SURPRISE", "DISGUST"];
-  return seq[index % seq.length];
 }
 
 function buildSignals(
@@ -227,6 +211,122 @@ function buildSignals(
     };
   }
 
+  if (scenario.name === "SUITE_SANITIZE_MICRO") {
+    if (i === 0) {
+      return {
+        deltaMessageSeconds: Number.NaN,
+        valence: Number.POSITIVE_INFINITY,
+        arousal: Number.NEGATIVE_INFINITY,
+        expressionStrength: Number.NaN,
+        capsRatio: Number.NaN,
+        punctuationHits: Number.NaN,
+        emojiHits: Number.NaN,
+        repetitionScore: Number.NaN,
+        questionMarks: Number.NaN,
+        validationSeekingScore: Number.NaN,
+        topicShiftScore: Number.NaN,
+        positiveReframeScore: Number.NaN,
+      };
+    }
+    return {
+      deltaMessageSeconds: 30,
+      valence: 0,
+      arousal: 0.2,
+      expressionStrength: 0.3,
+      capsRatio: 0.1,
+      punctuationHits: 1,
+      emojiHits: 0,
+      repetitionScore: 0.1,
+      questionMarks: 1,
+      validationSeekingScore: 0,
+      topicShiftScore: 0,
+      positiveReframeScore: 0,
+    };
+  }
+
+  if (scenario.name === "SUITE_PRESSURE_DRIVEN_COLLAPSE_MICRO") {
+    return {
+      deltaMessageSeconds: i === 4 ? 5 : 40,
+      valence: -0.1,
+      arousal: 0.25,
+      expressionStrength: 0.3,
+      capsRatio: 0.1,
+      punctuationHits: 1,
+      emojiHits: 0,
+      repetitionScore: 0.1,
+      questionMarks: 1,
+      validationSeekingScore: 0,
+      topicShiftScore: 0,
+      positiveReframeScore: 0,
+    };
+  }
+
+  if (scenario.name === "SUITE_LONG_GAP_MICRO") {
+    if (i === 0) {
+      return {
+        deltaMessageSeconds: 10,
+        valence: 0.1,
+        arousal: 0.2,
+        expressionStrength: 0.2,
+        capsRatio: 0.1,
+        punctuationHits: 1,
+        emojiHits: 0,
+        repetitionScore: 0.1,
+        questionMarks: 1,
+        validationSeekingScore: 0,
+        topicShiftScore: 0,
+        positiveReframeScore: 0,
+      };
+    }
+    if (i === 1) {
+      return {
+        deltaMessageSeconds: 315360000, // 10 years
+        valence: -0.1,
+        arousal: 0.3,
+        expressionStrength: 0.4,
+        capsRatio: 0.2,
+        punctuationHits: 2,
+        emojiHits: 0,
+        repetitionScore: 0.1,
+        questionMarks: 1,
+        validationSeekingScore: 0,
+        topicShiftScore: 0,
+        positiveReframeScore: 0,
+      };
+    }
+    return {
+      deltaMessageSeconds: 15,
+      valence: 0,
+      arousal: 0.2,
+      expressionStrength: 0.3,
+      capsRatio: 0.1,
+      punctuationHits: 1,
+      emojiHits: 0,
+      repetitionScore: 0.1,
+      questionMarks: 1,
+      validationSeekingScore: 0,
+      topicShiftScore: 0,
+      positiveReframeScore: 0,
+    };
+  }
+
+  if (scenario.name === "SUITE_INWARD_COLLAPSE_MICRO") {
+    return {
+      deltaMessageSeconds: i === 16 ? 400 : 60,
+      valence: -0.6,
+      arousal: 0.2,
+      expressionStrength: 0.25,
+      capsRatio: 0.05,
+      punctuationHits: 1,
+      emojiHits: 0,
+      repetitionScore: 0.1,
+      questionMarks: 1,
+      validationSeekingScore: 0.1,
+      topicShiftScore: 0.1,
+      positiveReframeScore: 0.1,
+    };
+  }
+
   const mix = prng.nextFloat01();
   let deltaMessageSeconds = 60 + Math.floor(prng.nextFloat01() * 121);
   if (mix < 0.35) {
@@ -237,17 +337,20 @@ function buildSignals(
   if (i % 5000 === 0 && i > 0) {
     deltaMessageSeconds = 7200;
   }
+  if (i % 5000 >= 200 && i % 5000 < 210) {
+    deltaMessageSeconds = 12;
+  }
 
   return {
     deltaMessageSeconds,
-    valence: -1 + prng.nextFloat01() * 2,
-    arousal: prng.nextFloat01(),
-    expressionStrength: prng.nextFloat01(),
-    capsRatio: prng.nextFloat01(),
-    punctuationHits: Math.floor(prng.nextFloat01() * 7),
+    valence: i % 5000 >= 200 && i % 5000 < 210 ? -0.45 : -1 + prng.nextFloat01() * 2,
+    arousal: i % 5000 >= 200 && i % 5000 < 210 ? 0.85 : prng.nextFloat01(),
+    expressionStrength: i % 5000 >= 200 && i % 5000 < 210 ? 0.9 : prng.nextFloat01(),
+    capsRatio: i % 5000 >= 200 && i % 5000 < 210 ? 0.7 : prng.nextFloat01(),
+    punctuationHits: i % 5000 >= 200 && i % 5000 < 210 ? 5 : Math.floor(prng.nextFloat01() * 7),
     emojiHits: Math.floor(prng.nextFloat01() * 4),
-    repetitionScore: prng.nextFloat01(),
-    questionMarks: Math.floor(prng.nextFloat01() * 5),
+    repetitionScore: i % 5000 >= 200 && i % 5000 < 210 ? 0.6 : prng.nextFloat01(),
+    questionMarks: i % 5000 >= 200 && i % 5000 < 210 ? 3 : Math.floor(prng.nextFloat01() * 5),
     validationSeekingScore: prng.nextFloat01(),
     topicShiftScore: prng.nextFloat01(),
     positiveReframeScore: prng.nextFloat01(),
@@ -420,7 +523,13 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
     let escalationSlope = 0;
     let escalationVolatility = 0;
     let escalationShock = false;
-    if (scenario.name === "SUITE_B_ESC_SUB_CONFLICT") {
+    if (scenario.name === "SUITE_A_FAMILY_OSCILLATION") {
+      if (i === 120 || i === 360) {
+        escalationSlope = 0.008;
+        escalationVolatility = 0.015;
+        escalationShock = true;
+      }
+    } else if (scenario.name === "SUITE_B_ESC_SUB_CONFLICT") {
       if (i === 24) {
         escalationSlope = 0.01;
         escalationVolatility = 0.02;
@@ -428,6 +537,18 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
       } else if (i === 72) {
         escalationSlope = 0.008;
         escalationVolatility = 0.015;
+        escalationShock = true;
+      }
+    } else if (scenario.name === "SUITE_C_LONG_SESSION_STABILITY") {
+      if (i % 5000 >= 200 && i % 5000 < 206) {
+        escalationSlope = 0.008;
+        escalationVolatility = 0.014;
+        escalationShock = i % 2 === 0;
+      }
+    } else if (scenario.name === "SUITE_INWARD_COLLAPSE_MICRO") {
+      if (i === 16) {
+        escalationSlope = 0.01;
+        escalationVolatility = 0.02;
         escalationShock = true;
       }
     }
@@ -442,12 +563,29 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
     });
     escalationState = escalationOut.state;
 
+    const collapsePressure =
+      scenario.name === "SUITE_PRESSURE_DRIVEN_COLLAPSE_MICRO" && i === 4
+        ? 13.5
+        : scalarPressure;
+    const collapseSlope =
+      scenario.name === "SUITE_PRESSURE_DRIVEN_COLLAPSE_MICRO" && i === 4
+        ? 0.2
+        : scenario.name === "SUITE_INWARD_COLLAPSE_MICRO" && i === 16
+          ? -0.1
+        : slope;
+    const collapseMoodCategoryInput =
+      scenario.name === "SUITE_SANITIZE_MICRO" && i === 0
+        ? "__UNKNOWN__"
+        : scenario.name === "SUITE_INWARD_COLLAPSE_MICRO" && i === 16
+          ? "ANXIOUS"
+        : moodOut.outputs.moodCategory;
+
     const collapseOut = updateCollapseState(collapseState, {
       escalationLevel: escalationOut.outputs.level,
       escalationScore: escalationOut.outputs.score,
-      pressure: scalarPressure,
-      pressureSlope: slope,
-      moodCategory: asCollapseMoodCategory(moodOut.outputs.moodCategory),
+      pressure: collapsePressure,
+      pressureSlope: collapseSlope,
+      moodCategory: asCollapseMoodCategory(collapseMoodCategoryInput),
       gain,
       deltaMessageSeconds: deltas.deltaMessage,
       burstFlag: gain > 1,
@@ -468,8 +606,8 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
       collapseDirection: collapseDirectionForPost,
       escalationLevel: escalationOut.outputs.level,
       escalationScore: escalationOut.outputs.score,
-      pressure: scalarPressure,
-      pressureSlope: slope,
+      pressure: collapsePressure,
+      pressureSlope: collapseSlope,
       valence,
       deltaMessageSeconds: deltas.deltaMessage,
       repetitionScore,
@@ -507,6 +645,22 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
       postState.postModeUntilSeconds,
       postState.cooldownSeconds,
     ];
+    if (scenario.faultInjection === "NON_FINITE_OUTPUT" && i === 0) {
+      checkNumbers[0] = Number.NaN;
+    }
+    if (scenario.faultInjection === "NEGATIVE_PRESSURE" && i === 0) {
+      scalarPressure = -1;
+      vectorOut.output.totalPressure = -1;
+    }
+    if (scenario.faultInjection === "NEGATIVE_FAMILY" && i === 0) {
+      vectorOut.output.pressureByFamily.JOY = -1;
+    }
+    if (scenario.faultInjection === "NEGATIVE_TIMER" && i === 0) {
+      collapseState.cooldownSeconds = -1;
+    }
+    if (scenario.faultInjection === "PRESSURE_CAP" && i === 0) {
+      scalarPressure = PRESSURE_CAP + 1;
+    }
     for (const value of checkNumbers) {
       if (!Number.isFinite(value)) {
         throw new Error(`Non-finite output at step ${i}`);
