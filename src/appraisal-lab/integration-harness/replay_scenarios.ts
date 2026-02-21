@@ -82,12 +82,12 @@ function scenarioB(): HarnessScenario {
   };
 }
 
-function scenarioC(): HarnessScenario {
+export function buildStressScenario(stepCount: number = 5000): HarnessScenario {
   const prng = createPrng(0x51c0ffee);
   const events: HarnessEvent[] = [];
   let t = 1_710_200_000;
 
-  for (let i = 0; i < 5000; i += 1) {
+  for (let i = 0; i < stepCount; i += 1) {
     const longGap = i > 0 && i % 500 === 0;
     const delta = longGap ? 3600 + Math.floor(prng.nextFloat01() * 600) : Math.floor(prng.nextFloat01() * 121);
     t += delta;
@@ -118,5 +118,5 @@ function scenarioC(): HarnessScenario {
 }
 
 export function getReplayScenarios(): HarnessScenario[] {
-  return [scenarioA(), scenarioB(), scenarioC()];
+  return [scenarioA(), scenarioB(), buildStressScenario()];
 }
