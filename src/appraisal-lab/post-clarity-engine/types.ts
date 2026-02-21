@@ -16,6 +16,9 @@ export interface PostClarityInputs {
 
   repetitionScore?: number; // 0..1
   gain?: number; // >=0
+  validationSeekingScore?: number; // 0..1 (proxy: reassurance seeking / "tell me I'm ok")
+  topicShiftScore?: number; // 0..1 (proxy: substitution / jumping targets)
+  positiveReframeScore?: number; // 0..1 (proxy: narrative reframe attempt)
 }
 
 export interface PostClarityState {
@@ -28,8 +31,10 @@ export interface PostClarityState {
 
   n: number; // message counter
   spiralScore: number; // 0..1
+  substituteScore: number; // 0..1
   recentRepetition: number[]; // ring buffer
   recentUrgency: number[]; // ring buffer
+  recentSeeking: number[]; // ring buffer
 }
 
 export interface PostClarityOutputs {
@@ -37,5 +42,5 @@ export interface PostClarityOutputs {
   agencyDeficit: number;
   isRelapse: boolean;
   reasons: string[];
-  recoveryPath: "SPIRAL" | "UNKNOWN";
+  recoveryPath: "SPIRAL" | "SUBSTITUTE" | "UNKNOWN";
 }

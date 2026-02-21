@@ -6,11 +6,15 @@ import {
   PRESSURE_CRIT,
   REPEAT_HIGH,
   RING_BUFFER_N,
+  RING_BUFFER_N_SUB,
   RELAPSE_EXTENSION_SECONDS,
   SPIRAL_THRESHOLD,
   SLOPE_CRIT,
+  SUBSTITUTE_MUTEX_MARGIN,
+  SUBSTITUTE_THRESHOLD,
   TAU_AGENCY_SECONDS,
   TAU_SPIRAL_SECONDS,
+  TAU_SUBSTITUTE_SECONDS,
   URGENCY_GAIN_HIGH,
 } from "./constants";
 import type {
@@ -45,8 +49,10 @@ export function createPostClarityState(): PostClarityState {
     relapseCount: 0,
     n: 0,
     spiralScore: 0,
+    substituteScore: 0,
     recentRepetition: [],
     recentUrgency: [],
+    recentSeeking: [],
   };
 }
 
@@ -170,12 +176,56 @@ export function updatePostClarityState(
     clamp01(finiteOrZero(state.spiralScore)) * decaySpiral + spiralImpulse
   );
 
-  const recoveryPath: "SPIRAL" | "UNKNOWN" =
-    spiralScore >= SPIRAL_THRESHOLD && postModeUntilSeconds > 0
-      ? "SPIRAL"
-      : "UNKNOWN";
+  // PASS 3 - substitute evidence logic
+  const seek = clamp01(finiteOrZero(input.validationSeekingScore ?? 0));
+  const shift = clamp01(finiteOrZero(input.topicShiftScore ?? 0));
+  const reframe = clamp01(finiteOrZero(input.positiveReframeScore ?? 0));
+
+  const previousSeeking = Array.isArray(state.recentSeeking) ? state.recentSeeking : [];
+  const recentSeeking = [...previousSeeking, seek];
+  if (recentSeeking.length > RING_BUFFER_N_SUB) {
+    recentSeeking.shift();
+  }
+
+  const seekImpulse = seek;
+  const shiftImpulse = shift;
+  const reframeImpulse = reframe;
+
+  const subImpulseRaw =
+    0.45 * seekImpulse + 0.35 * shiftImpulse + 0.2 * reframeImpulse;
+  const subImpulse = clamp01(subImpulseRaw);
+
+  const decaySub = Math.exp(-deltaMessageSeconds / TAU_SUBSTITUTE_SECONDS);
+  const substituteScore = clamp01(
+    clamp01(finiteOrZero(state.substituteScore)) * decaySub + subImpulse
+  );
+
+  // PASS 3 - arbitration with conservative tie handling
+  const spiralActive =
+    postModeUntilSeconds > 0 && spiralScore >= SPIRAL_THRESHOLD;
+  const subActive =
+    postModeUntilSeconds > 0 && substituteScore >= SUBSTITUTE_THRESHOLD;
+
+  let recoveryPath: "SPIRAL" | "SUBSTITUTE" | "UNKNOWN" = "UNKNOWN";
+  if (spiralActive && !subActive) {
+    recoveryPath = "SPIRAL";
+  } else if (subActive && !spiralActive) {
+    recoveryPath = "SUBSTITUTE";
+  } else if (spiralActive && subActive) {
+    if (spiralScore >= substituteScore + SUBSTITUTE_MUTEX_MARGIN) {
+      recoveryPath = "SPIRAL";
+    } else if (substituteScore >= spiralScore + SUBSTITUTE_MUTEX_MARGIN) {
+      recoveryPath = "SUBSTITUTE";
+    } else {
+      recoveryPath = "UNKNOWN";
+      reasons.push("RECOVERY_AMBIGUOUS");
+    }
+  }
+
   if (recoveryPath === "SPIRAL") {
     reasons.push("SPIRAL_ACTIVE");
+  } else if (recoveryPath === "SUBSTITUTE") {
+    reasons.push("SUBSTITUTE_ACTIVE");
   }
 
   const nextState: PostClarityState = {
@@ -185,8 +235,10 @@ export function updatePostClarityState(
     relapseCount,
     n: nextN,
     spiralScore,
+    substituteScore,
     recentRepetition,
     recentUrgency,
+    recentSeeking,
   };
 
   return {

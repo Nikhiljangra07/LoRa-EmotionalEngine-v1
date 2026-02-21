@@ -106,3 +106,44 @@ Combined impulse:
 
 - Spiral buffers (`recentRepetition`, `recentUrgency`) are fixed-size deterministic ring buffers (`N=8`).
 - Stress replay verifies identical final state, checksum, and recovery-path trace for the same seeded sequence.
+
+## Pass 3 - Substitute + Arbitration
+
+Pass 3 adds substitute-path evidence and conservative mutual-exclusion arbitration.
+
+### Substitute Equations
+
+Sanitized substitute inputs:
+- `seek = clamp01(validationSeekingScore ?? 0)`
+- `shift = clamp01(topicShiftScore ?? 0)`
+- `reframe = clamp01(positiveReframeScore ?? 0)`
+
+Impulse and decay:
+- `subImpulseRaw = 0.45*seek + 0.35*shift + 0.20*reframe`
+- `subImpulse = clamp01(subImpulseRaw)`
+- `decaySub = exp(-deltaMessageSeconds / 1800)`
+- `substituteScore_next = clamp01(substituteScore_prev * decaySub + subImpulse)`
+
+### Eligibility Rule (Post-Mode Gated)
+
+Candidates are only eligible while post mode is active:
+- `spiralActive = (postModeUntilSeconds > 0) AND (spiralScore >= 0.65)`
+- `subActive = (postModeUntilSeconds > 0) AND (substituteScore >= 0.60)`
+
+### Arbitration Logic (Mutex Margin + Tie Handling)
+
+Using `SUBSTITUTE_MUTEX_MARGIN = 0.12`:
+- If only spiral candidate is active -> `recoveryPath = "SPIRAL"`
+- If only substitute candidate is active -> `recoveryPath = "SUBSTITUTE"`
+- If both are active:
+  - Spiral wins when `spiralScore >= substituteScore + 0.12`
+  - Substitute wins when `substituteScore >= spiralScore + 0.12`
+  - Otherwise tie/ambiguity -> `recoveryPath = "UNKNOWN"` and reason `RECOVERY_AMBIGUOUS`
+- If neither is active -> `recoveryPath = "UNKNOWN"`
+
+### Guarantees
+
+- Isolated module changes only within `src/appraisal-lab/post-clarity-engine`
+- Deterministic replay preserved with seeded stress test (including recovery-path trace)
+- Bounded scores maintained: `spiralScore` and `substituteScore` in `[0, 1]`
+- Finite guards continue to prevent NaN/Infinity propagation

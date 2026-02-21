@@ -17,3 +17,13 @@ export const SPIRAL_GAP_MIN = 0.15; // future-proof
 export const REPEAT_HIGH = 0.6;
 export const URGENCY_GAIN_HIGH = 1.15;
 export const RING_BUFFER_N = 8;
+
+export const TAU_SUBSTITUTE_SECONDS = 1800; // 30 minutes (slower than spiral)
+export const SUBSTITUTE_THRESHOLD = 0.6;
+
+export const SEEK_HIGH = 0.6;
+export const SHIFT_HIGH = 0.55;
+export const REFRAME_HIGH = 0.55;
+
+export const SUBSTITUTE_MUTEX_MARGIN = 0.12; // arbitration margin
+export const RING_BUFFER_N_SUB = 8;

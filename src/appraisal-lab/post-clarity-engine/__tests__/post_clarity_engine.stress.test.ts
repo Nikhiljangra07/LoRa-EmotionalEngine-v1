@@ -29,6 +29,12 @@ function runDeterministicSimulation(seedStart: number): {
     const r6 = seed / 2147483647;
     seed = lcgNext(seed);
     const r7 = seed / 2147483647;
+    seed = lcgNext(seed);
+    const r8 = seed / 2147483647;
+    seed = lcgNext(seed);
+    const r9 = seed / 2147483647;
+    seed = lcgNext(seed);
+    const r10 = seed / 2147483647;
 
     const result = updatePostClarityState(state, {
       collapseEvent: i % 97 === 0,
@@ -41,6 +47,9 @@ function runDeterministicSimulation(seedStart: number): {
       deltaMessageSeconds: i % 10 === 0 ? 0 : (i % 13) + 0.25,
       repetitionScore: r6 * 1.4 - 0.2,
       gain: r7 * 2.5,
+      validationSeekingScore: r8 * 1.5 - 0.25,
+      topicShiftScore: r9 * 1.4 - 0.2,
+      positiveReframeScore: r10 * 1.6 - 0.3,
     });
     state = result.state;
 
@@ -49,17 +58,29 @@ function runDeterministicSimulation(seedStart: number): {
     expect(result.state.postModeUntilSeconds).toBeGreaterThanOrEqual(0);
     expect(result.state.spiralScore).toBeGreaterThanOrEqual(0);
     expect(result.state.spiralScore).toBeLessThanOrEqual(1);
-    expect(Number.isNaN(result.state.agencyDeficit)).toBe(false);
-    expect(Number.isNaN(result.state.postModeUntilSeconds)).toBe(false);
-    expect(Number.isNaN(result.state.cooldownSeconds)).toBe(false);
-    expect(Number.isNaN(result.state.spiralScore)).toBe(false);
-    expect(Number.isNaN(result.outputs.agencyDeficit)).toBe(false);
-    expect(["SPIRAL", "UNKNOWN"]).toContain(result.outputs.recoveryPath);
+    expect(result.state.substituteScore).toBeGreaterThanOrEqual(0);
+    expect(result.state.substituteScore).toBeLessThanOrEqual(1);
+    expect(Number.isFinite(result.state.agencyDeficit)).toBe(true);
+    expect(Number.isFinite(result.state.postModeUntilSeconds)).toBe(true);
+    expect(Number.isFinite(result.state.cooldownSeconds)).toBe(true);
+    expect(Number.isFinite(result.state.spiralScore)).toBe(true);
+    expect(Number.isFinite(result.state.substituteScore)).toBe(true);
+    expect(Number.isFinite(result.outputs.agencyDeficit)).toBe(true);
+    expect(["SPIRAL", "SUBSTITUTE", "UNKNOWN"]).toContain(
+      result.outputs.recoveryPath
+    );
 
     checksum += result.outputs.agencyDeficit * (i + 1);
     checksum += result.state.postModeUntilSeconds * 0.001;
     checksum += result.state.spiralScore * 0.01;
-    pathTrace += result.outputs.recoveryPath === "SPIRAL" ? "S" : "U";
+    checksum += result.state.substituteScore * 0.01;
+    if (result.outputs.recoveryPath === "SPIRAL") {
+      pathTrace += "S";
+    } else if (result.outputs.recoveryPath === "SUBSTITUTE") {
+      pathTrace += "T";
+    } else {
+      pathTrace += "U";
+    }
   }
 
   return { finalState: state, checksum, pathTrace };
