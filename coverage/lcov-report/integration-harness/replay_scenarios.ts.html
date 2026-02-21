@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">98.03% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>50/51</span>
+                <span class='fraction'>52/52</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">90.9% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/11</span>
+                <span class='fraction'>12/12</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">97.82% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>45/46</span>
+                <span class='fraction'>47/47</span>
             </div>
         
             
@@ -198,7 +198,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">15213x</span>
+<span class="cline-any cline-yes">65214x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -269,33 +269,33 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">65001x</span>
+<span class="cline-any cline-yes">65001x</span>
+<span class="cline-any cline-yes">65001x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-yes">15000x</span>
+<span class="cline-any cline-yes">65001x</span>
+<span class="cline-any cline-yes">65001x</span>
+<span class="cline-any cline-yes">65001x</span>
+<span class="cline-any cline-yes">65001x</span>
+<span class="cline-any cline-yes">65001x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">15000x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">65001x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
@@ -391,12 +391,12 @@ function scenarioB(): HarnessScenario {
   };
 }
 &nbsp;
-function scenarioC(): HarnessScenario {
+export function buildStressScenario(stepCount: number = 5000): HarnessScenario {
   const prng = createPrng(0x51c0ffee);
   const events: HarnessEvent[] = [];
   let t = 1_710_200_000;
 &nbsp;
-  for (let i = 0; i &lt; 5000; i += 1) {
+  for (let i = 0; i &lt; stepCount; i += 1) {
     const longGap = i &gt; 0 &amp;&amp; i % 500 === 0;
     const delta = longGap ? 3600 + Math.floor(prng.nextFloat01() * 600) : Math.floor(prng.nextFloat01() * 121);
     t += delta;
@@ -416,8 +416,8 @@ function scenarioC(): HarnessScenario {
     );
   }
 &nbsp;
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (events.length &gt; MAX_STEPS_STRESS) {
-<span class="cstat-no" title="statement not covered" >    throw new Error("Scenario C exceeded MAX_STEPS_STRESS.");</span>
+  if (events.length &gt; MAX_STEPS_STRESS) {
+    throw new Error("Scenario C exceeded MAX_STEPS_STRESS.");
   }
 &nbsp;
   return {
@@ -427,7 +427,7 @@ function scenarioC(): HarnessScenario {
 }
 &nbsp;
 export function getReplayScenarios(): HarnessScenario[] {
-  return [scenarioA(), scenarioB(), scenarioC()];
+  return [scenarioA(), scenarioB(), buildStressScenario()];
 }
 &nbsp;</pre></td></tr></table></pre>
 
@@ -436,7 +436,7 @@ export function getReplayScenarios(): HarnessScenario[] {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-21T00:59:18.565Z
+                at 2026-02-21T01:04:25.794Z
             </div>
         <script src="../prettify.js"></script>
         <script>
