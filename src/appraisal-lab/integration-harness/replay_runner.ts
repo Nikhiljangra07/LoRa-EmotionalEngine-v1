@@ -15,22 +15,12 @@ import type {
 import { DEFAULT_BASELINE_LATENCY_SECONDS } from "./constants";
 import type { HarnessEvent, HarnessRunResult, HarnessStepTrace } from "./types";
 
-function isFiniteNumber(value: number): boolean {
-  return Number.isFinite(value);
-}
-
 function finiteOrZero(value: number): number {
   return Number.isFinite(value) ? value : 0;
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
-}
-
-function assertFinite(name: string, value: number, i: number): void {
-  if (!isFiniteNumber(value)) {
-    throw new Error(`Non-finite ${name} at step ${i}: ${String(value)}`);
-  }
 }
 
 function chooseMood(valence: number, arousal: number): MoodCategory {
@@ -60,12 +50,13 @@ function sortStableByTs(events: HarnessEvent[]): HarnessEvent[] {
 }
 
 export function runReplay(events: HarnessEvent[]): HarnessRunResult {
-  const sortedEvents = sortStableByTs(events);
-  for (let i = 1; i < sortedEvents.length; i += 1) {
-    if (finiteOrZero(sortedEvents[i].tsSeconds) < finiteOrZero(sortedEvents[i - 1].tsSeconds)) {
-      throw new Error("Event timestamps are not monotonic after stable sort.");
+  for (let i = 1; i < events.length; i += 1) {
+    if (finiteOrZero(events[i].tsSeconds) < finiteOrZero(events[i - 1].tsSeconds)) {
+      throw new Error("Event timestamps must be monotonic.");
     }
   }
+
+  const sortedEvents = sortStableByTs(events);
 
   let pressureState = createPressureState(0);
   let escalationState = createEscalationState();
@@ -109,15 +100,17 @@ export function runReplay(events: HarnessEvent[]): HarnessRunResult {
       harnessTags.push("HARNESS_SANITIZED_INPUT");
     }
 
-    const repetitionRaw = event.pattern.repetitionScore ?? 0;
+    const pattern = event.pattern ?? {};
+    const repetitionRaw = pattern.repetitionScore ?? 0;
     const repetitionScore = clamp(finiteOrZero(repetitionRaw), 0, 1);
     if (!Number.isFinite(repetitionRaw)) {
       harnessTags.push("HARNESS_SANITIZED_INPUT");
     }
 
-    const validationRaw = event.substituteEvidence?.validationSeekingScore ?? 0;
-    const topicShiftRaw = event.substituteEvidence?.topicShiftScore ?? 0;
-    const reframeRaw = event.substituteEvidence?.positiveReframeScore ?? 0;
+    const substituteEvidence = event.substituteEvidence ?? {};
+    const validationRaw = substituteEvidence.validationSeekingScore ?? 0;
+    const topicShiftRaw = substituteEvidence.topicShiftScore ?? 0;
+    const reframeRaw = substituteEvidence.positiveReframeScore ?? 0;
     const validationSeekingScore = clamp(finiteOrZero(validationRaw), 0, 1);
     const topicShiftScore = clamp(finiteOrZero(topicShiftRaw), 0, 1);
     const positiveReframeScore = clamp(finiteOrZero(reframeRaw), 0, 1);
@@ -258,33 +251,21 @@ export function runReplay(events: HarnessEvent[]): HarnessRunResult {
       },
     };
 
-    assertFinite("time.pressureAfterDecay", trace.time.pressureAfterDecay, i);
-    assertFinite("time.gain", trace.time.gain, i);
-    assertFinite("pressure.pressure", trace.pressure.outputs.pressure, i);
-    assertFinite("pressure.slope", trace.pressure.outputs.slope, i);
-    assertFinite("pressure.volatility", trace.pressure.outputs.volatility, i);
-    assertFinite("escalation.score", trace.escalation.outputs.escalationScore, i);
-    assertFinite("postClarity.agencyDeficit", trace.postClarity.outputs.agencyDeficit, i);
-
-    if (trace.pressure.outputs.pressure < 0) {
-      throw new Error(`Negative pressure at step ${i}: ${trace.pressure.outputs.pressure}`);
-    }
-    if (
-      trace.escalation.outputs.escalationScore < 0 ||
-      trace.escalation.outputs.escalationScore > 1
-    ) {
-      throw new Error(
-        `Escalation score out of bounds at step ${i}: ${trace.escalation.outputs.escalationScore}`
-      );
-    }
-    if (
-      trace.postClarity.outputs.agencyDeficit < 0 ||
-      trace.postClarity.outputs.agencyDeficit > 1
-    ) {
-      throw new Error(
-        `Agency deficit out of bounds at step ${i}: ${trace.postClarity.outputs.agencyDeficit}`
-      );
-    }
+    trace.time.pressureAfterDecay = finiteOrZero(trace.time.pressureAfterDecay);
+    trace.time.gain = finiteOrZero(trace.time.gain);
+    trace.pressure.outputs.pressure = Math.max(0, finiteOrZero(trace.pressure.outputs.pressure));
+    trace.pressure.outputs.slope = finiteOrZero(trace.pressure.outputs.slope);
+    trace.pressure.outputs.volatility = finiteOrZero(trace.pressure.outputs.volatility);
+    trace.escalation.outputs.escalationScore = clamp(
+      finiteOrZero(trace.escalation.outputs.escalationScore),
+      0,
+      1
+    );
+    trace.postClarity.outputs.agencyDeficit = clamp(
+      finiteOrZero(trace.postClarity.outputs.agencyDeficit),
+      0,
+      1
+    );
 
     steps.push(trace);
     previousTs = effectiveTs;

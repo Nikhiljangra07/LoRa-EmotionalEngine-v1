@@ -1,6 +1,6 @@
-import { HARNESS_EPS } from "../constants";
+import { HARNESS_EPS, MAX_STEPS_STRESS } from "../constants";
 import { runReplay } from "../replay_runner";
-import { getReplayScenarios } from "../replay_scenarios";
+import { buildStressScenario, getReplayScenarios } from "../replay_scenarios";
 
 function getScenario(name: string) {
   const scenario = getReplayScenarios().find((s) => s.name === name);
@@ -170,5 +170,139 @@ describe("integration harness strict replay", () => {
     expect(result.steps.length).toBe(2);
     expect(result.steps[0].harnessTags).toContain("HARNESS_SANITIZED_INPUT");
     assertFiniteInvariants(result);
+  });
+
+  test("throws on non-monotonic timestamps", () => {
+    expect(() =>
+      runReplay([
+        {
+          tsSeconds: 10,
+          activation: 0.1,
+          valence: 0,
+          arousal: 0,
+          expressionStrength: 0,
+          pattern: {},
+        },
+        {
+          tsSeconds: 5,
+          activation: 0.1,
+          valence: 0,
+          arousal: 0,
+          expressionStrength: 0,
+          pattern: {},
+        },
+      ])
+    ).toThrow(/monotonic/i);
+  });
+
+  test("sanitizes NaN and Infinity inputs at harness boundary", () => {
+    const result = runReplay([
+      {
+        tsSeconds: 0,
+        activation: Number.NaN,
+        valence: Number.POSITIVE_INFINITY,
+        arousal: Number.NEGATIVE_INFINITY,
+        expressionStrength: Number.NaN,
+        pattern: { repetitionScore: Number.NaN },
+      },
+      {
+        tsSeconds: 1,
+        activation: 0.1,
+        valence: 0,
+        arousal: 0.2,
+        expressionStrength: 0.3,
+        pattern: {},
+      },
+    ]);
+
+    expect(result.steps.length).toBe(2);
+    expect(result.steps[0].harnessTags).toContain("HARNESS_SANITIZED_INPUT");
+    assertFiniteInvariants(result);
+  });
+
+  test("handles large deltaMessageSeconds session gap", () => {
+    const result = runReplay([
+      {
+        tsSeconds: 0,
+        activation: 0.2,
+        valence: 0,
+        arousal: 0.3,
+        expressionStrength: 0.2,
+        pattern: {},
+      },
+      {
+        tsSeconds: 5000,
+        activation: 0.1,
+        valence: 0,
+        arousal: 0.1,
+        expressionStrength: 0.1,
+        pattern: {},
+      },
+    ]);
+
+    expect(result.summary.collapseCount).toBe(0);
+    expect(result.steps[1].time.pressureAfterDecay).toBeLessThanOrEqual(
+      result.steps[0].pressure.outputs.pressure
+    );
+    assertFiniteInvariants(result);
+  });
+
+  test("handles missing pattern object gracefully", () => {
+    const result = runReplay([
+      {
+        tsSeconds: 0,
+        activation: 0.15,
+        valence: 0,
+        arousal: 0.2,
+        expressionStrength: 0.2,
+      } as unknown as Parameters<typeof runReplay>[0][number],
+      {
+        tsSeconds: 10,
+        activation: 0.1,
+        valence: 0,
+        arousal: 0.1,
+        expressionStrength: 0.1,
+        pattern: {},
+      },
+    ]);
+
+    expect(result.steps[0].postClarity.inputs.repetitionScore).toBe(0);
+    assertFiniteInvariants(result);
+  });
+
+  test("handles missing substituteEvidence object", () => {
+    const result = runReplay([
+      {
+        tsSeconds: 0,
+        activation: 0.9,
+        valence: -0.2,
+        arousal: 0.6,
+        expressionStrength: 0.8,
+        pattern: { repetitionScore: 0.1 },
+      },
+      {
+        tsSeconds: 45,
+        activation: -0.2,
+        valence: -0.1,
+        arousal: 0.2,
+        expressionStrength: 0.2,
+        pattern: { repetitionScore: 0.05 },
+      },
+    ]);
+
+    expect(result.steps.every((s) => s.postClarity.inputs.validationSeekingScore === 0)).toBe(
+      true
+    );
+    expect(result.steps.every((s) => s.postClarity.inputs.topicShiftScore === 0)).toBe(true);
+    expect(
+      result.steps.every((s) => s.postClarity.inputs.positiveReframeScore === 0)
+    ).toBe(true);
+    assertFiniteInvariants(result);
+  });
+
+  test("throws when stress scenario exceeds MAX_STEPS_STRESS", () => {
+    expect(() => buildStressScenario(MAX_STEPS_STRESS + 1)).toThrow(
+      /exceeded MAX_STEPS_STRESS/i
+    );
   });
 });
