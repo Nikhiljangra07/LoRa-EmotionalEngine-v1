@@ -45,7 +45,6 @@ const llmTimeoutMs = Math.max(
   parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 12000
 );
 
-// 🔹 BETA-ONLY TRACE
 import { writeSessionTrace } from '../../debug/sessionTrace';
 
 export class EngineOrchestrator {
@@ -54,7 +53,8 @@ export class EngineOrchestrator {
   private sessionHasViolation = false;
   private messageCount = 0;
 
-  // 🔹 LLM boundary (single responsibility)
+  private readonly interpreter: EmotionalStateInterpreter;
+
   private responder?: LLMResponder;
   private llmAvailability: LLMAvailability = 'AVAILABLE';
   private llmCooldownUntil: number | null = null;
@@ -62,7 +62,6 @@ export class EngineOrchestrator {
   private readonly llmConfig: LLMConfig;
   private readonly responderFactory: () => LLMResponder;
 
-  // 🔒 LLM execution ownership lock
   private activeExecution?: symbol;
   private lastDecision?: {
     eiv: ReturnType<typeof EIVScorer.calculate>;
@@ -87,6 +86,7 @@ export class EngineOrchestrator {
       ...llmConfig,
     };
     this.responderFactory = responderFactory;
+    this.interpreter = new EmotionalStateInterpreter();
   }
 
   // ---------------------------------------------------
@@ -94,7 +94,7 @@ export class EngineOrchestrator {
   // ---------------------------------------------------
   async processMessage(
     analyzerOutputs: AnalyzerOutputs,
-    emotionalState: EmotionalState,
+    emotionalStateOverride?: EmotionalState,
     hasViolation: boolean = false,
     flags: {
       ambiguityDetected?: boolean;
@@ -102,7 +102,6 @@ export class EngineOrchestrator {
     userFeedback?: 'positive' | 'neutral' | 'negative',
     signalPacket?: SignalPacket
   ) {
-    // 🔒 Single-owner execution lock
     const executionToken = Symbol('LLM_EXECUTION');
     if (this.activeExecution) {
       return this.lastDecision!;
@@ -112,14 +111,23 @@ export class EngineOrchestrator {
     try {
     this.messageCount += 1;
 
-    // 1. Assemble EIV components (SAFE)
+    // 1. Assemble EIV components
     const components =
       EIVComponentAssembler.assemble(analyzerOutputs);
 
-    // 2. Calculate EIV (NaN-proof)
+    // 2. Calculate EIV — ONCE per message (single source of truth)
     const eivResult = EIVScorer.calculate(components);
 
-    // 3. Track session
+    // 3. Derive emotional state (or use override for test backward compat)
+    const interpreted = this.interpreter.interpret(analyzerOutputs, eivResult.value);
+    const emotionalState: EmotionalState = emotionalStateOverride ?? {
+      dominant: 'NEUTRAL',
+      arousal: interpreted.arousal,
+      valence: interpreted.valence,
+      confidence: analyzerOutputs.valence.confidence,
+    };
+
+    // 4. Track session
     this.sessionEIVs.push(eivResult.value);
     this.sessionHasViolation ||= hasViolation;
 
@@ -137,7 +145,6 @@ export class EngineOrchestrator {
         | undefined
     )?.analyzerSummary;
 
-    // 6. Analyzer presence summary (v1-safe)
     const summaryForLog = analyzerSummary ?? {
       emojiUsed: undefined,
       capsUsed: undefined,
@@ -145,7 +152,7 @@ export class EngineOrchestrator {
       repetitionDetected: undefined,
     };
 
-    // 4. Message-level decision context (pre-LLM)
+    // 5. Message-level decision context (pre-LLM)
     let guidanceMode: PromptProfile['guidanceMode'] =
       emotionalState.arousal === 'LOW'
         ? 'CALM_NEUTRAL'
@@ -153,9 +160,8 @@ export class EngineOrchestrator {
         ? 'VALIDATING'
         : 'ENERGY_MATCH';
 
-    const momentum = EmotionalStateInterpreter.momentum;
+    const momentum = this.interpreter.momentum;
 
-    // Bias guidance mode (do NOT override)
     if (
       momentum.confidence >
       MOMENTUM_CONSTANTS.guidanceBias.confidenceMinExclusive
@@ -199,17 +205,19 @@ export class EngineOrchestrator {
       signalPacket?.metadata as { microContext?: string } | undefined
     )?.microContext;
 
-    console.log('[LoRa::Audit][Engine]', {
-      userText: userMessage,
-      emotionalState,
-      eiv: {
-        value: eivResult.value,
-        tier: getEIVTier(eivResult.value),
-      },
-      promptProfile: { guidanceMode },
-    });
+    if (debugEnabled) {
+      console.log('[LoRa::Audit][Engine]', {
+        userText: userMessage,
+        emotionalState,
+        eiv: {
+          value: eivResult.value,
+          tier: getEIVTier(eivResult.value),
+        },
+        promptProfile: { guidanceMode },
+      });
+    }
 
-    // 5. Build prompt (PURE)
+    // 6. Build prompt (PURE)
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -221,7 +229,9 @@ export class EngineOrchestrator {
       ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
       : prompt;
 
-    console.log('[LoRa::Audit][Prompt]', llmInput);
+    if (debugEnabled) {
+      console.log('[LoRa::Audit][Prompt]', llmInput);
+    }
 
     const decision = {
       eiv: {
@@ -321,15 +331,16 @@ export class EngineOrchestrator {
       console.log('[LoRa::SignalPacket]', JSON.stringify(signalPacket));
     }
 
-    // 8. Session trace (DEBUG / BETA ONLY)
-    writeSessionTrace(`session-${this.etvState.lastUpdated}`, {
-      timestamp: Date.now(),
-      etv: this.etvState.value,
-      eiv: eivResult.value,
-      emotionalState,
-      prompt,
-      llmOutput,
-    });
+    if (debugEnabled) {
+      writeSessionTrace(`session-${this.etvState.lastUpdated}`, {
+        timestamp: Date.now(),
+        etv: this.etvState.value,
+        eiv: eivResult.value,
+        emotionalState,
+        prompt,
+        llmOutput,
+      });
+    }
 
     const result = {
       eiv: eivResult,
@@ -443,14 +454,6 @@ export class EngineOrchestrator {
         this.logLLMEvent('cooldown_exit');
       } else {
         if (!debugEnabled) {
-          this.logLLMEvent('cooldown_active', {
-            cooldownUntil: this.llmCooldownUntil,
-          });
-          this.logLLMEvent('fallback_used', { reason: 'cooldown' });
-          console.log('[LoRa::Audit][LLM]', {
-            path: 'fallback_static',
-            reason: 'cooldown',
-          });
           return EngineOrchestrator.fallbackResponse();
         }
         const normalizedUserText = fallbackContext.userText.toLowerCase();
@@ -479,13 +482,7 @@ export class EngineOrchestrator {
             cooldownUntil: this.llmCooldownUntil,
           });
           this.logLLMEvent('fallback_used', { reason: 'cooldown' });
-          console.log('[LoRa::Audit][LLM]', {
-            path: debugEnabled ? 'fallback_generated' : 'fallback_static',
-            reason: 'cooldown',
-          });
-          return debugEnabled
-            ? EngineOrchestrator.generateFallbackReply(fallbackContext)
-            : EngineOrchestrator.fallbackResponse();
+          return EngineOrchestrator.generateFallbackReply(fallbackContext);
         }
       }
     }
@@ -516,13 +513,15 @@ export class EngineOrchestrator {
       }, llmTimeoutMs);
 
       try {
-        console.log('[LoRa::Audit][LLM]', {
-          path: 'real_llm_attempt',
-          attempt,
-          maxAttempts,
-          requestId,
-          timeoutMs: llmTimeoutMs,
-        });
+        if (debugEnabled) {
+          console.log('[LoRa::Audit][LLM]', {
+            path: 'real_llm_attempt',
+            attempt,
+            maxAttempts,
+            requestId,
+            timeoutMs: llmTimeoutMs,
+          });
+        }
         const response = await this.getResponder().generateResponse(prompt, {
           signal: controller.signal,
           requestId,
@@ -589,10 +588,6 @@ export class EngineOrchestrator {
       });
     }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
-    console.log('[LoRa::Audit][LLM]', {
-      path: 'fallback_static',
-      reason: 'retry_exhausted',
-    });
     return EngineOrchestrator.fallbackResponse();
   }
 

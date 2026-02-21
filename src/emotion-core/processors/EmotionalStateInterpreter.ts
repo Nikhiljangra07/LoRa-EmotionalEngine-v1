@@ -25,16 +25,15 @@ type MomentumSignal = {
 };
 
 export class EmotionalStateInterpreter {
-  // Runtime-only momentum (resets on process exit)
-  static momentum: MomentumState = INITIAL_MOMENTUM_STATE;
-  private static momentumHistory: MomentumSignal[] = [];
+  momentum: MomentumState = { ...INITIAL_MOMENTUM_STATE };
+  private momentumHistory: MomentumSignal[] = [];
 
-  static interpret(
+  interpret(
     analyzerOutputs: AnalyzerOutputs,
     eiv: number
   ): EmotionalState {
-    const arousal = this.classifyArousal(eiv);
-    const valence = this.classifyValence(analyzerOutputs);
+    const arousal = EmotionalStateInterpreter.classifyArousal(eiv);
+    const valence = EmotionalStateInterpreter.classifyValence(analyzerOutputs);
 
     const detectedSignal: MomentumSignal = {
       valence: analyzerOutputs.valence.score,
@@ -45,25 +44,24 @@ export class EmotionalStateInterpreter {
       ),
     };
 
-    EmotionalStateInterpreter.momentumHistory.push(detectedSignal);
+    this.momentumHistory.push(detectedSignal);
     if (
-      EmotionalStateInterpreter.momentumHistory.length >
+      this.momentumHistory.length >
       MASTER_CONSTANTS.momentum.history.maxEntries
     ) {
-      EmotionalStateInterpreter.momentumHistory.shift();
+      this.momentumHistory.shift();
     }
 
-    // Update momentum using detected emotional signals
-    EmotionalStateInterpreter.momentum = updateMomentum(
-      EmotionalStateInterpreter.momentum,
+    this.momentum = updateMomentum(
+      this.momentum,
       detectedSignal,
-      EmotionalStateInterpreter.momentumHistory
+      this.momentumHistory
     );
 
     if (debugEnabled) {
       console.log(
         '[LoRa::Momentum]',
-        EmotionalStateInterpreter.momentum
+        this.momentum
       );
     }
 
@@ -101,7 +99,6 @@ export class EmotionalStateInterpreter {
   private static classifyValence(
     analyzerOutputs: AnalyzerOutputs
   ): Valence {
-    // Crash-early invariant: Layer-1 must provide ValenceAnalyzer output.
     if (!analyzerOutputs.valence) {
       throw new Error(
         "ValenceAnalyzer output missing — invalid Layer-1 packet"
