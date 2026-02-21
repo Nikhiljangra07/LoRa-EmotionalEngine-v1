@@ -5,12 +5,12 @@ export function getCrossModuleScenarios(): ScenarioSpec[] {
   return [
     {
       name: "SUITE_A_FAMILY_OSCILLATION",
-      steps: 600,
+      steps: 800,
       traceSampleEvery: 1,
     },
     {
       name: "SUITE_B_ESC_SUB_CONFLICT",
-      steps: 180,
+      steps: 600,
       traceSampleEvery: 1,
     },
     {
@@ -22,6 +22,11 @@ export function getCrossModuleScenarios(): ScenarioSpec[] {
       name: "SUITE_D_TRUE_CRITICAL",
       steps: 40,
       traceSampleEvery: 1,
+    },
+    {
+      name: "SUITE_E_PURE_CALM_BASELINE",
+      steps: 50000,
+      traceSampleEvery: TRACE_SAMPLE_EVERY_DEFAULT,
     },
     {
       name: "SUITE_SANITIZE_MICRO",

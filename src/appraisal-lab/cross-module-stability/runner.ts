@@ -117,104 +117,59 @@ function buildSignals(
   suiteCState?: SuiteCLongRunState
 ): SyntheticStepSignals {
   if (scenario.name === "SUITE_A_FAMILY_OSCILLATION") {
-    const valenceSeq = [0.6, -0.6, -0.4, -0.7, 0.1, -0.8];
-    const arousalSeq = [0.3, 0.8, 0.7, 0.4, 0.6, 0.5];
-    const expressionSeq = [0.55, 0.9, 0.85, 0.65, 0.7, 0.75];
-    const burst = i % 2 === 0;
+    const shortCadence = i % 17 === 0;
     return {
-      deltaMessageSeconds: burst ? 10 + (i % 3) * 10 : 90,
-      valence: valenceSeq[i % valenceSeq.length],
-      arousal: arousalSeq[i % arousalSeq.length],
-      expressionStrength: expressionSeq[i % expressionSeq.length],
-      capsRatio: burst ? 0.55 : 0.15,
-      punctuationHits: burst ? 4 : 1,
-      emojiHits: i % 5 === 0 ? 1 : 0,
-      repetitionScore: burst ? 0.7 : 0.2,
-      questionMarks: i % 4 === 0 ? 3 : 1,
-      validationSeekingScore: 0.2,
-      topicShiftScore: 0.2,
-      positiveReframeScore: 0.2,
+      deltaMessageSeconds: shortCadence
+        ? 30 + Math.floor(prng.nextFloat01() * 31)
+        : 60 + Math.floor(prng.nextFloat01() * 61),
+      valence: -0.4 + prng.nextFloat01() * 0.8,
+      arousal: 0.2 + prng.nextFloat01() * 0.4,
+      expressionStrength: 0.15 + prng.nextFloat01() * 0.35,
+      capsRatio: 0.03 + prng.nextFloat01() * 0.15,
+      punctuationHits: Math.floor(prng.nextFloat01() * 3),
+      emojiHits: Math.floor(prng.nextFloat01() * 2),
+      repetitionScore: 0.05 + prng.nextFloat01() * 0.15,
+      questionMarks: Math.floor(prng.nextFloat01() * 2),
+      validationSeekingScore: 0.08 + prng.nextFloat01() * 0.12,
+      topicShiftScore: 0.08 + prng.nextFloat01() * 0.12,
+      positiveReframeScore: 0.08 + prng.nextFloat01() * 0.15,
     };
   }
 
   if (scenario.name === "SUITE_B_ESC_SUB_CONFLICT") {
-    if (i < 18) {
+    const inBurst =
+      (i >= 120 && i < 122) ||
+      (i >= 300 && i < 302) ||
+      (i >= 480 && i < 482);
+    if (inBurst) {
       return {
-        deltaMessageSeconds: 90,
-        valence: -0.1,
-        arousal: 0.3,
-        expressionStrength: 0.35,
-        capsRatio: 0.05,
-        punctuationHits: 1,
+        deltaMessageSeconds: 24 + Math.floor(prng.nextFloat01() * 12),
+        valence: -0.6 + prng.nextFloat01() * 0.2,
+        arousal: 0.6 + prng.nextFloat01() * 0.2,
+        expressionStrength: 0.62 + prng.nextFloat01() * 0.2,
+        capsRatio: 0.2 + prng.nextFloat01() * 0.15,
+        punctuationHits: 2 + Math.floor(prng.nextFloat01() * 2),
         emojiHits: 0,
-        repetitionScore: 0.1,
-        questionMarks: 1,
-        validationSeekingScore: 0,
-        topicShiftScore: 0,
-        positiveReframeScore: 0,
-      };
-    }
-    if (i < 32) {
-      return {
-        deltaMessageSeconds: 20,
-        valence: -0.35,
-        arousal: 0.78,
-        expressionStrength: 0.82,
-        capsRatio: 0.55,
-        punctuationHits: 4,
-        emojiHits: 0,
-        repetitionScore: 0.35,
-        questionMarks: 2,
-        validationSeekingScore: 0.1,
-        topicShiftScore: 0.1,
-        positiveReframeScore: 0.1,
-      };
-    }
-    if (i < 70) {
-      return {
-        deltaMessageSeconds: 55,
-        valence: -0.2,
-        arousal: 0.35,
-        expressionStrength: 0.3,
-        capsRatio: 0.08,
-        punctuationHits: 1,
-        emojiHits: 0,
-        repetitionScore: 0.05,
-        questionMarks: 1,
-        validationSeekingScore: 0.95,
-        topicShiftScore: 0.9,
-        positiveReframeScore: 0.45,
-      };
-    }
-    if (i < 78) {
-      return {
-        deltaMessageSeconds: 18,
-        valence: -0.42,
-        arousal: 0.84,
-        expressionStrength: 0.88,
-        capsRatio: 0.62,
-        punctuationHits: 5,
-        emojiHits: 0,
-        repetitionScore: 0.22,
-        questionMarks: 2,
-        validationSeekingScore: 0.4,
-        topicShiftScore: 0.3,
-        positiveReframeScore: 0.2,
+        repetitionScore: 0.2 + prng.nextFloat01() * 0.2,
+        questionMarks: 1 + Math.floor(prng.nextFloat01() * 2),
+        validationSeekingScore: 0.15 + prng.nextFloat01() * 0.15,
+        topicShiftScore: 0.15 + prng.nextFloat01() * 0.15,
+        positiveReframeScore: 0.1 + prng.nextFloat01() * 0.12,
       };
     }
     return {
-      deltaMessageSeconds: 120,
-      valence: -0.05,
-      arousal: 0.2,
-      expressionStrength: 0.2,
-      capsRatio: 0.05,
-      punctuationHits: 1,
-      emojiHits: 0,
-      repetitionScore: 0.05,
-      questionMarks: 1,
-      validationSeekingScore: 0.2,
-      topicShiftScore: 0.2,
-      positiveReframeScore: 0.2,
+      deltaMessageSeconds: 45 + Math.floor(prng.nextFloat01() * 46),
+      valence: -0.3 + prng.nextFloat01() * 0.45,
+      arousal: 0.3 + prng.nextFloat01() * 0.28,
+      expressionStrength: 0.28 + prng.nextFloat01() * 0.27,
+      capsRatio: 0.06 + prng.nextFloat01() * 0.14,
+      punctuationHits: 1 + Math.floor(prng.nextFloat01() * 2),
+      emojiHits: Math.floor(prng.nextFloat01() * 2),
+      repetitionScore: 0.08 + prng.nextFloat01() * 0.16,
+      questionMarks: Math.floor(prng.nextFloat01() * 2),
+      validationSeekingScore: 0.1 + prng.nextFloat01() * 0.15,
+      topicShiftScore: 0.1 + prng.nextFloat01() * 0.15,
+      positiveReframeScore: 0.08 + prng.nextFloat01() * 0.12,
     };
   }
 
@@ -361,6 +316,23 @@ function buildSignals(
       validationSeekingScore: 0.2,
       topicShiftScore: 0.2,
       positiveReframeScore: 0.2,
+    };
+  }
+
+  if (scenario.name === "SUITE_E_PURE_CALM_BASELINE") {
+    return {
+      deltaMessageSeconds: 60 + Math.floor(prng.nextFloat01() * 61),
+      valence: -0.2 + prng.nextFloat01() * 0.4,
+      arousal: 0.2 + prng.nextFloat01() * 0.2,
+      expressionStrength: 0.1 + prng.nextFloat01() * 0.2,
+      capsRatio: 0.01 + prng.nextFloat01() * 0.07,
+      punctuationHits: Math.floor(prng.nextFloat01() * 2),
+      emojiHits: Math.floor(prng.nextFloat01() * 2),
+      repetitionScore: 0.02 + prng.nextFloat01() * 0.1,
+      questionMarks: Math.floor(prng.nextFloat01() * 2),
+      validationSeekingScore: 0.03 + prng.nextFloat01() * 0.07,
+      topicShiftScore: 0.03 + prng.nextFloat01() * 0.07,
+      positiveReframeScore: 0.03 + prng.nextFloat01() * 0.1,
     };
   }
 
@@ -668,20 +640,10 @@ export function runScenario(seed: number, scenario: ScenarioSpec): ScenarioResul
     let escalationSlope = 0;
     let escalationVolatility = 0;
     let escalationShock = false;
-    if (scenario.name === "SUITE_A_FAMILY_OSCILLATION") {
-      if (i === 120 || i === 360) {
+    if (scenario.name === "SUITE_B_ESC_SUB_CONFLICT") {
+      if (i === 300) {
         escalationSlope = 0.008;
-        escalationVolatility = 0.015;
-        escalationShock = true;
-      }
-    } else if (scenario.name === "SUITE_B_ESC_SUB_CONFLICT") {
-      if (i === 24) {
-        escalationSlope = 0.01;
-        escalationVolatility = 0.02;
-        escalationShock = true;
-      } else if (i === 72) {
-        escalationSlope = 0.008;
-        escalationVolatility = 0.015;
+        escalationVolatility = 0.014;
         escalationShock = true;
       }
     } else if (scenario.name === "SUITE_C_LONG_SESSION_STABILITY") {
