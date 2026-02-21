@@ -20,14 +20,15 @@ Per step, modules are called in this strict order:
 
 ## Scenarios
 
-- **Suite A**: family oscillation trajectory stability over 600 steps
-- **Suite B**: escalation vs substitute conflict priority integrity
+- **Suite A**: mild stress oscillation over 800 steps (no collapse budget)
+- **Suite B**: moderate stress profile over 600 steps with capped micro-bursts
 - **Suite C**: 100k-step long-session stability with deterministic seeded signals
 - **Suite D (TrueCritical)**: explicit hard-saturation path (critical + collapse + post-mode + substitute)
+- **Suite E (PureCalm)**: long pure-calm baseline over 50k steps
 - **Hardening v0.1 micro-scenarios**: sanitization, pressure-driven collapse, long-gap, inward-collapse direction
 
-Suite A/C now include bounded deterministic burst packets that trigger occasional escalation
-without runaway critical drift, so they exercise non-trivial cross-module dynamics.
+Suites are separated by intent: calm baseline, mild fluctuation, moderate stress, long-run
+resilience, and explicit true-critical emergency.
 
 ## Suite C Long-Run Stability Model
 
@@ -46,6 +47,19 @@ Burst protections:
 Stability budgets in tests enforce that Suite C remains a long-run background profile
 while still proving occasional pipeline reactivity. True saturation behavior is isolated
 to Suite D.
+
+## Stability Regime Model
+
+The harness now validates five explicit stability regimes:
+
+- **Suite E** -> baseline human calm
+- **Suite A** -> mild fluctuation
+- **Suite B** -> moderate stress
+- **Suite C** -> long-run resilience
+- **Suite D** -> true critical emergency
+
+This separation ensures the same architecture is exercised from low-noise baseline up to
+hard saturation without changing any engine internals.
 
 ## Invariants Checked
 

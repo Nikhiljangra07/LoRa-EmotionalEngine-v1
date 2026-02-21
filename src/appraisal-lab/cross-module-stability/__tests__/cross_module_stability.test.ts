@@ -22,13 +22,14 @@ describe("cross-module stability harness", () => {
       })
     );
 
-    expect(result.steps).toBe(600);
+    expect(result.steps).toBe(800);
     expect(result.summary.maxFamilyPressure).toBeLessThanOrEqual(1e6);
     expect(result.summary.maxVectorPressure).toBeLessThanOrEqual(1e6);
     expect(result.summary.maxScalarPressure).toBeLessThanOrEqual(1e6);
-    expect(result.summary.maxEscalationLevel).toBeGreaterThanOrEqual(1);
-    expect(result.summary.collapseCount / result.steps).toBeLessThanOrEqual(0.1);
-    expect(result.summary.fractionCritical).toBeLessThanOrEqual(0.05);
+    expect(result.summary.collapseCount).toBe(0);
+    expect(result.summary.criticalSaturationCount).toBe(0);
+    expect(result.summary.maxEscalationLevel).toBeLessThanOrEqual(2);
+    expect(result.summary.postModeFraction).toBeLessThanOrEqual(0.02);
     expect(result.summary.moodCategoryChanges).toBeLessThanOrEqual(
       0.35 * result.steps
     );
@@ -47,14 +48,10 @@ describe("cross-module stability harness", () => {
       })
     );
 
-    expect(result.summary.everSubstitute).toBe(true);
-    expect(result.summary.maxEscalationLevel).toBeGreaterThanOrEqual(2);
-    expect(result.summary.collapseCount).toBeLessThanOrEqual(2);
-
-    const sawHighEscWithFirmPolicy = result.traceSample.some(
-      (s) => s.escalationLevel >= 2 && s.interruptionLevel >= 2
-    );
-    expect(sawHighEscWithFirmPolicy).toBe(true);
+    expect(result.summary.collapseCount).toBeLessThanOrEqual(1);
+    expect(result.summary.maxEscalationLevel).toBeLessThanOrEqual(3);
+    expect(result.summary.criticalSaturationCount).toBeLessThanOrEqual(1);
+    expect(result.summary.postModeFraction).toBeLessThanOrEqual(0.08);
 
     for (const s of result.traceSample) {
       const validPath =
@@ -118,6 +115,26 @@ describe("cross-module stability harness", () => {
       s.policyMovesTags.includes("INTERRUPT_LOOP")
     );
     expect(sawInterruptLoop).toBe(true);
+  });
+
+  test("SUITE E - Pure Calm Baseline", () => {
+    const scenario = byName("SUITE_E_PURE_CALM_BASELINE");
+    const result = runScenario(0xeee555, scenario);
+
+    console.log(
+      JSON.stringify({
+        suite: "E",
+        hash: result.summaryHash,
+        summary: result.summary,
+      })
+    );
+
+    expect(result.summary.collapseCount).toBe(0);
+    expect(result.summary.criticalSaturationCount).toBe(0);
+    expect(result.summary.maxEscalationLevel).toBeLessThanOrEqual(1);
+    expect(result.summary.postModeFraction).toBe(0);
+    expect(result.summary.everSubstitute).toBe(false);
+    expect(result.summary.everSpiral).toBe(false);
   });
 
   test("determinism replay check", () => {
