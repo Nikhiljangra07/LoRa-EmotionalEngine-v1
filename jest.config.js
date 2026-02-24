@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'],
   clearMocks: true,
+  setupFiles: ['./jest.setup.js'],
 
   moduleNameMapper: {
     '^@emotion/(.*)$': '<rootDir>/src/emotion-core/$1',
