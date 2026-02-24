@@ -41,6 +41,18 @@ export interface MessageDecisionLog {
   // 🔹 NEW — optional, beta-only behavioral signals
   llmOutput?: string;
   userFeedback?: 'positive' | 'neutral' | 'negative';
+
+  appraisal?: {
+    escalationLevel: number;
+    escalationScore: number;
+    pressureScalar: number;
+    pressureSlope: number;
+    moodCategory: string;
+    collapseEvent: boolean;
+    postClarityActive: boolean;
+    interventionToneMode: string;
+    interventionPacingMode: string;
+  };
 }
 
 export interface SessionLog {
