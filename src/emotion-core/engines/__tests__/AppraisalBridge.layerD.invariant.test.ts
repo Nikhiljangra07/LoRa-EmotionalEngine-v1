@@ -3,6 +3,7 @@
  * PromptTemplateBuilder.build() must never receive appraisal-derived keys,
  * and prompt output must be identical whether the bridge is ON or OFF.
  */
+export {};
 
 const originalFlag = process.env.LORA_APPRAISAL_BRIDGE;
 
