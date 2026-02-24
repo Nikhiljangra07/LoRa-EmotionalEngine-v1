@@ -8,18 +8,20 @@
 /**
  * DEV-ONLY INSTRUMENTATION
  * -----------------------
- * This logger is gated by process.env.LORA_DEBUG.
+ * This logger is gated by debugEnabled (LORA_DEBUG=1).
  * It must never affect production behavior or logic flow.
  *
  * Required by Phase-3 Opus verification.
  */
+
+import { debugEnabled } from '../debug/debugGate';
 
 export class InvariantLogger {
   static logInvariant(
     name: string,
     payload: Record<string, unknown>
   ): void {
-    if (!process.env.LORA_DEBUG) {
+    if (!debugEnabled) {
       return;
     }
 

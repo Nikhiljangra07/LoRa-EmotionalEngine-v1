@@ -4,10 +4,10 @@ import cors from 'cors';
 import { InputProcessor } from '../emotion-core/processors/InputProcessor';
 import { SessionManager } from './session/SessionManager';
 import { getLLMHealth } from './llmTelemetry';
+import { debugEnabled } from '../emotion-core/debug/debugGate';
 
 const app = express();
 const port = 3000;
-const debugEnabled = process.env.LORA_DEBUG === '1';
 
 app.use(
   cors({

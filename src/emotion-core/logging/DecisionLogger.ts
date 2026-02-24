@@ -1,4 +1,5 @@
 import type { EIVTier } from '../scorers/eivTiers';
+import { decisionLogEnabled } from '../debug/debugGate';
 
 export interface MessageDecisionLog {
   messageId: string;
@@ -63,6 +64,7 @@ export class DecisionLogger {
     // V2: SQLite
     // V3: analytics pipeline
 
+    if (!decisionLogEnabled) return;
     console.log('[LoRa::MessageDecision]', JSON.stringify(payload));
   }
 
@@ -72,6 +74,7 @@ export class DecisionLogger {
    * Logs ONCE per session end.
    */
   static logSessionEnd(payload: SessionLog): void {
+    if (!decisionLogEnabled) return;
     console.log('[LoRa::SessionEnd]', JSON.stringify(payload));
   }
 }
