@@ -457,6 +457,7 @@ export class EngineOrchestrator {
     this.sessionHasViolation = false;
     this.messageCount = 0;
     this.lastMessageTimestampMs = 0;
+    this.interpreter.reset();
     this.appraisalBridge?.reset();
 
     return { newETV };

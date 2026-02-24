@@ -235,7 +235,7 @@ export class AppraisalBridgeRunner {
     this.escalationState = escalationOut.state;
 
     // ── 7. Collapse ─────────────────────────────────────────────────
-    const burstFlag = delta < BURST_THRESHOLD_SECONDS && eiv > 0.55;
+    const burstFlag = delta > 0 && delta < BURST_THRESHOLD_SECONDS && eiv > 0.55;
     const silenceFlag = delta > SILENCE_THRESHOLD_SECONDS;
 
     const collapseOut = updateCollapseState(this.collapseState, {

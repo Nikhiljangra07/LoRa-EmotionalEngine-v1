@@ -1,3 +1,5 @@
+export {};
+
 const originalFlag = process.env.LORA_APPRAISAL_BRIDGE;
 
 describe('AppraisalBridge wiring — flag OFF', () => {

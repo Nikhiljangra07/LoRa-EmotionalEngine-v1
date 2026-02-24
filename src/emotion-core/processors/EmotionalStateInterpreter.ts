@@ -28,6 +28,11 @@ export class EmotionalStateInterpreter {
   momentum: MomentumState = { ...INITIAL_MOMENTUM_STATE };
   private momentumHistory: MomentumSignal[] = [];
 
+  reset(): void {
+    this.momentum = { ...INITIAL_MOMENTUM_STATE };
+    this.momentumHistory = [];
+  }
+
   interpret(
     analyzerOutputs: AnalyzerOutputs,
     eiv: number
