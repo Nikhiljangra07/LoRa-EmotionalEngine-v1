@@ -17,6 +17,10 @@ import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpret
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
+import { featureFlags } from '../config/featureFlags';
+import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
+import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
+import type { AppraisalResult } from '../../appraisal-bridge/types';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -62,6 +66,9 @@ export class EngineOrchestrator {
   private readonly llmConfig: LLMConfig;
   private readonly responderFactory: () => LLMResponder;
 
+  private readonly appraisalBridge?: AppraisalBridgeRunner;
+  private lastMessageTimestampMs = 0;
+
   private activeExecution?: symbol;
   private lastDecision?: {
     eiv: ReturnType<typeof EIVScorer.calculate>;
@@ -87,6 +94,9 @@ export class EngineOrchestrator {
     };
     this.responderFactory = responderFactory;
     this.interpreter = new EmotionalStateInterpreter();
+    if (featureFlags.appraisalBridgeEnabled) {
+      this.appraisalBridge = new AppraisalBridgeRunner();
+    }
   }
 
   // ---------------------------------------------------
@@ -109,6 +119,7 @@ export class EngineOrchestrator {
     this.activeExecution = executionToken;
 
     try {
+    const messageTimestampMs = Date.now();
     this.messageCount += 1;
 
     // 1. Assemble EIV components
@@ -134,6 +145,33 @@ export class EngineOrchestrator {
       this.sessionEIVs.shift();
     }
     this.sessionHasViolation ||= hasViolation;
+
+    // ── Appraisal bridge (optional, feature-flagged) ────────────────
+    let appraisalResult: AppraisalResult | undefined;
+    if (this.appraisalBridge) {
+      const deltaMs =
+        this.lastMessageTimestampMs > 0
+          ? messageTimestampMs - this.lastMessageTimestampMs
+          : 0;
+      this.lastMessageTimestampMs = messageTimestampMs;
+
+      const snapshot = mapLayerASnapshot({
+        messageIndex: this.messageCount,
+        timestampMs: messageTimestampMs,
+        deltaMessageSeconds: deltaMs / 1000,
+        analyzerScalars: {
+          valenceScore: analyzerOutputs.valence.score,
+          valenceConfidence: analyzerOutputs.valence.confidence,
+          arousalScore: analyzerOutputs.arousal.score,
+          arousalConfidence: analyzerOutputs.arousal.confidence,
+          expressionStrength: analyzerOutputs.expressionStrength.score,
+          esConfidence: analyzerOutputs.expressionStrength.confidence,
+        },
+        eiv: { value: eivResult.value, tier: eivResult.breakdown.tier },
+        emotionalState,
+      });
+      appraisalResult = this.appraisalBridge.step(snapshot);
+    }
 
     const analyzerSummary = (
       signalPacket?.metadata as
@@ -291,7 +329,7 @@ export class EngineOrchestrator {
 
     const decisionPayload: MessageDecisionLog = {
       messageId: `msg-${this.messageCount}`,
-      timestamp: Date.now(),
+      timestamp: messageTimestampMs,
 
       analyzerSummary: summaryForLog as {
         emojiUsed: boolean;
@@ -322,6 +360,22 @@ export class EngineOrchestrator {
 
       llmOutput,
       userFeedback,
+
+      ...(appraisalResult
+        ? {
+            appraisal: {
+              escalationLevel: appraisalResult.escalation.level,
+              escalationScore: appraisalResult.escalation.score,
+              pressureScalar: appraisalResult.pressure.scalar,
+              pressureSlope: appraisalResult.pressure.slope,
+              moodCategory: appraisalResult.mood.category,
+              collapseEvent: appraisalResult.collapse.event,
+              postClarityActive: appraisalResult.postClarity.active,
+              interventionToneMode: appraisalResult.intervention.toneMode,
+              interventionPacingMode: appraisalResult.intervention.pacingMode,
+            },
+          }
+        : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
@@ -402,6 +456,8 @@ export class EngineOrchestrator {
     this.sessionEIVs = [];
     this.sessionHasViolation = false;
     this.messageCount = 0;
+    this.lastMessageTimestampMs = 0;
+    this.appraisalBridge?.reset();
 
     return { newETV };
   }
