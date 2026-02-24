@@ -1,6 +1,23 @@
-import { DecisionLogger } from "../DecisionLogger";
+const original = process.env.LORA_DECISION_LOG;
+
+let DecisionLogger: typeof import("../DecisionLogger").DecisionLogger;
 
 describe("DecisionLogger summary integrity", () => {
+  beforeEach(() => {
+    process.env.LORA_DECISION_LOG = "1";
+    jest.resetModules();
+    DecisionLogger = require("../DecisionLogger").DecisionLogger;
+  });
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env.LORA_DECISION_LOG;
+    } else {
+      process.env.LORA_DECISION_LOG = original;
+    }
+    jest.restoreAllMocks();
+  });
+
   test("logged JSON preserves analyzerSummary booleans", () => {
     const logSpy = jest
       .spyOn(console, "log")
@@ -33,7 +50,5 @@ describe("DecisionLogger summary integrity", () => {
       punctuationUsed: true,
       repetitionDetected: true,
     });
-
-    logSpy.mockRestore();
   });
 });
