@@ -790,6 +790,7 @@ const LAYER1_CONSTANTS = {
 // ENGINE DEFAULTS (audit: centralized initialization)
 const ENGINE_DEFAULTS = {
   initialETV: 0.5, // default session starting point
+  maxSessionEIVEntries: 2000, // ring-buffer cap for sessionEIVs
 } as const;
 
 // STATE CLASSIFICATION (audit: branching thresholds)

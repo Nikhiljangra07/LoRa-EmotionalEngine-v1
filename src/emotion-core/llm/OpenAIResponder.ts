@@ -1,7 +1,6 @@
 import OpenAI from 'openai';
 import { recordLLMSuccess } from '../../server/llmTelemetry';
-
-const _debug = process.env.LORA_DEBUG === '1';
+import { debugEnabled } from '../debug/debugGate';
 
 export interface LLMResponseMeta {
   model: string;
@@ -18,7 +17,7 @@ export class OpenAIResponder {
     this.model = process.env.OPENAI_MODEL || 'gpt-4o';
     this.baseURL = process.env.OPENAI_BASE_URL || undefined;
 
-    if (_debug) {
+    if (debugEnabled) {
       console.log('[LoRa::Debug][OpenAIResponder] config', {
         provider: 'openai',
         model: this.model,
@@ -81,7 +80,7 @@ export class OpenAIResponder {
     // Passive telemetry — record real LLM success (not fallback)
     recordLLMSuccess();
 
-    if (_debug) {
+    if (debugEnabled) {
       console.log('[LoRa::Debug][OpenAIResponder] success', {
         requestId,
         model: this.model,

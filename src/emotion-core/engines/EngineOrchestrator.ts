@@ -127,8 +127,12 @@ export class EngineOrchestrator {
       confidence: analyzerOutputs.valence.confidence,
     };
 
-    // 4. Track session
+    // 4. Track session (bounded ring buffer)
     this.sessionEIVs.push(eivResult.value);
+    const maxEntries = MASTER_CONSTANTS.engineDefaults.maxSessionEIVEntries;
+    while (this.sessionEIVs.length > maxEntries) {
+      this.sessionEIVs.shift();
+    }
     this.sessionHasViolation ||= hasViolation;
 
     const analyzerSummary = (
@@ -327,7 +331,7 @@ export class EngineOrchestrator {
         : decisionPayload) as MessageDecisionLog
     );
 
-    if (process.env.LORA_DEBUG === 'true' && signalPacket) {
+    if (debugEnabled && signalPacket) {
       console.log('[LoRa::SignalPacket]', JSON.stringify(signalPacket));
     }
 

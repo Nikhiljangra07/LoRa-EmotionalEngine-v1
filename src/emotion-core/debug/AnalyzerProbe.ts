@@ -19,8 +19,10 @@ type AnalyzerProbePayload = {
   };
 };
 
+import { debugEnabled } from './debugGate';
+
 export const logAnalyzerProbe = (payload: AnalyzerProbePayload): void => {
-  if (!process.env.LORA_DEBUG) return;
+  if (!debugEnabled) return;
 
   console.groupCollapsed("[LoRa::AnalyzerProbe]");
   console.debug("analyzers", payload.analyzers);
