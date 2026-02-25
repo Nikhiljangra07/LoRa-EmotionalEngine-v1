@@ -68,6 +68,8 @@ export interface MessageDecisionLog {
   questionBudgetHint?: QuestionBudgetHint;
   driftDetected?: true;
   overrideCooldownActive?: true;
+  guidanceDwellActive?: true;
+  guidanceDwellMode?: 'STABILIZE' | 'DE_ESCALATE';
 }
 
 export interface SessionLog {

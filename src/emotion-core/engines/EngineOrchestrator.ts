@@ -86,6 +86,10 @@ export class EngineOrchestrator {
   private lastStickyHints: StickyHints = {};
   private hintHoldsRemaining: Partial<Record<StickyHintKey, number>> = {};
 
+  // ── Guidance dwell lock (gated by guidanceDwellLockEnabled) ──
+  private guidanceDwellRemaining: number = 0;
+  private guidanceDwellMode: 'STABILIZE' | 'DE_ESCALATE' | null = null;
+
   // ── Drift monitor (observability-only, gated by driftMonitorEnabled) ──
   private readonly driftWindowSize = 10;
   private recentGuidanceModes: string[] = [];
@@ -272,6 +276,11 @@ export class EngineOrchestrator {
         this.overrideCooldownRemaining = 2;
       }
     }
+
+    // ── Guidance dwell lock (feature-flagged) ──
+    const collapseEventForDwell = !!(appraisalResult && appraisalResult.collapse.event);
+    const dwellResult = this.applyGuidanceDwell(guidanceMode, collapseEventForDwell);
+    guidanceMode = dwellResult.mode;
 
     // ── Phase 2: derived pacing hint (feature-flagged, SLOW only) ──
     // pacingHint stays undefined when the hint would be NORMAL,
@@ -752,6 +761,7 @@ export class EngineOrchestrator {
       ...(questionBudgetHint ? { questionBudgetHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
+      ...(dwellResult.dwellActive ? { guidanceDwellActive: true as const, guidanceDwellMode: dwellResult.dwellMode } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
@@ -842,8 +852,61 @@ export class EngineOrchestrator {
     this.overrideCooldownRemaining = 0;
     this.lastStickyHints = {};
     this.hintHoldsRemaining = {};
+    this.guidanceDwellRemaining = 0;
+    this.guidanceDwellMode = null;
 
     return { newETV };
+  }
+
+  // ---------------------------------------------------
+  // Guidance dwell lock
+  // ---------------------------------------------------
+  private applyGuidanceDwell(
+    proposedMode: PromptProfile['guidanceMode'],
+    collapseEvent: boolean,
+  ): {
+    mode: PromptProfile['guidanceMode'];
+    dwellActive: boolean;
+    dwellMode?: 'STABILIZE' | 'DE_ESCALATE';
+  } {
+    if (
+      !featureFlags.guidanceDwellLockEnabled ||
+      this.messageCount < this.minimumMessagesForAdaptiveControl
+    ) {
+      return { mode: proposedMode, dwellActive: false };
+    }
+
+    // Active dwell — enforce locked mode
+    if (this.guidanceDwellRemaining > 0 && this.guidanceDwellMode !== null) {
+      // Emergency escalation: collapse overrides DE_ESCALATE → STABILIZE
+      if (this.guidanceDwellMode === 'DE_ESCALATE' && collapseEvent) {
+        this.guidanceDwellMode = 'STABILIZE';
+        this.guidanceDwellRemaining = 2; // current + next 2
+        return { mode: 'STABILIZE', dwellActive: true, dwellMode: 'STABILIZE' };
+      }
+      this.guidanceDwellRemaining--;
+      if (proposedMode === this.guidanceDwellMode) {
+        return { mode: proposedMode, dwellActive: false };
+      }
+      return { mode: this.guidanceDwellMode, dwellActive: true, dwellMode: this.guidanceDwellMode };
+    }
+
+    // No active dwell — check if proposed mode should start one
+    if (proposedMode === 'STABILIZE') {
+      this.guidanceDwellMode = 'STABILIZE';
+      this.guidanceDwellRemaining = 2;
+      return { mode: proposedMode, dwellActive: false };
+    }
+    if (proposedMode === 'DE_ESCALATE') {
+      this.guidanceDwellMode = 'DE_ESCALATE';
+      this.guidanceDwellRemaining = 1;
+      return { mode: proposedMode, dwellActive: false };
+    }
+
+    // Non-lockable mode — clear any expired dwell state
+    this.guidanceDwellMode = null;
+    this.guidanceDwellRemaining = 0;
+    return { mode: proposedMode, dwellActive: false };
   }
 
   // ---------------------------------------------------
