@@ -143,6 +143,8 @@ export interface CapturedStep {
   prompt: string;
   payload: Record<string, any>;
   builderArgs?: Record<string, unknown>;
+  activeHints: string[];
+  markerCount: number;
 }
 
 // ── Module loader ────────────────────────────────────────────────────
@@ -212,7 +214,8 @@ export async function runSequence(
 
     const builderArgs = buildSpy ? (buildSpy.mock.calls[i]?.[2] as Record<string, unknown> | undefined) : undefined;
 
-    captured.push({ index: i, prompt: result.prompt, payload, builderArgs });
+    const activeHints = extractMarkers(result.prompt);
+    captured.push({ index: i, prompt: result.prompt, payload, builderArgs, activeHints, markerCount: activeHints.length });
   }
 
   logSpy.mockRestore();
