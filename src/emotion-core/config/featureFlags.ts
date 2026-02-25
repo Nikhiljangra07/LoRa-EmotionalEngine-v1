@@ -18,4 +18,5 @@ export const featureFlags = Object.freeze({
   hintStickinessEnabled: process.env.LORA_HINT_STICKINESS === '1',
   guidanceDwellLockEnabled: process.env.LORA_GUIDANCE_DWELL_LOCK === '1',
   hintSemanticGuardEnabled: process.env.LORA_HINT_SEMANTIC_GUARD === '1',
+  etvV1Enabled: process.env.LORA_ETV_V1 === '1',
 });

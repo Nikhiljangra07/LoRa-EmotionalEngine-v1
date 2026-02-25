@@ -82,6 +82,23 @@ export interface SessionLog {
   endedAt: number;
 }
 
+export interface ETVUpdateLogPayload {
+  userId: string;
+  sessionId: string;
+  deltaHours: number;
+  decay: number;
+  z_t: number;
+  evidenceMass: number;
+  r_before: number;
+  s_before: number;
+  r_after: number;
+  s_after: number;
+  etvMean: number;
+  etvVar: number;
+  band: string;
+  timestamp: number;
+}
+
 export class DecisionLogger {
   /**
    * Message-level decision logging
@@ -105,5 +122,10 @@ export class DecisionLogger {
   static logSessionEnd(payload: SessionLog): void {
     if (!decisionLogEnabled) return;
     console.log('[LoRa::SessionEnd]', JSON.stringify(payload));
+  }
+
+  static logETVUpdate(payload: ETVUpdateLogPayload): void {
+    if (!decisionLogEnabled) return;
+    console.log('[LoRa::ETVUpdate]', JSON.stringify(payload));
   }
 }
