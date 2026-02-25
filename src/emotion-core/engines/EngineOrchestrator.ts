@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -77,6 +77,8 @@ export class EngineOrchestrator {
   };
 
   private readonly minimumMessagesForAdaptiveControl = 3;
+
+  private overrideCooldownRemaining = 0;
 
   // ── Drift monitor (observability-only, gated by driftMonitorEnabled) ──
   private readonly driftWindowSize = 10;
@@ -232,10 +234,22 @@ export class EngineOrchestrator {
 
     // ── Appraisal-driven guidance override (Phase 1, feature-flagged) ──
     let appraisalOverride: string | undefined;
+    let overrideCooldownActiveThisMessage = false;
+
+    const cooldownEnabled =
+      featureFlags.adaptiveOverrideCooldownEnabled &&
+      featureFlags.appraisalBridgeModeEnabled;
+
+    if (cooldownEnabled && this.overrideCooldownRemaining > 0) {
+      this.overrideCooldownRemaining--;
+      overrideCooldownActiveThisMessage = true;
+    }
+
     if (
       featureFlags.appraisalBridgeModeEnabled &&
       appraisalResult &&
-      this.messageCount >= this.minimumMessagesForAdaptiveControl
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      !overrideCooldownActiveThisMessage
     ) {
       if (appraisalResult.collapse.event) {
         guidanceMode = 'STABILIZE';
@@ -246,6 +260,10 @@ export class EngineOrchestrator {
       } else if (appraisalResult.postClarity.active) {
         guidanceMode = 'SUPPORTIVE_REFLECTION';
         appraisalOverride = 'POST_CLARITY_OVERRIDE';
+      }
+
+      if (appraisalOverride && cooldownEnabled) {
+        this.overrideCooldownRemaining = 2;
       }
     }
 
@@ -305,6 +323,20 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── validationIntensity: pure prompt overlay from existing signals ──
+    let validationIntensity: ValidationIntensity | undefined;
+    if (
+      featureFlags.validationIntensityEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl
+    ) {
+      if (eivResult.value >= 0.70 || emotionalState.arousal === 'HIGH') {
+        validationIntensity = 'HIGH';
+      } else if (eivResult.value >= 0.40) {
+        validationIntensity = 'MEDIUM';
+      }
+      // LOW is suppressed — validationIntensity stays undefined
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -350,6 +382,7 @@ export class EngineOrchestrator {
       answerFirst: allowAnswerFirst,
       microContext,
       ...(pacingHint ? { pacingHint } : {}),
+      ...(validationIntensity ? { validationIntensity } : {}),
     });
 
     const llmInput = userMessage
@@ -464,7 +497,9 @@ export class EngineOrchestrator {
 
       ...(appraisalOverride ? { appraisalOverride } : {}),
       ...(pacingHint ? { pacingHint } : {}),
+      ...(validationIntensity ? { validationIntensity } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
+      ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
@@ -552,6 +587,7 @@ export class EngineOrchestrator {
     this.recentPacingHints = [];
     this.recentEscalationLevels = [];
     this.driftWarningActive = false;
+    this.overrideCooldownRemaining = 0;
 
     return { newETV };
   }
