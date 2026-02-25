@@ -80,6 +80,7 @@ export class PromptTemplateBuilder {
         clarificationBias: mapping.constraints.clarificationBias,
         maxResponseTokens: mapping.constraints.maxResponseTokens,
         promptSignature: computePromptSignature(mapping),
+        tsMs: Date.now(),
       });
 
       if (serveOn) {
