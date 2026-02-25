@@ -242,9 +242,11 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
     switch (hint) {
       case 'SLOW':
         return `
+[PACING_HINT:SLOW]
 - Pacing: slow down. Use shorter sentences. Pause between ideas. Avoid rapid questioning.`;
       case 'FAST':
         return `
+[PACING_HINT:FAST]
 - Pacing: keep it brisk. Use concise, direct responses.`;
       default:
         return '';

@@ -184,7 +184,7 @@ describe('AppraisalBridge pacingHint invariant', () => {
     expect(hintResult.prompt).toBe(baselineResult.prompt);
   });
 
-  test('decision payload has pacingHint=NORMAL when flag on and neutral', async () => {
+  test('decision payload omits pacingHint when flag on and neutral', async () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     const neutralResult = makeMockResult();
     const { EngineOrchestrator, InputProcessor } =
@@ -197,7 +197,7 @@ describe('AppraisalBridge pacingHint invariant', () => {
     );
     expect(call).toBeDefined();
     const payload = JSON.parse(call![1]);
-    expect(payload.pacingHint).toBe('NORMAL');
+    expect(payload.pacingHint).toBeUndefined();
   });
 
   // C) Flag on and SLOW → overlay present, no appraisal keys in builder
