@@ -21,6 +21,7 @@ import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
 import { resolveHints, type ResolvableHints } from './hintResolver';
 import { applyHintStickiness, type StickyHints, type StickyHintKey } from './hintStickiness';
+import { enforceHintSemanticCoherence } from './hintSemanticGuard';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
 
@@ -612,6 +613,11 @@ export class EngineOrchestrator {
       // 5d. Second resolve pass — re-enforce cap after stickiness may have reintroduced hints
       if (featureFlags.hintResolverEnabled) {
         currentHints = resolveHints(currentHints);
+      }
+
+      // 5e. Semantic coherence guard — enforce cross-hint consistency
+      if (featureFlags.hintSemanticGuardEnabled) {
+        currentHints = enforceHintSemanticCoherence(currentHints);
       }
 
       pacingHint = currentHints.pacingHint as typeof pacingHint;
