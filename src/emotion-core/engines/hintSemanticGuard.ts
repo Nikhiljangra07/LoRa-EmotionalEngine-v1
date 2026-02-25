@@ -28,6 +28,9 @@ export function enforceHintSemanticCoherence(
     if (out.toneHint === 'FIRM') {
       out.toneHint = undefined;
     }
+    if (out.interruptHint === 'HARD_STOP') {
+      out.interruptHint = 'FIRM';
+    }
     if (out.questionBudgetHint !== undefined) {
       out.questionBudgetHint = 'ZERO';
     }
