@@ -9,6 +9,7 @@ const FLAG_KEYS = [
   'LORA_VALIDATION_INTENSITY',
   'LORA_ADAPTIVE_OVERRIDE_COOLDOWN',
   'LORA_APPRAISAL_TONE_HINT',
+  'LORA_INTERVENTION_VALIDATION_HINT',
 ] as const;
 const origEnv: Record<string, string | undefined> = {};
 for (const k of FLAG_KEYS) origEnv[k] = process.env[k];
@@ -41,6 +42,7 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.validationIntensityEnabled).toBe(false);
     expect(flags.adaptiveOverrideCooldownEnabled).toBe(false);
     expect(flags.appraisalToneHintEnabled).toBe(false);
+    expect(flags.interventionValidationHintEnabled).toBe(false);
   });
 
   // B) Validation only
@@ -83,12 +85,23 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.adaptiveOverrideCooldownEnabled).toBe(false);
   });
 
+  // F) Intervention validation hint only
+  test('LORA_INTERVENTION_VALIDATION_HINT=1 → interventionValidationHintEnabled true', () => {
+    clearAllFlags();
+    process.env.LORA_INTERVENTION_VALIDATION_HINT = '1';
+    const flags = loadFlags();
+    expect(flags.interventionValidationHintEnabled).toBe(true);
+    expect(flags.appraisalToneHintEnabled).toBe(false);
+    expect(flags.validationIntensityEnabled).toBe(false);
+  });
+
   // Existing flags are unaffected by new flag env vars
   test('setting new flags does not alter existing flags', () => {
     clearAllFlags();
     process.env.LORA_VALIDATION_INTENSITY = '1';
     process.env.LORA_ADAPTIVE_OVERRIDE_COOLDOWN = '1';
     process.env.LORA_APPRAISAL_TONE_HINT = '1';
+    process.env.LORA_INTERVENTION_VALIDATION_HINT = '1';
     const flags = loadFlags();
     expect(flags.appraisalBridgeEnabled).toBe(false);
     expect(flags.appraisalBridgeModeEnabled).toBe(false);

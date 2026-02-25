@@ -7,4 +7,5 @@ export const featureFlags = Object.freeze({
   validationIntensityEnabled: process.env.LORA_VALIDATION_INTENSITY === '1',
   adaptiveOverrideCooldownEnabled: process.env.LORA_ADAPTIVE_OVERRIDE_COOLDOWN === '1',
   appraisalToneHintEnabled: process.env.LORA_APPRAISAL_TONE_HINT === '1',
+  interventionValidationHintEnabled: process.env.LORA_INTERVENTION_VALIDATION_HINT === '1',
 });

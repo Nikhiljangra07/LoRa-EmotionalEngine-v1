@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -358,6 +358,28 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── ValidationHint: derived from intervention.validationMode (present-or-absent) ──
+    let validationHint: ValidationHint | undefined;
+    if (
+      featureFlags.interventionValidationHintEnabled &&
+      featureFlags.appraisalBridgeEnabled &&
+      featureFlags.appraisalBridgeModeEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      appraisalResult
+    ) {
+      if (guidanceMode === 'STABILIZE' || guidanceMode === 'DE_ESCALATE') {
+        validationHint = 'STRONG';
+      } else {
+        const vm = appraisalResult.intervention.validationMode;
+        if (vm === 'SUPPORTIVE') {
+          validationHint = 'STRONG';
+        } else if (vm === 'LIMITED' || vm === 'BOUNDARIED') {
+          validationHint = 'LIGHT';
+        }
+        // 'STANDARD' and any other value → undefined (neutral = absent)
+      }
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -405,6 +427,7 @@ export class EngineOrchestrator {
       ...(pacingHint ? { pacingHint } : {}),
       ...(validationIntensity ? { validationIntensity } : {}),
       ...(toneHint ? { toneHint } : {}),
+      ...(validationHint ? { validationHint } : {}),
     });
 
     const llmInput = userMessage
@@ -521,6 +544,7 @@ export class EngineOrchestrator {
       ...(pacingHint ? { pacingHint } : {}),
       ...(validationIntensity ? { validationIntensity } : {}),
       ...(toneHint ? { toneHint } : {}),
+      ...(validationHint ? { validationHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };
