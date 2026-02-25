@@ -11,4 +11,5 @@ export const featureFlags = Object.freeze({
   interventionPacingHintEnabled: process.env.LORA_INTERVENTION_PACING_HINT === '1',
   interventionToneHintEnabled: process.env.LORA_INTERVENTION_TONE_HINT === '1',
   interventionActionHintEnabled: process.env.LORA_INTERVENTION_ACTION_HINT === '1',
+  interventionInterruptHintEnabled: process.env.LORA_INTERVENTION_INTERRUPT_HINT === '1',
 });

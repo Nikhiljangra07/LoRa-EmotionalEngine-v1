@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -33,6 +33,7 @@ export class PromptTemplateBuilder {
       toneHint?: ToneHint;
       validationHint?: ValidationHint;
       actionHint?: ActionHint;
+      interruptHint?: InterruptHint;
     }
   ): string {
     if (
@@ -78,6 +79,7 @@ export class PromptTemplateBuilder {
     const toneOverlay = this.getToneOverlay(options?.toneHint);
     const validationHintOverlay = this.getValidationHintOverlay(options?.validationHint);
     const actionHintOverlay = this.getActionHintOverlay(options?.actionHint);
+    const interruptHintOverlay = this.getInterruptHintOverlay(options?.interruptHint);
 
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
@@ -94,7 +96,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -364,6 +366,25 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
         return `
 [ACTION_HINT:NO_ACTION]
 - Do not suggest actions; stay present.`;
+      default:
+        return '';
+    }
+  }
+
+  private static getInterruptHintOverlay(hint?: InterruptHint): string {
+    switch (hint) {
+      case 'SOFT':
+        return `
+[INTERRUPT_HINT:SOFT]
+- Gently interrupt loops; one sentence max.`;
+      case 'FIRM':
+        return `
+[INTERRUPT_HINT:FIRM]
+- Set a clear boundary; stop the current line of thought.`;
+      case 'HARD_STOP':
+        return `
+[INTERRUPT_HINT:HARD_STOP]
+- Hard boundary; refuse unsafe or looping demand and redirect.`;
       default:
         return '';
     }
