@@ -11,9 +11,18 @@ jest.mock('../../config/featureFlags', () => ({
   featureFlags: {
     strictGuidanceModeEnabled: false,
     etvPolicyPromptEnabled: false,
+    etvPolicyPromptShadowEnabled: false,
     etvV1Enabled: false,
   },
 }));
+
+jest.mock('../../logging/DecisionLogger', () => ({
+  DecisionLogger: {
+    logPromptProfileDiff: jest.fn(),
+  },
+}));
+
+import { DecisionLogger } from '../../logging/DecisionLogger';
 
 const mutableFlags = featureFlags as Record<string, boolean>;
 
@@ -83,9 +92,9 @@ describe('etvPolicyPromptMap — unit tests', () => {
       expect(mapping.relationshipStyle).toBe('FRIENDLY');
     });
 
-    it('maps BAND_4 to CASUAL', () => {
+    it('maps BAND_4 to FRIENDLY (tone hardened, no CASUAL)', () => {
       const mapping = mapETVPolicyToPrompt(makePolicyBand4());
-      expect(mapping.relationshipStyle).toBe('CASUAL');
+      expect(mapping.relationshipStyle).toBe('FRIENDLY');
     });
 
     it('constraints reflect policy values', () => {
@@ -133,11 +142,12 @@ describe('etvPolicyPromptMap — unit tests', () => {
 describe('PromptTemplateBuilder — ETV Policy integration', () => {
   beforeEach(() => {
     mutableFlags.etvPolicyPromptEnabled = false;
+    mutableFlags.etvPolicyPromptShadowEnabled = false;
+    (DecisionLogger.logPromptProfileDiff as jest.Mock).mockClear();
   });
 
-  describe('when flag OFF', () => {
+  describe('when both flags OFF', () => {
     it('output is identical whether etvPolicy is provided or not', () => {
-      mutableFlags.etvPolicyPromptEnabled = false;
       const emo = makeEmotionalState();
       const etv = makeETVState(0.3);
 
@@ -150,13 +160,21 @@ describe('PromptTemplateBuilder — ETV Policy integration', () => {
     });
 
     it('does not include constraint overlay', () => {
-      mutableFlags.etvPolicyPromptEnabled = false;
       const prompt = PromptTemplateBuilder.build(
         makeEmotionalState(),
         makeETVState(0.3),
         { etvPolicy: makePolicyBand0() },
       );
       expect(prompt).not.toContain('ETV_POLICY_CONSTRAINTS');
+    });
+
+    it('does not log PromptProfileDiff', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand0() },
+      );
+      expect(DecisionLogger.logPromptProfileDiff).not.toHaveBeenCalled();
     });
   });
 
@@ -198,13 +216,14 @@ describe('PromptTemplateBuilder — ETV Policy integration', () => {
       expect(prompt).toMatch(/professional/i);
     });
 
-    it('band 4 relationship style is Casual', () => {
+    it('band 4 relationship style is Friendly (tone hardened)', () => {
       const prompt = PromptTemplateBuilder.build(
         makeEmotionalState(),
         makeETVState(0.7),
         { etvPolicy: makePolicyBand4() },
       );
-      expect(prompt).toMatch(/casual/i);
+      expect(prompt).toMatch(/friendly/i);
+      expect(prompt).not.toMatch(/casual/i);
     });
 
     it('assertiveness < 1 even at band 4', () => {
@@ -263,6 +282,122 @@ describe('PromptTemplateBuilder — ETV Policy integration', () => {
         { etvPolicy: makePolicyBand4() },
       );
       expect(prompt).not.toMatch(/\b0\.\d+\b/);
+    });
+  });
+
+  describe('shadow mode (SHADOW ON, POLICY_PROMPT OFF)', () => {
+    beforeEach(() => {
+      mutableFlags.etvPolicyPromptEnabled = false;
+      mutableFlags.etvPolicyPromptShadowEnabled = true;
+    });
+
+    it('returns legacy output (no overlay)', () => {
+      const emo = makeEmotionalState();
+      const etv = makeETVState(0.3);
+
+      const legacyPrompt = (() => {
+        mutableFlags.etvPolicyPromptShadowEnabled = false;
+        const p = PromptTemplateBuilder.build(emo, etv);
+        mutableFlags.etvPolicyPromptShadowEnabled = true;
+        return p;
+      })();
+
+      const shadowPrompt = PromptTemplateBuilder.build(emo, etv, {
+        etvPolicy: makePolicyBand2(),
+      });
+
+      expect(shadowPrompt).toBe(legacyPrompt);
+      expect(shadowPrompt).not.toContain('ETV_POLICY_CONSTRAINTS');
+    });
+
+    it('logs PromptProfileDiff even though output is legacy', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand0(), messageId: 'msg-1', userId: 'user-a' },
+      );
+      expect(DecisionLogger.logPromptProfileDiff).toHaveBeenCalledTimes(1);
+      expect(DecisionLogger.logPromptProfileDiff).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: 'msg-1',
+          userId: 'user-a',
+          band: 'BAND_0',
+        }),
+      );
+    });
+
+    it('does not log diff when etvPolicy is undefined', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+      );
+      expect(DecisionLogger.logPromptProfileDiff).not.toHaveBeenCalled();
+    });
+
+    it('diff payload includes old and new relationship styles', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand2() },
+      );
+      const payload = (DecisionLogger.logPromptProfileDiff as jest.Mock).mock.calls[0][0];
+      expect(payload.oldRelationshipStyle).toMatch(/professional/i);
+      expect(payload.newRelationshipStyle).toMatch(/friendly/i);
+    });
+  });
+
+  describe('shadow + serve (both flags ON)', () => {
+    beforeEach(() => {
+      mutableFlags.etvPolicyPromptEnabled = true;
+      mutableFlags.etvPolicyPromptShadowEnabled = true;
+    });
+
+    it('returns new output with overlay', () => {
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand0() },
+      );
+      expect(prompt).toContain('ETV_POLICY_CONSTRAINTS');
+    });
+
+    it('logs diff once (not duplicated)', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand0() },
+      );
+      expect(DecisionLogger.logPromptProfileDiff).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('tone hardening — no CASUAL at any band', () => {
+    beforeEach(() => {
+      mutableFlags.etvPolicyPromptEnabled = true;
+    });
+
+    it('BAND_4 maps to FRIENDLY, not CASUAL', () => {
+      const mapping = mapETVPolicyToPrompt(makePolicyBand4());
+      expect(mapping.relationshipStyle).toBe('FRIENDLY');
+      expect(mapping.relationshipStyle).not.toBe('CASUAL');
+    });
+
+    it('no band produces CASUAL', () => {
+      const bands = ['BAND_0', 'BAND_1', 'BAND_2', 'BAND_3', 'BAND_4'] as const;
+      for (const band of bands) {
+        const policy = { ...makePolicyBand0(), band };
+        const mapping = mapETVPolicyToPrompt(policy);
+        expect(mapping.relationshipStyle).not.toBe('CASUAL');
+      }
+    });
+
+    it('overlay never contains "casual"', () => {
+      const bands = ['BAND_0', 'BAND_1', 'BAND_2', 'BAND_3', 'BAND_4'] as const;
+      for (const band of bands) {
+        const policy = { ...makePolicyBand0(), band };
+        const overlay = renderConstraintOverlay(mapETVPolicyToPrompt(policy));
+        expect(overlay.toLowerCase()).not.toContain('casual');
+      }
     });
   });
 });

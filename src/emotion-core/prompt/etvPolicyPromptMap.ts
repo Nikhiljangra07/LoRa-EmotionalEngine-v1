@@ -14,7 +14,7 @@ const BAND_RELATIONSHIP: Record<ETVBand, PromptProfile['relationshipStyle']> = {
   BAND_1: 'PROFESSIONAL',
   BAND_2: 'FRIENDLY',
   BAND_3: 'FRIENDLY',
-  BAND_4: 'CASUAL',
+  BAND_4: 'FRIENDLY',
 };
 
 const BAND_GUIDANCE_HINT: Record<ETVBand, string> = {
@@ -22,15 +22,16 @@ const BAND_GUIDANCE_HINT: Record<ETVBand, string> = {
   BAND_1: 'Measured — cautious engagement. Ask before inferring.',
   BAND_2: 'Balanced — moderate engagement with verified context.',
   BAND_3: 'Confident — use established context. Stay bounded, no intimacy cues.',
-  BAND_4: 'Personalized — adapt naturally within safety constraints. No dependency language.',
+  BAND_4: 'Personalized — adapt within established context. No dependency language. No intimacy cues.',
 };
 
 /**
  * Maps an ETVPolicy to prompt-level constraints and style.
  *
  * Rules:
- * - Bands 0-1: conservative (higher clarificationBias, lower initiative/depth)
- * - Bands 3-4: allow stronger personalization, still bounded
+ * - Bands 0-1: PROFESSIONAL, conservative (higher clarificationBias, lower initiative/depth)
+ * - Bands 2-4: FRIENDLY with escalating knobs, still bounded
+ * - No CASUAL mapping at any band — tone hardened
  * - No intimacy cues, dependency language, or bonding tone at any band
  */
 export function mapETVPolicyToPrompt(policy: ETVPolicy): ETVPromptMapping {

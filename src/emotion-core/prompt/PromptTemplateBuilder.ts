@@ -59,18 +59,18 @@ export class PromptTemplateBuilder {
     let relationshipStyle = legacyRelationshipStyle;
     let constraintOverlay = '';
 
-    if (
-      featureFlags.etvPolicyPromptEnabled &&
-      options?.etvPolicy !== undefined
-    ) {
-      const mapping = mapETVPolicyToPrompt(options.etvPolicy);
+    const hasPolicy = options?.etvPolicy !== undefined;
+    const shadowOn = featureFlags.etvPolicyPromptShadowEnabled;
+    const serveOn = featureFlags.etvPolicyPromptEnabled;
+
+    if (hasPolicy && (shadowOn || serveOn)) {
+      const mapping = mapETVPolicyToPrompt(options!.etvPolicy!);
       const newRelStyle = this.formatRelationshipLabel(mapping.relationshipStyle);
-      constraintOverlay = renderConstraintOverlay(mapping);
-      relationshipStyle = newRelStyle;
+      const newOverlay = renderConstraintOverlay(mapping);
 
       DecisionLogger.logPromptProfileDiff({
-        messageId: options.messageId ?? 'unknown',
-        userId: options.userId ?? 'unknown',
+        messageId: options!.messageId ?? 'unknown',
+        userId: options!.userId ?? 'unknown',
         oldRelationshipStyle: legacyRelationshipStyle,
         newRelationshipStyle: newRelStyle,
         band: mapping.constraints.band,
@@ -80,6 +80,11 @@ export class PromptTemplateBuilder {
         clarificationBias: mapping.constraints.clarificationBias,
         maxResponseTokens: mapping.constraints.maxResponseTokens,
       });
+
+      if (serveOn) {
+        relationshipStyle = newRelStyle;
+        constraintOverlay = newOverlay;
+      }
     }
 
     const emotionalGuidance = this.mapEmotionToGuidance(emotionalState);

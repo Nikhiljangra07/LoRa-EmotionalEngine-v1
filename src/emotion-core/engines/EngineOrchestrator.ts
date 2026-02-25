@@ -26,7 +26,7 @@ import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
-import type { SessionSummaryV1 } from '../etv';
+import type { SessionSummaryV1, ETVPolicy } from '../etv';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -110,6 +110,7 @@ export class EngineOrchestrator {
 
   private readonly userId: string;
   private sessionCounter = 0;
+  private lastEtvPolicy: ETVPolicy | null = null;
 
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
@@ -171,6 +172,12 @@ export class EngineOrchestrator {
       this.sessionCounter += 1;
       this.currentSessionId = `sess-${this.userId}-${messageTimestampMs}-${this.sessionCounter}`;
       this.sessionOpen = true;
+
+      if (featureFlags.etvV1Enabled && this.lastEtvPolicy === null) {
+        try {
+          this.lastEtvPolicy = ETVEngineV1.getPolicy(this.userId);
+        } catch { /* storage not yet initialized — will populate after first session */ }
+      }
     }
     this.messageCount += 1;
 
@@ -689,6 +696,9 @@ export class EngineOrchestrator {
       ...(interruptHint ? { interruptHint } : {}),
       ...(stepHint ? { stepHint } : {}),
       ...(questionBudgetHint ? { questionBudgetHint } : {}),
+      ...(this.lastEtvPolicy ? { etvPolicy: this.lastEtvPolicy } : {}),
+      userId: this.userId,
+      messageId: `msg-${this.messageCount}`,
     });
 
     const llmInput = userMessage
@@ -908,7 +918,8 @@ export class EngineOrchestrator {
       });
 
       try {
-        const { log } = ETVEngineV1.updateFromSession(summary);
+        const { policy, log } = ETVEngineV1.updateFromSession(summary);
+        this.lastEtvPolicy = policy;
         DecisionLogger.logETVUpdateV1({
           userId: log.userId,
           sessionId: log.sessionId,
