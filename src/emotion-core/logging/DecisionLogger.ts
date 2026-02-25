@@ -30,6 +30,8 @@ export interface MessageDecisionLog {
       | 'VALIDATING'
       | 'DE_ESCALATE'
       | 'SUPPORTIVE'
+      | 'STABILIZE'
+      | 'SUPPORTIVE_REFLECTION'
       | 'FALLBACK';
   };
 
@@ -53,6 +55,8 @@ export interface MessageDecisionLog {
     interventionToneMode: string;
     interventionPacingMode: string;
   };
+
+  appraisalOverride?: string;
 }
 
 export interface SessionLog {

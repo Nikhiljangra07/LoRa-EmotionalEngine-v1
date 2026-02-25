@@ -221,6 +221,21 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── Appraisal-driven guidance override (Phase 1, feature-flagged) ──
+    let appraisalOverride: string | undefined;
+    if (featureFlags.appraisalBridgeModeEnabled && appraisalResult) {
+      if (appraisalResult.collapse.event) {
+        guidanceMode = 'STABILIZE';
+        appraisalOverride = 'COLLAPSE_OVERRIDE';
+      } else if (appraisalResult.escalation.level >= 2) {
+        guidanceMode = 'DE_ESCALATE';
+        appraisalOverride = 'ESCALATION_OVERRIDE';
+      } else if (appraisalResult.postClarity.active) {
+        guidanceMode = 'SUPPORTIVE_REFLECTION';
+        appraisalOverride = 'POST_CLARITY_OVERRIDE';
+      }
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -376,6 +391,8 @@ export class EngineOrchestrator {
             },
           }
         : {}),
+
+      ...(appraisalOverride ? { appraisalOverride } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
