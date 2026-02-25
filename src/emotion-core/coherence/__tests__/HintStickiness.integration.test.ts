@@ -187,8 +187,8 @@ describe('HintStickiness — density cap with resolver', () => {
     const results = await runSequence(steps, { stepFn });
 
     for (let i = 2; i < results.length; i++) {
-      // Resolver caps at 5; stickiness may preserve one extra from the prior step → effective max 6
-      expect(countMarkers(results[i].prompt)).toBeLessThanOrEqual(6);
+      // Double-resolve pattern: resolver runs again after stickiness → hard cap <=5
+      expect(countMarkers(results[i].prompt)).toBeLessThanOrEqual(5);
     }
   });
 });

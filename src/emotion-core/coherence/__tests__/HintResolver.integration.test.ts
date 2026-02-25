@@ -274,3 +274,96 @@ describe('HintResolver — no appraisal leakage', () => {
     }
   });
 });
+
+// =====================================================================
+// 6) Double resolve maintains hard cap under stickiness
+// =====================================================================
+
+describe('HintResolver — double resolve with stickiness', () => {
+  function setResolverAndStickiness(): void {
+    setFullAdaptiveOn();
+    process.env.LORA_HINT_RESOLVER = '1';
+    process.env.LORA_HINT_STICKINESS = '1';
+  }
+
+  test('hard cap <= 5 maintained even when stickiness reintroduces a dropped hint', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // Step 3: trigger many hints (escalation + interrupt + collapse → lots of overlays)
+    // Step 4: raw signals drop some, but stickiness would re-add them
+    // Assert final marker count never exceeds 5
+    const steps: StepSpec[] = [
+      ...warmUp(),
+      // msg 3: heavy triggers → many hints
+      {
+        text: 'crisis',
+        appraisalOverrides: {
+          escalationLevel: 2,
+          pressureScalar: 2.5,
+          pressureVolatility: 1.5,
+          interruptionLevel: 2,
+          toneMode: 'FIRM_CONTAIN',
+          pacingMode: 'SHORT_DIRECT',
+          actionMode: 'INTERRUPT_LOOP',
+          validationMode: 'BOUNDARIED',
+        },
+        emotionalOverride: HIGH_NEGATIVE,
+      },
+      // msg 4: most signals drop — stickiness would carry forward
+      { text: 'okay', appraisalOverrides: {}, emotionalOverride: LOW_NEUTRAL },
+      // msg 5: still neutral
+      { text: 'fine', appraisalOverrides: {}, emotionalOverride: LOW_NEUTRAL },
+      // msg 6: neutral
+      { text: 'calm', appraisalOverrides: {}, emotionalOverride: LOW_NEUTRAL },
+    ];
+
+    setResolverAndStickiness();
+    const stepFn = buildStepFn(steps);
+    const results = await runSequence(steps, { stepFn });
+
+    // Horizon: steps 0–1 have 0 markers
+    expect(countMarkers(results[0].prompt)).toBe(0);
+    expect(countMarkers(results[1].prompt)).toBe(0);
+
+    // Steps 2+ (active): hard cap <=5
+    for (let i = 2; i < results.length; i++) {
+      expect(countMarkers(results[i].prompt)).toBeLessThanOrEqual(5);
+    }
+  });
+
+  test('resolver OFF + stickiness ON may exceed 5 (no double resolve)', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // This test documents the expected behavior without the resolver:
+    // stickiness alone has no density cap guarantee
+    const steps: StepSpec[] = [
+      ...warmUp(),
+      {
+        text: 'crisis',
+        appraisalOverrides: {
+          escalationLevel: 2,
+          pressureScalar: 2.5,
+          pressureVolatility: 1.5,
+          interruptionLevel: 2,
+          toneMode: 'FIRM_CONTAIN',
+          pacingMode: 'SHORT_DIRECT',
+          actionMode: 'INTERRUPT_LOOP',
+          validationMode: 'BOUNDARIED',
+        },
+        emotionalOverride: HIGH_NEGATIVE,
+      },
+      { text: 'okay', appraisalOverrides: {}, emotionalOverride: LOW_NEUTRAL },
+    ];
+
+    setFullAdaptiveOn();
+    process.env.LORA_HINT_STICKINESS = '1';
+    delete process.env.LORA_HINT_RESOLVER;
+    const stepFn = buildStepFn(steps);
+    const results = await runSequence(steps, { stepFn });
+
+    // Without resolver, no hard cap — just verify test runs without error
+    // and that at least one step has markers (sanity)
+    const maxMarkers = Math.max(...results.slice(2).map((r) => countMarkers(r.prompt)));
+    expect(maxMarkers).toBeGreaterThan(0);
+  });
+});
