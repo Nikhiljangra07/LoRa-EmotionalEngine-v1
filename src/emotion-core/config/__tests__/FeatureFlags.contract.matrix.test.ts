@@ -16,6 +16,7 @@ const FLAG_KEYS = [
   'LORA_INTERVENTION_INTERRUPT_HINT',
   'LORA_INTERVENTION_STEP_HINT',
   'LORA_INTERVENTION_QUESTION_BUDGET',
+  'LORA_HINT_RESOLVER',
 ] as const;
 const origEnv: Record<string, string | undefined> = {};
 for (const k of FLAG_KEYS) origEnv[k] = process.env[k];
@@ -55,6 +56,7 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.interventionInterruptHintEnabled).toBe(false);
     expect(flags.interventionStepHintEnabled).toBe(false);
     expect(flags.interventionQuestionBudgetEnabled).toBe(false);
+    expect(flags.hintResolverEnabled).toBe(false);
   });
 
   // B) Validation only
@@ -167,6 +169,16 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.interventionInterruptHintEnabled).toBe(false);
   });
 
+  // M) Hint resolver only
+  test('LORA_HINT_RESOLVER=1 → hintResolverEnabled true', () => {
+    clearAllFlags();
+    process.env.LORA_HINT_RESOLVER = '1';
+    const flags = loadFlags();
+    expect(flags.hintResolverEnabled).toBe(true);
+    expect(flags.interventionQuestionBudgetEnabled).toBe(false);
+    expect(flags.interventionStepHintEnabled).toBe(false);
+  });
+
   // Existing flags are unaffected by new flag env vars
   test('setting new flags does not alter existing flags', () => {
     clearAllFlags();
@@ -180,6 +192,7 @@ describe('FeatureFlags contract matrix', () => {
     process.env.LORA_INTERVENTION_INTERRUPT_HINT = '1';
     process.env.LORA_INTERVENTION_STEP_HINT = '1';
     process.env.LORA_INTERVENTION_QUESTION_BUDGET = '1';
+    process.env.LORA_HINT_RESOLVER = '1';
     const flags = loadFlags();
     expect(flags.appraisalBridgeEnabled).toBe(false);
     expect(flags.appraisalBridgeModeEnabled).toBe(false);

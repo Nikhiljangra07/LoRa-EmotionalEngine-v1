@@ -19,6 +19,7 @@ import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, Validati
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
+import { resolveHints } from './hintResolver';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
 
@@ -547,6 +548,29 @@ export class EngineOrchestrator {
         },
         promptProfile: { guidanceMode },
       });
+    }
+
+    // 5b. Hint resolver — trim overlay stacking (feature-flagged)
+    if (featureFlags.hintResolverEnabled) {
+      const resolved = resolveHints({
+        guidanceMode,
+        pacingHint,
+        toneHint,
+        validationIntensity,
+        validationHint,
+        actionHint,
+        interruptHint,
+        stepHint,
+        questionBudgetHint,
+      });
+      pacingHint = resolved.pacingHint as typeof pacingHint;
+      toneHint = resolved.toneHint as typeof toneHint;
+      validationIntensity = resolved.validationIntensity as typeof validationIntensity;
+      validationHint = resolved.validationHint as typeof validationHint;
+      actionHint = resolved.actionHint as typeof actionHint;
+      interruptHint = resolved.interruptHint as typeof interruptHint;
+      stepHint = resolved.stepHint as typeof stepHint;
+      questionBudgetHint = resolved.questionBudgetHint as typeof questionBudgetHint;
     }
 
     // 6. Build prompt (PURE)
