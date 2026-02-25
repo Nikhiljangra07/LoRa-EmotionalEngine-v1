@@ -13,4 +13,5 @@ export const featureFlags = Object.freeze({
   interventionActionHintEnabled: process.env.LORA_INTERVENTION_ACTION_HINT === '1',
   interventionInterruptHintEnabled: process.env.LORA_INTERVENTION_INTERRUPT_HINT === '1',
   interventionStepHintEnabled: process.env.LORA_INTERVENTION_STEP_HINT === '1',
+  interventionQuestionBudgetEnabled: process.env.LORA_INTERVENTION_QUESTION_BUDGET === '1',
 });

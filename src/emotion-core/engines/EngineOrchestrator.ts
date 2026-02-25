@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -488,6 +488,29 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── QuestionBudgetHint: controls max questions per response (present-or-absent) ──
+    let questionBudgetHint: QuestionBudgetHint | undefined;
+    if (
+      featureFlags.interventionQuestionBudgetEnabled &&
+      featureFlags.appraisalBridgeEnabled &&
+      featureFlags.appraisalBridgeModeEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      appraisalResult
+    ) {
+      if (guidanceMode === 'STABILIZE') {
+        questionBudgetHint = 'ZERO';
+      } else if (interruptHint) {
+        questionBudgetHint = 'ZERO';
+      } else if (guidanceMode === 'DE_ESCALATE') {
+        questionBudgetHint = 'ONE';
+      } else if (pacingHint === 'SLOW') {
+        questionBudgetHint = 'ONE';
+      } else if (appraisalResult.escalation.level >= 2) {
+        questionBudgetHint = 'ZERO';
+      }
+      // else → undefined (absent)
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -539,6 +562,7 @@ export class EngineOrchestrator {
       ...(actionHint ? { actionHint } : {}),
       ...(interruptHint ? { interruptHint } : {}),
       ...(stepHint ? { stepHint } : {}),
+      ...(questionBudgetHint ? { questionBudgetHint } : {}),
     });
 
     const llmInput = userMessage
@@ -659,6 +683,7 @@ export class EngineOrchestrator {
       ...(actionHint ? { actionHint } : {}),
       ...(interruptHint ? { interruptHint } : {}),
       ...(stepHint ? { stepHint } : {}),
+      ...(questionBudgetHint ? { questionBudgetHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };
