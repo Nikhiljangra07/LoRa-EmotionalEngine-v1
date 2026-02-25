@@ -22,6 +22,8 @@ export interface PromptProfile {
     | 'VALIDATING'
     | 'DE_ESCALATE'
     | 'SUPPORTIVE'
+    | 'STABILIZE'
+    | 'SUPPORTIVE_REFLECTION'
     | 'FALLBACK';
 }
 
