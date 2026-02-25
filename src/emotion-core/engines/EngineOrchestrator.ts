@@ -277,7 +277,9 @@ export class EngineOrchestrator {
       appraisalResult &&
       this.messageCount >= this.minimumMessagesForAdaptiveControl
     ) {
-      if (appraisalResult.collapse.event) {
+      if (guidanceMode === 'STABILIZE' || guidanceMode === 'DE_ESCALATE') {
+        pacingHint = 'SLOW';
+      } else if (appraisalResult.collapse.event) {
         pacingHint = 'SLOW';
       } else if (appraisalResult.escalation.level >= 2) {
         pacingHint = 'SLOW';
@@ -286,6 +288,12 @@ export class EngineOrchestrator {
         appraisalResult.pressure.volatility >= 1.2
       ) {
         pacingHint = 'SLOW';
+      } else if (featureFlags.interventionPacingHintEnabled) {
+        const pm = appraisalResult.intervention.pacingMode;
+        if (pm === 'SLOW' || pm === 'DELAYED_RESPONSE' || pm === 'SHORT_DIRECT') {
+          pacingHint = 'SLOW';
+        }
+        // 'NORMAL' and unknown → undefined (neutral = absent)
       }
       // else: stays undefined (NORMAL case — nothing passed to builder)
     }

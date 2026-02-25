@@ -8,4 +8,5 @@ export const featureFlags = Object.freeze({
   adaptiveOverrideCooldownEnabled: process.env.LORA_ADAPTIVE_OVERRIDE_COOLDOWN === '1',
   appraisalToneHintEnabled: process.env.LORA_APPRAISAL_TONE_HINT === '1',
   interventionValidationHintEnabled: process.env.LORA_INTERVENTION_VALIDATION_HINT === '1',
+  interventionPacingHintEnabled: process.env.LORA_INTERVENTION_PACING_HINT === '1',
 });
