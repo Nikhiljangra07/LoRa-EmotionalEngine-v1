@@ -8,7 +8,7 @@ import type { PromptProfile, PromptConstraints, PacingHint, ValidationIntensity,
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import type { ETVPolicy } from '../etv/types';
-import { mapETVPolicyToPrompt, renderConstraintOverlay } from './etvPolicyPromptMap';
+import { mapETVPolicyToPrompt, renderConstraintOverlay, computePromptSignature } from './etvPolicyPromptMap';
 import { DecisionLogger } from '../logging/DecisionLogger';
 
 const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
@@ -79,6 +79,7 @@ export class PromptTemplateBuilder {
         assertiveness: mapping.constraints.assertiveness,
         clarificationBias: mapping.constraints.clarificationBias,
         maxResponseTokens: mapping.constraints.maxResponseTokens,
+        promptSignature: computePromptSignature(mapping),
       });
 
       if (serveOn) {

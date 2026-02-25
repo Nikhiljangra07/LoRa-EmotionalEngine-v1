@@ -1,10 +1,10 @@
 // src/emotion-core/prompt/__tests__/etvPolicyPrompt.test.ts
 
 import { PromptTemplateBuilder } from '../PromptTemplateBuilder';
-import { mapETVPolicyToPrompt, renderConstraintOverlay } from '../etvPolicyPromptMap';
+import { mapETVPolicyToPrompt, renderConstraintOverlay, computePromptSignature } from '../etvPolicyPromptMap';
 import type { EmotionalState } from '../../types/analysis.types';
 import type { ETVState } from '../../types/etv.types';
-import type { ETVPolicy } from '../../etv/types';
+import type { ETVPolicy, ETVBand } from '../../etv/types';
 import { featureFlags } from '../../config/featureFlags';
 
 jest.mock('../../config/featureFlags', () => ({
@@ -400,4 +400,129 @@ describe('PromptTemplateBuilder — ETV Policy integration', () => {
       }
     });
   });
+
+  describe('promptSignature in diff payload', () => {
+    beforeEach(() => {
+      mutableFlags.etvPolicyPromptEnabled = true;
+    });
+
+    it('diff payload includes promptSignature', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand0(), messageId: 'msg-sig', userId: 'u-sig' },
+      );
+      const payload = (DecisionLogger.logPromptProfileDiff as jest.Mock).mock.calls[0][0];
+      expect(payload.promptSignature).toBeDefined();
+      expect(typeof payload.promptSignature).toBe('string');
+    });
+
+    it('signature contains only categorical tokens, no raw floats', () => {
+      PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(0.3),
+        { etvPolicy: makePolicyBand2() },
+      );
+      const sig = (DecisionLogger.logPromptProfileDiff as jest.Mock).mock.calls[0][0].promptSignature;
+      expect(sig).not.toMatch(/\b0\.\d+\b/);
+      expect(sig).toContain('BAND_2');
+      expect(sig).toContain('FRIENDLY');
+    });
+
+    it('signature is deterministic', () => {
+      const p = makePolicyBand0();
+      const sig1 = computePromptSignature(mapETVPolicyToPrompt(p));
+      const sig2 = computePromptSignature(mapETVPolicyToPrompt(p));
+      expect(sig1).toBe(sig2);
+    });
+
+    it('different bands produce different signatures', () => {
+      const sig0 = computePromptSignature(mapETVPolicyToPrompt(makePolicyBand0()));
+      const sig4 = computePromptSignature(mapETVPolicyToPrompt(makePolicyBand4()));
+      expect(sig0).not.toBe(sig4);
+    });
+
+    it('signature includes all expected tokens', () => {
+      const sig = computePromptSignature(mapETVPolicyToPrompt(makePolicyBand0()));
+      expect(sig).toMatch(/init=/);
+      expect(sig).toMatch(/depth=/);
+      expect(sig).toMatch(/assert=/);
+      expect(sig).toMatch(/pers=/);
+      expect(sig).toMatch(/clar=/);
+      expect(sig).toMatch(/len=/);
+    });
+  });
+});
+
+describe('Prompt "no companionship" enforcement', () => {
+  const mFlags = featureFlags as Record<string, boolean>;
+
+  beforeEach(() => {
+    mFlags.etvPolicyPromptEnabled = true;
+    mFlags.etvPolicyPromptShadowEnabled = false;
+    (DecisionLogger.logPromptProfileDiff as jest.Mock).mockClear();
+  });
+
+  const COMPANIONSHIP_BLACKLIST = [
+    'i need you',
+    "don't leave me",
+    "i'm always here for you",
+    'i love you',
+    'my dear',
+    'babe',
+    'sweetheart',
+    'miss you',
+    "can't live without",
+    'you are mine',
+    'i belong to you',
+    'you complete me',
+    'always by your side',
+    'never leave you',
+    'my love',
+    'darling',
+  ];
+
+  const ALL_BANDS: ETVBand[] = ['BAND_0', 'BAND_1', 'BAND_2', 'BAND_3', 'BAND_4'];
+
+  function makePolicyForBand(band: ETVBand): ETVPolicy {
+    const base: Record<ETVBand, ETVPolicy> = {
+      BAND_0: makePolicyBand0(),
+      BAND_1: { ...makePolicyBand0(), band: 'BAND_1' },
+      BAND_2: makePolicyBand2(),
+      BAND_3: { ...makePolicyBand2(), band: 'BAND_3' },
+      BAND_4: makePolicyBand4(),
+    };
+    return base[band];
+  }
+
+  for (const band of ALL_BANDS) {
+    describe(`${band}`, () => {
+      it('prompt does not contain companionship/dependency phrases', () => {
+        const prompt = PromptTemplateBuilder.build(
+          makeEmotionalState(),
+          makeETVState(0.5),
+          { etvPolicy: makePolicyForBand(band) },
+        );
+        const lower = prompt.toLowerCase();
+        for (const phrase of COMPANIONSHIP_BLACKLIST) {
+          expect(lower).not.toContain(phrase);
+        }
+      });
+
+      it('overlay includes the hard constraint against intimacy', () => {
+        const mapping = mapETVPolicyToPrompt(makePolicyForBand(band));
+        const overlay = renderConstraintOverlay(mapping);
+        expect(overlay).toMatch(/do not use intimacy cues/i);
+      });
+
+      it('prompt includes the hard constraint line when policy served', () => {
+        const prompt = PromptTemplateBuilder.build(
+          makeEmotionalState(),
+          makeETVState(0.5),
+          { etvPolicy: makePolicyForBand(band) },
+        );
+        expect(prompt).toMatch(/do not use intimacy cues/i);
+      });
+    });
+  }
 });
