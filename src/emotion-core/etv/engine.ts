@@ -1,0 +1,100 @@
+// src/emotion-core/etv/engine.ts
+
+import type {
+  SessionSummaryV1,
+  ETVStateStored,
+  ETVStateDerived,
+  ETVPolicy,
+  ETVUpdateLog,
+} from './types';
+import { ETV_CONFIG } from './constants';
+import { computeEvidenceScore } from './evidenceScore';
+import { applyDecay, applyEvidence, toFullState } from './betaUpdate';
+import { computePolicy } from './policyMap';
+import { ETVStorage } from './storage';
+
+/**
+ * ETV V1 Engine — orchestrates the full session-boundary update cycle:
+ *
+ *   SessionSummary → z_t → load → decay → update → persist → policy
+ *
+ * Pure pipeline; all side-effects (storage) are isolated in ETVStorage.
+ */
+export class ETVEngineV1 {
+  /**
+   * Full session-boundary update.
+   *
+   * @returns The updated policy AND the log record for observability.
+   */
+  static updateFromSession(summary: SessionSummaryV1): {
+    policy: ETVPolicy;
+    log: ETVUpdateLog;
+    state: ETVStateDerived;
+  } {
+    const z_t = computeEvidenceScore(summary);
+    const now = summary.endedAt || Date.now();
+
+    // Load or initialize
+    let stored: ETVStateStored =
+      ETVStorage.load(summary.userId) ??
+      ETVStorage.initState(summary.userId);
+
+    const r_before = stored.r;
+    const s_before = stored.s;
+
+    // Decay
+    const deltaHours =
+      stored.lastSessionEndedAt > 0
+        ? Math.max(0, (now - stored.lastSessionEndedAt) / 3_600_000)
+        : 0;
+
+    const decayResult = applyDecay(stored, deltaHours);
+    stored = decayResult.state;
+
+    // Evidence update
+    stored = applyEvidence(stored, z_t, ETV_CONFIG.evidenceMass);
+
+    // Timestamp
+    stored = {
+      ...stored,
+      lastSessionEndedAt: now,
+      updatedAt: now,
+    };
+
+    // Persist
+    ETVStorage.save(stored);
+
+    // Derive + policy
+    const fullState = toFullState(stored);
+    const policy = computePolicy(fullState);
+
+    const log: ETVUpdateLog = {
+      userId: summary.userId,
+      sessionId: summary.sessionId,
+      deltaHours,
+      decay: decayResult.decay,
+      z_t,
+      evidenceMass: ETV_CONFIG.evidenceMass,
+      r_before,
+      s_before,
+      r_after: stored.r,
+      s_after: stored.s,
+      etvMean: fullState.etvMean,
+      etvVar: fullState.etvVar,
+      band: policy.band,
+      policy,
+      timestamp: now,
+    };
+
+    return { policy, log, state: fullState };
+  }
+
+  /**
+   * Read-only policy lookup (no update, no persist).
+   */
+  static getPolicy(userId: string): ETVPolicy {
+    const stored =
+      ETVStorage.load(userId) ?? ETVStorage.initState(userId);
+    return computePolicy(toFullState(stored));
+  }
+}

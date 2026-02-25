@@ -24,6 +24,9 @@ import { applyHintStickiness, type StickyHints, type StickyHintKey } from './hin
 import { enforceHintSemanticCoherence } from './hintSemanticGuard';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
+import { AVIScorer } from '../scorers/AVIScorer';
+import { ETVEngineV1, SESSION_GAP_MS } from '../etv';
+import type { SessionSummaryV1 } from '../etv';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -57,6 +60,8 @@ import { writeSessionTrace } from '../../debug/sessionTrace';
 export class EngineOrchestrator {
   private etvState: ETVState;
   private sessionEIVs: number[] = [];
+  private sessionAVIs: number[] = [];
+  private sessionStartedAt: number = 0;
   private sessionHasViolation = false;
   private messageCount = 0;
 
@@ -142,6 +147,18 @@ export class EngineOrchestrator {
 
     try {
     const messageTimestampMs = Date.now();
+
+    // ── ETV V1: automatic session boundary detection ──
+    if (featureFlags.etvV1Enabled && this.lastMessageTimestampMs > 0) {
+      const idleMs = messageTimestampMs - this.lastMessageTimestampMs;
+      if (idleMs > SESSION_GAP_MS) {
+        this.endSession();
+      }
+    }
+
+    if (this.messageCount === 0) {
+      this.sessionStartedAt = messageTimestampMs;
+    }
     this.messageCount += 1;
 
     // 1. Assemble EIV components
@@ -167,6 +184,21 @@ export class EngineOrchestrator {
       this.sessionEIVs.shift();
     }
     this.sessionHasViolation ||= hasViolation;
+
+    // ── ETV V1: compute and accumulate per-message AVI ──
+    if (featureFlags.etvV1Enabled) {
+      const avi = AVIScorer.computeAVI(this.sessionEIVs);
+      this.sessionAVIs.push(avi);
+      while (this.sessionAVIs.length > maxEntries) {
+        this.sessionAVIs.shift();
+      }
+    }
+
+    // Ensure lastMessageTimestampMs is always updated (session boundary
+    // detection needs this even when the appraisal bridge is disabled).
+    if (!this.appraisalBridge) {
+      this.lastMessageTimestampMs = messageTimestampMs;
+    }
 
     // ── Appraisal bridge (optional, feature-flagged) ────────────────
     let appraisalResult: AppraisalResult | undefined;
@@ -837,6 +869,55 @@ export class EngineOrchestrator {
       endedAt: Date.now(),
     });
 
+    // ── ETV V1: parallel Beta-with-decay update (Phase 1 — log only) ──
+    if (featureFlags.etvV1Enabled) {
+      const now = Date.now();
+      const aviMean = this.sessionAVIs.length > 0
+        ? this.sessionAVIs.reduce((a, b) => a + b, 0) / this.sessionAVIs.length
+        : 0;
+      const aviMax = this.sessionAVIs.length > 0
+        ? Math.max(...this.sessionAVIs)
+        : 0;
+      const eivMax = Math.max(...this.sessionEIVs);
+
+      const summary: SessionSummaryV1 = {
+        sessionId: `session-${this.etvState.lastUpdated}`,
+        userId: 'default',
+        startedAt: this.sessionStartedAt || now,
+        endedAt: now,
+        messageCount: this.messageCount,
+        eivMean: sessionMean,
+        eivMax,
+        aviMean,
+        aviMax,
+        hasViolation: this.sessionHasViolation,
+      };
+
+      try {
+        const { log } = ETVEngineV1.updateFromSession(summary);
+        DecisionLogger.logETVUpdate({
+          userId: log.userId,
+          sessionId: log.sessionId,
+          deltaHours: log.deltaHours,
+          decay: log.decay,
+          z_t: log.z_t,
+          evidenceMass: log.evidenceMass,
+          r_before: log.r_before,
+          s_before: log.s_before,
+          r_after: log.r_after,
+          s_after: log.s_after,
+          etvMean: log.etvMean,
+          etvVar: log.etvVar,
+          band: log.band,
+          timestamp: log.timestamp,
+        });
+      } catch (err) {
+        if (debugEnabled) {
+          console.error('[LoRa::ETVv1] Update failed:', err);
+        }
+      }
+    }
+
     // Reset session
     this.etvState = {
       value: newETV,
@@ -846,6 +927,8 @@ export class EngineOrchestrator {
     };
 
     this.sessionEIVs = [];
+    this.sessionAVIs = [];
+    this.sessionStartedAt = 0;
     this.sessionHasViolation = false;
     this.messageCount = 0;
     this.lastMessageTimestampMs = 0;
