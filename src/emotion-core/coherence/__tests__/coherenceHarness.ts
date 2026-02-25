@@ -19,6 +19,10 @@ export interface MockAppraisalOverrides {
   postClarityActive?: boolean;
   interruptionLevel?: 0 | 1 | 2 | 3;
   moodCategory?: string;
+  toneMode?: string;
+  pacingMode?: string;
+  validationMode?: string;
+  actionMode?: string;
 }
 
 export function makeAppraisalResult(o: MockAppraisalOverrides = {}): Readonly<Record<string, any>> {
@@ -45,10 +49,10 @@ export function makeAppraisalResult(o: MockAppraisalOverrides = {}): Readonly<Re
     collapse: Object.freeze({ event: o.collapseEvent ?? false, severity: o.collapseSeverity ?? 0, direction: 'NONE' }),
     postClarity: Object.freeze({ active: o.postClarityActive ?? false, agencyDeficit: 0, isRelapse: false, recoveryPath: 'UNKNOWN' as const }),
     intervention: Object.freeze({
-      toneMode: 'NEUTRAL',
-      pacingMode: 'NORMAL',
-      validationMode: 'STANDARD',
-      actionMode: 'NONE',
+      toneMode: o.toneMode ?? 'NEUTRAL',
+      pacingMode: o.pacingMode ?? 'NORMAL',
+      validationMode: o.validationMode ?? 'STANDARD',
+      actionMode: o.actionMode ?? 'NONE',
       interruptionLevel: (o.interruptionLevel ?? 0) as 0 | 1 | 2 | 3,
       guardrails: Object.freeze([]),
     }),
@@ -96,6 +100,17 @@ export function setAdaptiveOn(): void {
   process.env.LORA_STRICT_GUIDANCE_MODE = '1';
 }
 
+export function setFullAdaptiveOn(): void {
+  setAdaptiveOn();
+  process.env.LORA_INTERVENTION_VALIDATION_HINT = '1';
+  process.env.LORA_INTERVENTION_PACING_HINT = '1';
+  process.env.LORA_INTERVENTION_TONE_HINT = '1';
+  process.env.LORA_INTERVENTION_ACTION_HINT = '1';
+  process.env.LORA_INTERVENTION_INTERRUPT_HINT = '1';
+  process.env.LORA_INTERVENTION_STEP_HINT = '1';
+  process.env.LORA_INTERVENTION_QUESTION_BUDGET = '1';
+}
+
 export function saveEnv(): Record<string, string | undefined> {
   const saved: Record<string, string | undefined> = {};
   for (const k of ALL_FLAG_KEYS) saved[k] = process.env[k];
@@ -123,6 +138,7 @@ export interface CapturedStep {
   index: number;
   prompt: string;
   payload: Record<string, any>;
+  builderArgs?: Record<string, unknown>;
 }
 
 // ── Module loader ────────────────────────────────────────────────────
@@ -152,11 +168,17 @@ export function loadModules(stepFn?: jest.Mock) {
 
 export async function runSequence(
   steps: StepSpec[],
-  opts?: { stepFn?: jest.Mock },
+  opts?: { stepFn?: jest.Mock; captureBuilderArgs?: boolean },
 ): Promise<CapturedStep[]> {
   const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
-  const { EngineOrchestrator, InputProcessor } = loadModules(opts?.stepFn);
+  const { EngineOrchestrator, InputProcessor, PromptTemplateBuilder } = loadModules(opts?.stepFn);
+
+  let buildSpy: jest.SpyInstance | undefined;
+  if (opts?.captureBuilderArgs) {
+    buildSpy = jest.spyOn(PromptTemplateBuilder, 'build');
+  }
+
   const engine = new EngineOrchestrator(0.5, {}, () => ({
     generateResponse: async () => 'ok',
   }));
@@ -184,7 +206,9 @@ export async function runSequence(
       }
     }
 
-    captured.push({ index: i, prompt: result.prompt, payload });
+    const builderArgs = buildSpy ? (buildSpy.mock.calls[i]?.[2] as Record<string, unknown> | undefined) : undefined;
+
+    captured.push({ index: i, prompt: result.prompt, payload, builderArgs });
   }
 
   logSpy.mockRestore();
@@ -223,5 +247,9 @@ export const APPRAISAL_FORBIDDEN_KEYS = [
   'policy',
   'appraisalHints',
 ];
+
+export function countMarkers(prompt: string): number {
+  return extractMarkers(prompt).length;
+}
 
 export {};
