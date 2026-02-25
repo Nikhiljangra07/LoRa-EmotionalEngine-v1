@@ -266,6 +266,7 @@ export class EngineOrchestrator {
     }
 
     // ── Drift monitor: update rolling buffers + check ──
+    let driftDetectedThisMessage = false;
     if (featureFlags.driftMonitorEnabled) {
       this.recentGuidanceModes.push(guidanceMode);
       this.recentPacingHints.push(pacingHint);
@@ -287,6 +288,7 @@ export class EngineOrchestrator {
       if (unstable && !this.driftWarningActive) {
         console.warn('[DRIFT_MONITOR] Excessive strategy oscillation detected');
         this.driftWarningActive = true;
+        driftDetectedThisMessage = true;
       }
       if (!unstable) {
         this.driftWarningActive = false;
@@ -452,6 +454,7 @@ export class EngineOrchestrator {
 
       ...(appraisalOverride ? { appraisalOverride } : {}),
       ...(pacingHint ? { pacingHint } : {}),
+      ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
