@@ -76,6 +76,8 @@ export class EngineOrchestrator {
     llmOutput: string;
   };
 
+  private readonly minimumMessagesForAdaptiveControl = 3;
+
   // ── Drift monitor (observability-only, gated by driftMonitorEnabled) ──
   private readonly driftWindowSize = 10;
   private recentGuidanceModes: string[] = [];
@@ -230,7 +232,11 @@ export class EngineOrchestrator {
 
     // ── Appraisal-driven guidance override (Phase 1, feature-flagged) ──
     let appraisalOverride: string | undefined;
-    if (featureFlags.appraisalBridgeModeEnabled && appraisalResult) {
+    if (
+      featureFlags.appraisalBridgeModeEnabled &&
+      appraisalResult &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl
+    ) {
       if (appraisalResult.collapse.event) {
         guidanceMode = 'STABILIZE';
         appraisalOverride = 'COLLAPSE_OVERRIDE';
@@ -250,7 +256,8 @@ export class EngineOrchestrator {
     if (
       featureFlags.appraisalBridgeModeEnabled &&
       featureFlags.appraisalPacingHintEnabled &&
-      appraisalResult
+      appraisalResult &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl
     ) {
       if (appraisalResult.collapse.event) {
         pacingHint = 'SLOW';
@@ -267,7 +274,10 @@ export class EngineOrchestrator {
 
     // ── Drift monitor: update rolling buffers + check ──
     let driftDetectedThisMessage = false;
-    if (featureFlags.driftMonitorEnabled) {
+    if (
+      featureFlags.driftMonitorEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl
+    ) {
       this.recentGuidanceModes.push(guidanceMode);
       this.recentPacingHints.push(pacingHint);
       this.recentEscalationLevels.push(

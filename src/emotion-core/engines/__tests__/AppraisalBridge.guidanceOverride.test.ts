@@ -85,6 +85,11 @@ describe('AppraisalBridge guidanceMode override', () => {
     const engine = new EO(0.5, {}, () => ({
       generateResponse: async () => 'ok',
     }));
+    // Warm-up: 2 messages to satisfy minimum stability horizon (3)
+    for (let i = 0; i < 2; i++) {
+      const w = IP.process('hello');
+      await engine.processMessage(w.analyzerOutputs, undefined, false, {}, undefined, w.signalPacket);
+    }
     const { analyzerOutputs, signalPacket } = IP.process(text);
     await engine.processMessage(analyzerOutputs, undefined, false, {}, undefined, signalPacket);
     return engine;
@@ -101,9 +106,10 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     expect(call).toBeDefined();
     const payload = JSON.parse(call![1]);
     expect(payload.promptProfile.guidanceMode).not.toBe('STABILIZE');
@@ -121,9 +127,10 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.promptProfile.guidanceMode).toBe('DE_ESCALATE');
     expect(payload.appraisalOverride).toBe('ESCALATION_OVERRIDE');
@@ -140,9 +147,10 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.promptProfile.guidanceMode).toBe('STABILIZE');
     expect(payload.appraisalOverride).toBe('COLLAPSE_OVERRIDE');
@@ -159,9 +167,10 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.promptProfile.guidanceMode).toBe('SUPPORTIVE_REFLECTION');
     expect(payload.appraisalOverride).toBe('POST_CLARITY_OVERRIDE');
@@ -182,9 +191,10 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.promptProfile.guidanceMode).toBe('STABILIZE');
     expect(payload.appraisalOverride).toBe('COLLAPSE_OVERRIDE');
@@ -203,9 +213,10 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.promptProfile.guidanceMode).toBe('DE_ESCALATE');
     expect(payload.appraisalOverride).toBe('ESCALATION_OVERRIDE');
@@ -224,8 +235,8 @@ describe('AppraisalBridge guidanceMode override', () => {
 
     await runOne(EngineOrchestrator, InputProcessor);
 
-    expect(buildSpy).toHaveBeenCalledTimes(1);
-    const callArgs = buildSpy.mock.calls[0];
+    expect(buildSpy).toHaveBeenCalledTimes(3);
+    const callArgs = buildSpy.mock.calls[buildSpy.mock.calls.length - 1];
     for (const arg of callArgs) {
       if (arg && typeof arg === 'object') {
         for (const key of FORBIDDEN_KEYS) {

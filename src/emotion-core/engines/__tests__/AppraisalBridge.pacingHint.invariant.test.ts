@@ -106,6 +106,11 @@ async function runOnce(EO: any, IP: any, text = 'I feel really stressed') {
   const engine = new EO(0.5, {}, () => ({
     generateResponse: async () => 'ok',
   }));
+  // Warm-up: 2 messages to satisfy minimum stability horizon (3)
+  for (let i = 0; i < 2; i++) {
+    const w = IP.process('hello');
+    await engine.processMessage(w.analyzerOutputs, undefined, false, {}, undefined, w.signalPacket);
+  }
   const { analyzerOutputs, signalPacket } = IP.process(text);
   const result = await engine.processMessage(
     analyzerOutputs, undefined, false, {}, undefined, signalPacket,
@@ -130,8 +135,9 @@ describe('AppraisalBridge pacingHint invariant', () => {
     const buildSpy = jest.spyOn(PromptTemplateBuilder, 'build');
     await runOnce(EngineOrchestrator, InputProcessor);
 
-    expect(buildSpy).toHaveBeenCalledTimes(1);
-    const opts = buildSpy.mock.calls[0][2];
+    expect(buildSpy).toHaveBeenCalledTimes(3);
+    const lastCall = buildSpy.mock.calls[buildSpy.mock.calls.length - 1];
+    const opts = lastCall[2];
     expect(opts).not.toHaveProperty('pacingHint');
   });
 
@@ -192,9 +198,10 @@ describe('AppraisalBridge pacingHint invariant', () => {
 
     await runOnce(EngineOrchestrator, InputProcessor);
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     expect(call).toBeDefined();
     const payload = JSON.parse(call![1]);
     expect(payload.pacingHint).toBeUndefined();
@@ -212,12 +219,13 @@ describe('AppraisalBridge pacingHint invariant', () => {
     // Overlay text present
     expect(result.prompt).toContain('Pacing: slow down');
 
-    // pacingHint passed to builder
-    const opts = buildSpy.mock.calls[0][2] as Record<string, unknown>;
+    // pacingHint passed to builder (last call = 3rd message, after stability horizon)
+    const lastCall = buildSpy.mock.calls[buildSpy.mock.calls.length - 1];
+    const opts = lastCall[2] as Record<string, unknown>;
     expect(opts.pacingHint).toBe('SLOW');
 
     // No appraisal objects leaked
-    for (const arg of buildSpy.mock.calls[0]) {
+    for (const arg of lastCall) {
       if (arg && typeof arg === 'object') {
         for (const key of APPRAISAL_FORBIDDEN_KEYS) {
           expect(arg).not.toHaveProperty(key);
@@ -236,9 +244,10 @@ describe('AppraisalBridge pacingHint invariant', () => {
 
     expect(result.prompt).toContain('Pacing: slow down');
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.pacingHint).toBe('SLOW');
   });
@@ -253,9 +262,10 @@ describe('AppraisalBridge pacingHint invariant', () => {
 
     expect(result.prompt).toContain('Pacing: slow down');
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.pacingHint).toBe('SLOW');
   });
@@ -270,9 +280,10 @@ describe('AppraisalBridge pacingHint invariant', () => {
 
     expect(result.prompt).toContain('Pacing: slow down');
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     const payload = JSON.parse(call![1]);
     expect(payload.pacingHint).toBe('SLOW');
   });
@@ -304,8 +315,9 @@ describe('AppraisalBridge pacingHint invariant', () => {
     const buildSpy = jest.spyOn(PromptTemplateBuilder, 'build');
     await runOnce(EngineOrchestrator, InputProcessor);
 
-    expect(buildSpy).toHaveBeenCalledTimes(1);
-    for (const arg of buildSpy.mock.calls[0]) {
+    expect(buildSpy).toHaveBeenCalledTimes(3);
+    const lastCall = buildSpy.mock.calls[buildSpy.mock.calls.length - 1];
+    for (const arg of lastCall) {
       if (arg && typeof arg === 'object') {
         for (const key of APPRAISAL_FORBIDDEN_KEYS) {
           expect(arg).not.toHaveProperty(key);
