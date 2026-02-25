@@ -51,6 +51,20 @@ export const AVI_PARAMS = Object.freeze({
   minMessages: 2,
 });
 
+// ── Short-session bias correction ────────────────────────────────
+
+export const SHORT_SESSION = Object.freeze({
+  minMessages: 4,
+  reducedMass: 0.25,
+});
+
+// ── EIV-risk penalty (stable-high-intensity safety net) ──────────
+
+export const ETV_EIV_RISK = Object.freeze({
+  weight: 0.20,
+  startThreshold: 0.70,
+});
+
 // ── Session boundary ──────────────────────────────────────────────
 
 export const SESSION_GAP_MS = 35 * 60 * 1000; // 35 minutes

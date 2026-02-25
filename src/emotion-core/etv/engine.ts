@@ -7,7 +7,7 @@ import type {
   ETVPolicy,
   ETVUpdateLog,
 } from './types';
-import { ETV_CONFIG } from './constants';
+import { ETV_CONFIG, SHORT_SESSION } from './constants';
 import { computeEvidenceScore } from './evidenceScore';
 import { applyDecay, applyEvidence, toFullState } from './betaUpdate';
 import { computePolicy } from './policyMap';
@@ -23,6 +23,9 @@ import { ETVStorage } from './storage';
 export class ETVEngineV1 {
   /**
    * Full session-boundary update.
+   *
+   * Short sessions (< SHORT_SESSION.minMessages) use reduced evidence
+   * mass to prevent "AVI=0 on 1-msg session => inflated trust" bias.
    *
    * @returns The updated policy AND the log record for observability.
    */
@@ -51,8 +54,13 @@ export class ETVEngineV1 {
     const decayResult = applyDecay(stored, deltaHours);
     stored = decayResult.state;
 
+    // Short-session bias correction
+    const mass = summary.messageCount < SHORT_SESSION.minMessages
+      ? SHORT_SESSION.reducedMass
+      : ETV_CONFIG.evidenceMass;
+
     // Evidence update
-    stored = applyEvidence(stored, z_t, ETV_CONFIG.evidenceMass);
+    stored = applyEvidence(stored, z_t, mass);
 
     // Timestamp
     stored = {
@@ -74,7 +82,7 @@ export class ETVEngineV1 {
       deltaHours,
       decay: decayResult.decay,
       z_t,
-      evidenceMass: ETV_CONFIG.evidenceMass,
+      evidenceMass: mass,
       r_before,
       s_before,
       r_after: stored.r,
