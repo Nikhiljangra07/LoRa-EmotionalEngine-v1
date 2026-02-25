@@ -1,5 +1,5 @@
 import type { EIVTier } from '../scorers/eivTiers';
-import type { PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint } from '../types/logging.types';
+import type { PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint } from '../types/logging.types';
 import { decisionLogEnabled } from '../debug/debugGate';
 
 export interface MessageDecisionLog {
@@ -64,6 +64,7 @@ export interface MessageDecisionLog {
   validationHint?: ValidationHint;
   actionHint?: ActionHint;
   interruptHint?: InterruptHint;
+  stepHint?: StepHint;
   driftDetected?: true;
   overrideCooldownActive?: true;
 }
