@@ -46,6 +46,7 @@ const ENV_KEYS = [
   'LORA_APPRAISAL_PACING_HINT',
   'LORA_VALIDATION_INTENSITY',
   'LORA_ADAPTIVE_OVERRIDE_COOLDOWN',
+  'LORA_DRIFT_MONITOR',
 ] as const;
 const origEnv: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) origEnv[k] = process.env[k];
@@ -278,5 +279,111 @@ describe('AdaptiveOverrideCooldown', () => {
         }
       }
     }
+  });
+
+  // E) Cooldown cannot activate without bridge mode
+  test('cooldown flag alone without bridge mode produces no override or cooldown payload', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const collapseResult = makeMockResult({ collapseEvent: true });
+    const stepFn = jest.fn().mockReturnValue(collapseResult);
+
+    // Bridge ON, mode OFF, cooldown ON
+    process.env.LORA_APPRAISAL_BRIDGE = '1';
+    delete process.env.LORA_APPRAISAL_BRIDGE_MODE;
+    process.env.LORA_ADAPTIVE_OVERRIDE_COOLDOWN = '1';
+    delete process.env.LORA_APPRAISAL_PACING_HINT;
+    delete process.env.LORA_VALIDATION_INTENSITY;
+
+    jest.resetModules();
+    jest.doMock('../../../appraisal-bridge/AppraisalBridgeRunner', () => ({
+      AppraisalBridgeRunner: jest.fn().mockImplementation(() => ({
+        step: stepFn,
+        reset: jest.fn(),
+      })),
+    }));
+    jest.doMock('../../../debug/sessionTrace', () => ({
+      writeSessionTrace: jest.fn(),
+    }));
+
+    const { EngineOrchestrator } = require('../EngineOrchestrator');
+    const { InputProcessor } = require('../../processors/InputProcessor');
+
+    const engine = new EngineOrchestrator(0.5, {}, () => ({
+      generateResponse: async () => 'ok',
+    }));
+
+    await send(engine, InputProcessor, 'hello');
+    await send(engine, InputProcessor, 'hello');
+    await send(engine, InputProcessor, 'I feel lost');
+    await send(engine, InputProcessor, 'still lost');
+
+    const payloads = getPayloads(logSpy);
+
+    for (const p of payloads) {
+      expect(p.appraisalOverride).toBeUndefined();
+      expect(p.overrideCooldownActive).toBeUndefined();
+    }
+  });
+
+  // F) Cooldown does not block driftDetected
+  test('driftDetected can fire while overrideCooldownActive is true', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    let callIdx = 0;
+    const stepFn = jest.fn(() => {
+      callIdx++;
+      // Messages 1-3: collapse (triggers override on msg 3, cooldown starts)
+      // Messages 4+: alternate collapse/neutral to induce guidance oscillation
+      if (callIdx <= 3) return makeMockResult({ collapseEvent: true });
+      return callIdx % 2 === 0
+        ? makeMockResult({ collapseEvent: true })
+        : makeMockResult();
+    });
+
+    process.env.LORA_APPRAISAL_BRIDGE = '1';
+    process.env.LORA_APPRAISAL_BRIDGE_MODE = '1';
+    process.env.LORA_ADAPTIVE_OVERRIDE_COOLDOWN = '1';
+    process.env.LORA_DRIFT_MONITOR = '1';
+    delete process.env.LORA_APPRAISAL_PACING_HINT;
+    delete process.env.LORA_VALIDATION_INTENSITY;
+
+    jest.resetModules();
+    jest.doMock('../../../appraisal-bridge/AppraisalBridgeRunner', () => ({
+      AppraisalBridgeRunner: jest.fn().mockImplementation(() => ({
+        step: stepFn,
+        reset: jest.fn(),
+      })),
+    }));
+    jest.doMock('../../../debug/sessionTrace', () => ({
+      writeSessionTrace: jest.fn(),
+    }));
+
+    const { EngineOrchestrator } = require('../EngineOrchestrator');
+    const { InputProcessor } = require('../../processors/InputProcessor');
+
+    const engine = new EngineOrchestrator(0.5, {}, () => ({
+      generateResponse: async () => 'ok',
+    }));
+
+    // Warm up
+    await send(engine, InputProcessor, 'hello');
+    await send(engine, InputProcessor, 'hello');
+    // Message 3: override fires, cooldown = 2
+    await send(engine, InputProcessor, 'help');
+    // Messages 4-12: oscillation during and after cooldown
+    for (let i = 0; i < 9; i++) {
+      await send(engine, InputProcessor, 'message');
+    }
+
+    const payloads = getPayloads(logSpy);
+
+    // Verify cooldown was active on messages 4-5
+    expect(payloads[3].overrideCooldownActive).toBe(true);
+    expect(payloads[4].overrideCooldownActive).toBe(true);
+
+    // Verify driftDetected appeared at some point
+    const driftPayloads = payloads.filter((p: any) => p.driftDetected === true);
+    expect(driftPayloads.length).toBeGreaterThanOrEqual(1);
   });
 });
