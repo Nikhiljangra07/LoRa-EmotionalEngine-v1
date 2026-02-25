@@ -97,6 +97,12 @@ export interface ETVUpdateLogPayload {
   etvVar: number;
   band: string;
   timestamp: number;
+  effectiveN?: number;
+  riskAdjusted?: number;
+  conf?: number;
+  messageCount?: number;
+  eivMean?: number;
+  aviMean?: number;
 }
 
 export class DecisionLogger {
@@ -127,5 +133,10 @@ export class DecisionLogger {
   static logETVUpdate(payload: ETVUpdateLogPayload): void {
     if (!decisionLogEnabled) return;
     console.log('[LoRa::ETVUpdate]', JSON.stringify(payload));
+  }
+
+  static logETVUpdateV1(payload: ETVUpdateLogPayload): void {
+    if (!decisionLogEnabled) return;
+    console.log('[LoRa::ETVUpdateV1]', JSON.stringify(payload));
   }
 }

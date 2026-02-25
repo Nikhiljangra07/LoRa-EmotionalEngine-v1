@@ -2,6 +2,7 @@
 
 import type { ETVStateDerived, ETVBand, ETVPolicy } from './types';
 import { ETV_CONFIG, ETV_BAND_THRESHOLDS, ETV_POLICY_KNOBS } from './constants';
+import { assertPolicyValid } from './invariants';
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.min(Math.max(v, lo), hi);
@@ -17,6 +18,16 @@ export function computeBand(riskAdjusted: number): ETVBand {
   return 'BAND_4';
 }
 
+// ── Derived scalars (shared with engine for logging) ─────────────
+
+export function computeRiskAdjusted(state: ETVStateDerived): number {
+  return clamp(state.etvMean - ETV_CONFIG.riskAversionK * Math.sqrt(state.etvVar), 0, 1);
+}
+
+export function computeConf(state: ETVStateDerived): number {
+  return clamp(1 - Math.sqrt(state.etvVar) * ETV_CONFIG.varianceConfidenceScale, 0, 1);
+}
+
 // ── Full policy computation ───────────────────────────────────────
 
 export function computePolicy(state: ETVStateDerived): ETVPolicy {
@@ -26,6 +37,7 @@ export function computePolicy(state: ETVStateDerived): ETVPolicy {
   const riskAdjusted = state.etvMean - K * Math.sqrt(state.etvVar);
   const p = clamp(riskAdjusted, 0, 1);
   const conf = clamp(1 - Math.sqrt(state.etvVar) * C, 0, 1);
+  assertPolicyValid(p, conf);
 
   const k = ETV_POLICY_KNOBS;
 

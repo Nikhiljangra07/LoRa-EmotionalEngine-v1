@@ -108,12 +108,17 @@ export class EngineOrchestrator {
   private recentEscalationLevels: number[] = [];
   private driftWarningActive = false;
 
+  private readonly userId: string;
+  private sessionCounter = 0;
+
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
     llmConfig: Partial<LLMConfig> = {},
     responderFactory: () => LLMResponder = () =>
-      new OpenAIResponder()
+      new OpenAIResponder(),
+    options: { userId?: string } = {},
   ) {
+    this.userId = options.userId ?? 'anonymous';
     this.etvState = {
       value: initialETV,
       sessionEIVs: [],
@@ -163,7 +168,8 @@ export class EngineOrchestrator {
 
     if (this.messageCount === 0) {
       this.sessionStartedAt = messageTimestampMs;
-      this.currentSessionId = `session-${messageTimestampMs}`;
+      this.sessionCounter += 1;
+      this.currentSessionId = `sess-${this.userId}-${messageTimestampMs}-${this.sessionCounter}`;
       this.sessionOpen = true;
     }
     this.messageCount += 1;
@@ -892,7 +898,7 @@ export class EngineOrchestrator {
       const now = Date.now();
       const summary = buildSessionSummary({
         sessionId,
-        userId: 'default',
+        userId: this.userId,
         startedAt: this.sessionStartedAt || now,
         endedAt: now,
         messageCount: this.messageCount,
@@ -903,7 +909,7 @@ export class EngineOrchestrator {
 
       try {
         const { log } = ETVEngineV1.updateFromSession(summary);
-        DecisionLogger.logETVUpdate({
+        DecisionLogger.logETVUpdateV1({
           userId: log.userId,
           sessionId: log.sessionId,
           deltaHours: log.deltaHours,
@@ -918,6 +924,12 @@ export class EngineOrchestrator {
           etvVar: log.etvVar,
           band: log.band,
           timestamp: log.timestamp,
+          effectiveN: log.effectiveN,
+          riskAdjusted: log.riskAdjusted,
+          conf: log.conf,
+          messageCount: log.messageCount,
+          eivMean: log.eivMean,
+          aviMean: log.aviMean,
         });
       } catch (err) {
         if (debugEnabled) {

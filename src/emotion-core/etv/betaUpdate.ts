@@ -2,6 +2,7 @@
 
 import type { ETVStateStored, ETVStateDerived } from './types';
 import { ETV_CONFIG } from './constants';
+import { assertStoredValid, assertDerivedValid } from './invariants';
 
 // ── Derived quantities ────────────────────────────────────────────
 
@@ -10,10 +11,14 @@ export function computeDerived(r: number, s: number): {
   etvVar: number;
   effectiveN: number;
 } {
+  assertStoredValid(r, s);
   const n = r + s;
+  const mean = r / n;
+  const variance = (r * s) / (n * n * (n + 1));
+  assertDerivedValid(mean, variance);
   return {
-    etvMean: r / n,
-    etvVar: (r * s) / (n * n * (n + 1)),
+    etvMean: mean,
+    etvVar: variance,
     effectiveN: n,
   };
 }

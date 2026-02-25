@@ -10,7 +10,7 @@ import type {
 import { ETV_CONFIG, SHORT_SESSION } from './constants';
 import { computeEvidenceScore } from './evidenceScore';
 import { applyDecay, applyEvidence, toFullState } from './betaUpdate';
-import { computePolicy } from './policyMap';
+import { computePolicy, computeRiskAdjusted, computeConf } from './policyMap';
 import { ETVStorage } from './storage';
 
 /**
@@ -75,6 +75,8 @@ export class ETVEngineV1 {
     // Derive + policy
     const fullState = toFullState(stored);
     const policy = computePolicy(fullState);
+    const riskAdjusted = computeRiskAdjusted(fullState);
+    const conf = computeConf(fullState);
 
     const log: ETVUpdateLog = {
       userId: summary.userId,
@@ -92,6 +94,12 @@ export class ETVEngineV1 {
       band: policy.band,
       policy,
       timestamp: now,
+      effectiveN: fullState.effectiveN,
+      riskAdjusted,
+      conf,
+      messageCount: summary.messageCount,
+      eivMean: summary.eivMean,
+      aviMean: summary.aviMean,
     };
 
     return { policy, log, state: fullState };
@@ -105,4 +113,45 @@ export class ETVEngineV1 {
       ETVStorage.load(userId) ?? ETVStorage.initState(userId);
     return computePolicy(toFullState(stored));
   }
+}
+
+/**
+ * Snapshot for trajectory observability — logging only, no side-effects.
+ */
+export function formatTrajectorySnapshot(
+  state: ETVStateDerived,
+  summary: SessionSummaryV1,
+  z_t: number,
+): {
+  userId: string;
+  sessionId: string;
+  mean: number;
+  variance: number;
+  effectiveN: number;
+  riskAdjusted: number;
+  conf: number;
+  band: string;
+  z: number;
+  messageCount: number;
+  eivMean: number;
+  aviMean: number;
+} {
+  const riskAdjusted = computeRiskAdjusted(state);
+  const conf = computeConf(state);
+  const policy = computePolicy(state);
+
+  return {
+    userId: summary.userId,
+    sessionId: summary.sessionId,
+    mean: state.etvMean,
+    variance: state.etvVar,
+    effectiveN: state.effectiveN,
+    riskAdjusted,
+    conf,
+    band: policy.band,
+    z: z_t,
+    messageCount: summary.messageCount,
+    eivMean: summary.eivMean,
+    aviMean: summary.aviMean,
+  };
 }

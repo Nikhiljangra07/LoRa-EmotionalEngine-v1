@@ -67,7 +67,7 @@ describe('EngineOrchestrator — ETV V1 idempotent session close', () => {
 
   beforeEach(() => {
     logSessionEndSpy = jest.spyOn(DecisionLogger, 'logSessionEnd').mockImplementation(() => {});
-    logETVUpdateSpy = jest.spyOn(DecisionLogger, 'logETVUpdate').mockImplementation(() => {});
+    logETVUpdateSpy = jest.spyOn(DecisionLogger, 'logETVUpdateV1').mockImplementation(() => {});
     mockFlags.etvV1Enabled = true;
   });
 
@@ -125,7 +125,7 @@ describe('EngineOrchestrator — ETV V1 flag off preserves old behavior', () => 
 
   beforeEach(() => {
     logSessionEndSpy = jest.spyOn(DecisionLogger, 'logSessionEnd').mockImplementation(() => {});
-    jest.spyOn(DecisionLogger, 'logETVUpdate').mockImplementation(() => {});
+    jest.spyOn(DecisionLogger, 'logETVUpdateV1').mockImplementation(() => {});
     mockFlags.etvV1Enabled = false;
   });
 
@@ -145,7 +145,7 @@ describe('EngineOrchestrator — ETV V1 flag off preserves old behavior', () => 
     engine.endSession();
     expect(logSessionEndSpy).toHaveBeenCalledTimes(1);
     // No ETV V1 update when flag is off
-    expect(jest.spyOn(DecisionLogger, 'logETVUpdate')).not.toHaveBeenCalled();
+    expect(jest.spyOn(DecisionLogger, 'logETVUpdateV1')).not.toHaveBeenCalled();
   });
 });
 
