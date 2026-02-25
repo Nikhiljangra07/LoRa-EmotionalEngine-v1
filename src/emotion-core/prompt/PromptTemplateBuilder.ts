@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -35,6 +35,7 @@ export class PromptTemplateBuilder {
       actionHint?: ActionHint;
       interruptHint?: InterruptHint;
       stepHint?: StepHint;
+      questionBudgetHint?: QuestionBudgetHint;
     }
   ): string {
     if (
@@ -82,6 +83,7 @@ export class PromptTemplateBuilder {
     const actionHintOverlay = this.getActionHintOverlay(options?.actionHint);
     const interruptHintOverlay = this.getInterruptHintOverlay(options?.interruptHint);
     const stepHintOverlay = this.getStepHintOverlay(options?.stepHint);
+    const questionBudgetOverlay = this.getQuestionBudgetOverlay(options?.questionBudgetHint);
 
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
@@ -98,7 +100,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}${questionBudgetOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -402,6 +404,21 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
         return `
 [STEP_HINT:TWO_STEPS]
 - Offer 1\u20132 concise steps. Avoid overload.`;
+      default:
+        return '';
+    }
+  }
+
+  private static getQuestionBudgetOverlay(hint?: QuestionBudgetHint): string {
+    switch (hint) {
+      case 'ZERO':
+        return `
+[QUESTION_BUDGET:ZERO]
+- Ask zero questions. Use statements, reflections, and grounding.`;
+      case 'ONE':
+        return `
+[QUESTION_BUDGET:ONE]
+- At most one question. Prefer one short, gentle question only if needed.`;
       default:
         return '';
     }

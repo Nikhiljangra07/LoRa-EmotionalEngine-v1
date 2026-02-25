@@ -21,6 +21,8 @@ export type InterruptHint = 'SOFT' | 'FIRM' | 'HARD_STOP';
 
 export type StepHint = 'ONE_STEP' | 'TWO_STEPS';
 
+export type QuestionBudgetHint = 'ZERO' | 'ONE';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;
