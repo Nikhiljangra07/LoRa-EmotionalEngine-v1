@@ -6,6 +6,18 @@ import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
 import type { PromptProfile, PacingHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
+import { featureFlags } from '../config/featureFlags';
+
+const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
+  'CALM_NEUTRAL',
+  'ENERGY_MATCH',
+  'VALIDATING',
+  'DE_ESCALATE',
+  'SUPPORTIVE',
+  'FALLBACK',
+  'STABILIZE',
+  'SUPPORTIVE_REFLECTION',
+]);
 
 export class PromptTemplateBuilder {
   static build(
@@ -19,6 +31,16 @@ export class PromptTemplateBuilder {
       pacingHint?: PacingHint;
     }
   ): string {
+    if (
+      featureFlags.strictGuidanceModeEnabled &&
+      options?.guidanceMode !== undefined &&
+      !ALLOWED_GUIDANCE_MODES.has(options.guidanceMode)
+    ) {
+      throw new Error(
+        `[STRICT_MODE] Unknown guidanceMode: ${options.guidanceMode}`,
+      );
+    }
+
     const relationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
     const emotionalGuidance = this.mapEmotionToGuidance(emotionalState);
     const allowInitiative =
