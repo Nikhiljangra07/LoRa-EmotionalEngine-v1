@@ -93,6 +93,21 @@ export interface PromptProfileDiffPayload {
   assertiveness: number;
   clarificationBias: number;
   maxResponseTokens: number;
+  promptSignature?: string;
+}
+
+const DIFF_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const diffLastLogged = new Map<string, number>();
+
+function buildDiffKey(p: PromptProfileDiffPayload): string {
+  return `${p.userId}|${p.band}|${p.oldRelationshipStyle}|${p.newRelationshipStyle}`;
+}
+
+function isDiffThrottled(key: string, now: number): boolean {
+  const last = diffLastLogged.get(key);
+  if (last !== undefined && now - last < DIFF_COOLDOWN_MS) return true;
+  diffLastLogged.set(key, now);
+  return false;
 }
 
 export interface ETVUpdateLogPayload {
@@ -155,6 +170,12 @@ export class DecisionLogger {
 
   static logPromptProfileDiff(payload: PromptProfileDiffPayload): void {
     if (!decisionLogEnabled) return;
+    const key = buildDiffKey(payload);
+    if (isDiffThrottled(key, Date.now())) return;
     console.log('[LoRa::PromptProfileDiff]', JSON.stringify(payload));
+  }
+
+  static resetDiffLimiter(): void {
+    diffLastLogged.clear();
   }
 }

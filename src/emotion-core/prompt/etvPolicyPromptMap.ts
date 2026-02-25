@@ -96,6 +96,23 @@ export function renderConstraintOverlay(mapping: ETVPromptMapping): string {
   return lines.join('\n');
 }
 
+/**
+ * Compact categorical signature for diff logs.
+ * Deterministic, no numeric values — only tokens.
+ */
+export function computePromptSignature(mapping: ETVPromptMapping): string {
+  const c = mapping.constraints;
+
+  const init = c.maxInitiative < 0.35 ? 'LOW' : c.maxInitiative < 0.60 ? 'MOD' : 'STD';
+  const depth = c.maxDepth < 0.35 ? 'SHALLOW' : c.maxDepth < 0.60 ? 'MOD' : 'FULL';
+  const assert = c.assertiveness < 0.25 ? 'GENTLE' : c.assertiveness > 0.50 ? 'CONFIDENT' : 'BALANCED';
+  const pers = c.personalizationStrength < 0.30 ? 'LOW' : c.personalizationStrength < 0.60 ? 'MOD' : 'HIGH';
+  const clar = c.clarificationBias > 0.50 ? 'HIGH' : c.clarificationBias > 0.30 ? 'MOD' : 'LOW';
+  const len = c.maxResponseTokens < 200 ? 'SHORT' : c.maxResponseTokens < 400 ? 'MEDIUM' : 'LONG';
+
+  return `${c.band}:${mapping.relationshipStyle}:init=${init}:depth=${depth}:assert=${assert}:pers=${pers}:clar=${clar}:len=${len}`;
+}
+
 function formatRelationship(style: PromptProfile['relationshipStyle']): string {
   switch (style) {
     case 'PROFESSIONAL': return 'Professional — polite, calm, and respectful';
