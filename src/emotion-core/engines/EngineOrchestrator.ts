@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile } from '../types/logging.types';
+import type { PromptProfile, PacingHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -236,6 +236,27 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── Phase 2: derived pacing hint (feature-flagged, SLOW/NORMAL only) ──
+    let pacingHint: PacingHint | undefined;
+    if (
+      featureFlags.appraisalBridgeModeEnabled &&
+      featureFlags.appraisalPacingHintEnabled &&
+      appraisalResult
+    ) {
+      if (appraisalResult.collapse.event) {
+        pacingHint = 'SLOW';
+      } else if (appraisalResult.escalation.level >= 2) {
+        pacingHint = 'SLOW';
+      } else if (
+        appraisalResult.pressure.scalar >= 2.25 ||
+        appraisalResult.pressure.volatility >= 1.2
+      ) {
+        pacingHint = 'SLOW';
+      } else {
+        pacingHint = 'NORMAL';
+      }
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -280,6 +301,7 @@ export class EngineOrchestrator {
       momentumConfidence: momentum.confidence,
       answerFirst: allowAnswerFirst,
       microContext,
+      ...(pacingHint ? { pacingHint } : {}),
     });
 
     const llmInput = userMessage
@@ -393,6 +415,7 @@ export class EngineOrchestrator {
         : {}),
 
       ...(appraisalOverride ? { appraisalOverride } : {}),
+      ...(pacingHint ? { pacingHint } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
