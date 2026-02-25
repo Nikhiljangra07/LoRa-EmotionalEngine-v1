@@ -236,7 +236,9 @@ export class EngineOrchestrator {
       }
     }
 
-    // ── Phase 2: derived pacing hint (feature-flagged, SLOW/NORMAL only) ──
+    // ── Phase 2: derived pacing hint (feature-flagged, SLOW only) ──
+    // pacingHint stays undefined when the hint would be NORMAL,
+    // so it is never passed to the builder in the neutral case.
     let pacingHint: PacingHint | undefined;
     if (
       featureFlags.appraisalBridgeModeEnabled &&
@@ -252,9 +254,8 @@ export class EngineOrchestrator {
         appraisalResult.pressure.volatility >= 1.2
       ) {
         pacingHint = 'SLOW';
-      } else {
-        pacingHint = 'NORMAL';
       }
+      // else: stays undefined (NORMAL case — nothing passed to builder)
     }
 
     const userMessage = signalPacket?.messageText ?? '';
