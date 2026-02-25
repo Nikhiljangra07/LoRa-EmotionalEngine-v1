@@ -17,6 +17,8 @@ export type ActionHint =
   | 'SUGGEST_BREAK'
   | 'NO_ACTION';
 
+export type InterruptHint = 'SOFT' | 'FIRM' | 'HARD_STOP';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;

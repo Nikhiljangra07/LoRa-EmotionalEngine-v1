@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -433,6 +433,28 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── InterruptHint: derived from intervention.interruptionLevel (present-or-absent) ──
+    let interruptHint: InterruptHint | undefined;
+    if (
+      featureFlags.interventionInterruptHintEnabled &&
+      featureFlags.appraisalBridgeEnabled &&
+      featureFlags.appraisalBridgeModeEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      appraisalResult
+    ) {
+      const level = appraisalResult.intervention.interruptionLevel;
+      if (level >= 3) {
+        interruptHint = (guidanceMode === 'STABILIZE' || guidanceMode === 'DE_ESCALATE')
+          ? 'FIRM'
+          : 'HARD_STOP';
+      } else if (level === 2) {
+        interruptHint = 'FIRM';
+      } else if (level === 1) {
+        interruptHint = 'SOFT';
+      }
+      // level 0 → undefined (absent)
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -482,6 +504,7 @@ export class EngineOrchestrator {
       ...(toneHint ? { toneHint } : {}),
       ...(validationHint ? { validationHint } : {}),
       ...(actionHint ? { actionHint } : {}),
+      ...(interruptHint ? { interruptHint } : {}),
     });
 
     const llmInput = userMessage
@@ -600,6 +623,7 @@ export class EngineOrchestrator {
       ...(toneHint ? { toneHint } : {}),
       ...(validationHint ? { validationHint } : {}),
       ...(actionHint ? { actionHint } : {}),
+      ...(interruptHint ? { interruptHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };
