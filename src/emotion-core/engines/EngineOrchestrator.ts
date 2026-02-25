@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -396,6 +396,43 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── ActionHint: derived from intervention.actionMode (present-or-absent) ──
+    let actionHint: ActionHint | undefined;
+    if (
+      featureFlags.interventionActionHintEnabled &&
+      featureFlags.appraisalBridgeEnabled &&
+      featureFlags.appraisalBridgeModeEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      appraisalResult
+    ) {
+      const am = appraisalResult.intervention.actionMode;
+      let candidate: ActionHint | undefined;
+      if (am === 'ENCOURAGE_PAUSE') {
+        candidate = 'ENCOURAGE_BREATH';
+      } else if (am === 'SHIFT_TO_REFLECTION') {
+        candidate = 'ASK_ONE_QUESTION';
+      } else if (am === 'INTERRUPT_LOOP') {
+        candidate = 'SUGGEST_BREAK';
+      }
+      // 'NONE' and unknown → undefined
+
+      if (candidate !== undefined) {
+        if (guidanceMode === 'STABILIZE') {
+          if (candidate === 'ENCOURAGE_BREATH' || candidate === 'SUGGEST_BREAK') {
+            actionHint = candidate;
+          }
+          // ASK_ONE_QUESTION / OFFER_STEPS blocked in STABILIZE
+        } else if (guidanceMode === 'DE_ESCALATE') {
+          if (candidate === 'ASK_ONE_QUESTION' || candidate === 'SUGGEST_BREAK') {
+            actionHint = candidate;
+          }
+          // OFFER_STEPS / ENCOURAGE_BREATH blocked in DE_ESCALATE
+        } else {
+          actionHint = candidate;
+        }
+      }
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -444,6 +481,7 @@ export class EngineOrchestrator {
       ...(validationIntensity ? { validationIntensity } : {}),
       ...(toneHint ? { toneHint } : {}),
       ...(validationHint ? { validationHint } : {}),
+      ...(actionHint ? { actionHint } : {}),
     });
 
     const llmInput = userMessage
@@ -561,6 +599,7 @@ export class EngineOrchestrator {
       ...(validationIntensity ? { validationIntensity } : {}),
       ...(toneHint ? { toneHint } : {}),
       ...(validationHint ? { validationHint } : {}),
+      ...(actionHint ? { actionHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };

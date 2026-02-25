@@ -12,6 +12,7 @@ const FLAG_KEYS = [
   'LORA_INTERVENTION_VALIDATION_HINT',
   'LORA_INTERVENTION_PACING_HINT',
   'LORA_INTERVENTION_TONE_HINT',
+  'LORA_INTERVENTION_ACTION_HINT',
 ] as const;
 const origEnv: Record<string, string | undefined> = {};
 for (const k of FLAG_KEYS) origEnv[k] = process.env[k];
@@ -47,6 +48,7 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.interventionValidationHintEnabled).toBe(false);
     expect(flags.interventionPacingHintEnabled).toBe(false);
     expect(flags.interventionToneHintEnabled).toBe(false);
+    expect(flags.interventionActionHintEnabled).toBe(false);
   });
 
   // B) Validation only
@@ -119,6 +121,16 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.interventionPacingHintEnabled).toBe(false);
   });
 
+  // I) Intervention action hint only
+  test('LORA_INTERVENTION_ACTION_HINT=1 → interventionActionHintEnabled true', () => {
+    clearAllFlags();
+    process.env.LORA_INTERVENTION_ACTION_HINT = '1';
+    const flags = loadFlags();
+    expect(flags.interventionActionHintEnabled).toBe(true);
+    expect(flags.interventionToneHintEnabled).toBe(false);
+    expect(flags.interventionPacingHintEnabled).toBe(false);
+  });
+
   // Existing flags are unaffected by new flag env vars
   test('setting new flags does not alter existing flags', () => {
     clearAllFlags();
@@ -128,6 +140,7 @@ describe('FeatureFlags contract matrix', () => {
     process.env.LORA_INTERVENTION_VALIDATION_HINT = '1';
     process.env.LORA_INTERVENTION_PACING_HINT = '1';
     process.env.LORA_INTERVENTION_TONE_HINT = '1';
+    process.env.LORA_INTERVENTION_ACTION_HINT = '1';
     const flags = loadFlags();
     expect(flags.appraisalBridgeEnabled).toBe(false);
     expect(flags.appraisalBridgeModeEnabled).toBe(false);

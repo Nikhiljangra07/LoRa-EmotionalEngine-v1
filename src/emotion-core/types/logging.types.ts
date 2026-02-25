@@ -10,6 +10,13 @@ export type ToneHint = 'GENTLE' | 'FIRM';
 
 export type ValidationHint = 'LIGHT' | 'STRONG';
 
+export type ActionHint =
+  | 'ASK_ONE_QUESTION'
+  | 'OFFER_STEPS'
+  | 'ENCOURAGE_BREATH'
+  | 'SUGGEST_BREAK'
+  | 'NO_ACTION';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;
