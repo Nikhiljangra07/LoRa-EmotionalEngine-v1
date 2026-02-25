@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -32,6 +32,7 @@ export class PromptTemplateBuilder {
       validationIntensity?: ValidationIntensity;
       toneHint?: ToneHint;
       validationHint?: ValidationHint;
+      actionHint?: ActionHint;
     }
   ): string {
     if (
@@ -76,6 +77,7 @@ export class PromptTemplateBuilder {
     const validationOverlay = this.getValidationOverlay(options?.validationIntensity);
     const toneOverlay = this.getToneOverlay(options?.toneHint);
     const validationHintOverlay = this.getValidationHintOverlay(options?.validationHint);
+    const actionHintOverlay = this.getActionHintOverlay(options?.actionHint);
 
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
@@ -92,7 +94,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -335,6 +337,33 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
         return `
 [VALIDATION_HINT:LIGHT]
 - Keep validation brief. Do not over-soothe. Acknowledge, then move to substance.`;
+      default:
+        return '';
+    }
+  }
+
+  private static getActionHintOverlay(hint?: ActionHint): string {
+    switch (hint) {
+      case 'ASK_ONE_QUESTION':
+        return `
+[ACTION_HINT:ASK_ONE_QUESTION]
+- Ask at most one clarifying question. Keep it gentle.`;
+      case 'OFFER_STEPS':
+        return `
+[ACTION_HINT:OFFER_STEPS]
+- Offer 2\u20134 concrete steps. Avoid overload.`;
+      case 'ENCOURAGE_BREATH':
+        return `
+[ACTION_HINT:ENCOURAGE_BREATH]
+- Offer a grounding or breathing suggestion briefly.`;
+      case 'SUGGEST_BREAK':
+        return `
+[ACTION_HINT:SUGGEST_BREAK]
+- Suggest a short break and offer to resume later.`;
+      case 'NO_ACTION':
+        return `
+[ACTION_HINT:NO_ACTION]
+- Do not suggest actions; stay present.`;
       default:
         return '';
     }
