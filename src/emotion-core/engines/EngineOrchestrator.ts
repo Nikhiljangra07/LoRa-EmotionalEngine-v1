@@ -363,6 +363,14 @@ export class EngineOrchestrator {
         toneHint = 'GENTLE';
       } else if (appraisalResult && appraisalResult.intervention.interruptionLevel >= 2) {
         toneHint = 'FIRM';
+      } else if (featureFlags.interventionToneHintEnabled && appraisalResult) {
+        const tm = appraisalResult.intervention.toneMode;
+        if (tm === 'STABILIZE' || tm === 'DE_ESCALATE' || tm === 'REFLECTIVE' || tm === 'AFFIRM_BOUNDARIED') {
+          toneHint = 'GENTLE';
+        } else if (tm === 'FIRM_CONTAIN') {
+          toneHint = 'FIRM';
+        }
+        // 'NEUTRAL' and unknown → undefined (absent)
       }
     }
 
