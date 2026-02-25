@@ -20,4 +20,5 @@ export const featureFlags = Object.freeze({
   hintSemanticGuardEnabled: process.env.LORA_HINT_SEMANTIC_GUARD === '1',
   etvV1Enabled: process.env.LORA_ETV_V1 === '1',
   etvPolicyPromptEnabled: process.env.LORA_ETV_POLICY_PROMPT === '1',
+  etvPolicyPromptShadowEnabled: process.env.LORA_ETV_POLICY_PROMPT_SHADOW === '1',
 });
