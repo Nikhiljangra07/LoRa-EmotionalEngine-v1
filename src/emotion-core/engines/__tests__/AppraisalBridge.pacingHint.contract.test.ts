@@ -98,6 +98,11 @@ async function runOnce(EO: any, IP: any, text = 'I feel terrible') {
   const engine = new EO(0.5, {}, () => ({
     generateResponse: async () => 'ok',
   }));
+  // Warm-up: 2 messages to satisfy minimum stability horizon (3)
+  for (let i = 0; i < 2; i++) {
+    const w = IP.process('hello');
+    await engine.processMessage(w.analyzerOutputs, undefined, false, {}, undefined, w.signalPacket);
+  }
   const { analyzerOutputs, signalPacket } = IP.process(text);
   return engine.processMessage(
     analyzerOutputs, undefined, false, {}, undefined, signalPacket,
@@ -120,7 +125,8 @@ describe('pacingHint contract', () => {
     const spy = jest.spyOn(PromptTemplateBuilder, 'build');
     await runOnce(EngineOrchestrator, InputProcessor);
 
-    const opts = spy.mock.calls[0][2] as Record<string, unknown> | undefined;
+    const lastCall = spy.mock.calls[spy.mock.calls.length - 1];
+    const opts = lastCall[2] as Record<string, unknown> | undefined;
     expect(opts).toBeDefined();
     expect(opts).not.toHaveProperty('pacingHint');
   });
@@ -134,7 +140,8 @@ describe('pacingHint contract', () => {
     const spy = jest.spyOn(PromptTemplateBuilder, 'build');
     await runOnce(EngineOrchestrator, InputProcessor);
 
-    const opts = spy.mock.calls[0][2] as Record<string, unknown> | undefined;
+    const lastCall = spy.mock.calls[spy.mock.calls.length - 1];
+    const opts = lastCall[2] as Record<string, unknown> | undefined;
     expect(opts).toBeDefined();
     expect(opts).not.toHaveProperty('pacingHint');
   });
@@ -147,7 +154,8 @@ describe('pacingHint contract', () => {
     const spy = jest.spyOn(PromptTemplateBuilder, 'build');
     await runOnce(EngineOrchestrator, InputProcessor);
 
-    const opts = spy.mock.calls[0][2] as Record<string, unknown>;
+    const lastCall = spy.mock.calls[spy.mock.calls.length - 1];
+    const opts = lastCall[2] as Record<string, unknown>;
     expect(opts.pacingHint).toBe('SLOW');
   });
 

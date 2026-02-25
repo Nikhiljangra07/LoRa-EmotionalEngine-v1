@@ -80,14 +80,20 @@ describe('AppraisalBridge new modes — prompt smoke', () => {
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
     }));
+    // Warm-up: 2 messages to satisfy minimum stability horizon
+    for (let i = 0; i < 2; i++) {
+      const w = InputProcessor.process('hello');
+      await engine.processMessage(w.analyzerOutputs, undefined, false, {}, undefined, w.signalPacket);
+    }
     const { analyzerOutputs, signalPacket } = InputProcessor.process('I feel lost');
     const result = await engine.processMessage(
       analyzerOutputs, undefined, false, {}, undefined, signalPacket,
     );
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     expect(call).toBeDefined();
     const payload = JSON.parse(call![1]);
 
@@ -108,14 +114,20 @@ describe('AppraisalBridge new modes — prompt smoke', () => {
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
     }));
+    // Warm-up: 2 messages to satisfy minimum stability horizon
+    for (let i = 0; i < 2; i++) {
+      const w = InputProcessor.process('hello');
+      await engine.processMessage(w.analyzerOutputs, undefined, false, {}, undefined, w.signalPacket);
+    }
     const { analyzerOutputs, signalPacket } = InputProcessor.process('I think I understand now');
     const result = await engine.processMessage(
       analyzerOutputs, undefined, false, {}, undefined, signalPacket,
     );
 
-    const call = logSpy.mock.calls.find(
+    const calls = logSpy.mock.calls.filter(
       (c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'),
     );
+    const call = calls[calls.length - 1];
     expect(call).toBeDefined();
     const payload = JSON.parse(call![1]);
 
@@ -137,11 +149,17 @@ describe('AppraisalBridge new modes — prompt smoke', () => {
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
     }));
+    // Warm-up + assertion message (3 total)
+    for (let i = 0; i < 2; i++) {
+      const w = InputProcessor.process('hello');
+      await engine.processMessage(w.analyzerOutputs, undefined, false, {}, undefined, w.signalPacket);
+    }
     const { analyzerOutputs, signalPacket } = InputProcessor.process('help');
     await engine.processMessage(analyzerOutputs, undefined, false, {}, undefined, signalPacket);
 
-    expect(buildSpy).toHaveBeenCalledTimes(1);
-    for (const arg of buildSpy.mock.calls[0]) {
+    expect(buildSpy).toHaveBeenCalledTimes(3);
+    const lastCall = buildSpy.mock.calls[buildSpy.mock.calls.length - 1];
+    for (const arg of lastCall) {
       if (arg && typeof arg === 'object') {
         for (const key of APPRAISAL_FORBIDDEN_KEYS) {
           expect(arg).not.toHaveProperty(key);
