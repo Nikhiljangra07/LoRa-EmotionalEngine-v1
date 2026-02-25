@@ -4,9 +4,12 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
+import type { PromptProfile, PromptConstraints, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
+import type { ETVPolicy } from '../etv/types';
+import { mapETVPolicyToPrompt, renderConstraintOverlay } from './etvPolicyPromptMap';
+import { DecisionLogger } from '../logging/DecisionLogger';
 
 const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
   'CALM_NEUTRAL',
@@ -36,6 +39,9 @@ export class PromptTemplateBuilder {
       interruptHint?: InterruptHint;
       stepHint?: StepHint;
       questionBudgetHint?: QuestionBudgetHint;
+      etvPolicy?: ETVPolicy;
+      messageId?: string;
+      userId?: string;
     }
   ): string {
     if (
@@ -48,7 +54,34 @@ export class PromptTemplateBuilder {
       );
     }
 
-    const relationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
+    const legacyRelationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
+
+    let relationshipStyle = legacyRelationshipStyle;
+    let constraintOverlay = '';
+
+    if (
+      featureFlags.etvPolicyPromptEnabled &&
+      options?.etvPolicy !== undefined
+    ) {
+      const mapping = mapETVPolicyToPrompt(options.etvPolicy);
+      const newRelStyle = this.formatRelationshipLabel(mapping.relationshipStyle);
+      constraintOverlay = renderConstraintOverlay(mapping);
+      relationshipStyle = newRelStyle;
+
+      DecisionLogger.logPromptProfileDiff({
+        messageId: options.messageId ?? 'unknown',
+        userId: options.userId ?? 'unknown',
+        oldRelationshipStyle: legacyRelationshipStyle,
+        newRelationshipStyle: newRelStyle,
+        band: mapping.constraints.band,
+        maxInitiative: mapping.constraints.maxInitiative,
+        maxDepth: mapping.constraints.maxDepth,
+        assertiveness: mapping.constraints.assertiveness,
+        clarificationBias: mapping.constraints.clarificationBias,
+        maxResponseTokens: mapping.constraints.maxResponseTokens,
+      });
+    }
+
     const emotionalGuidance = this.mapEmotionToGuidance(emotionalState);
     const allowInitiative =
       options?.guidanceMode !== undefined &&
@@ -111,7 +144,7 @@ GLOBAL CONSTRAINTS
 - Avoid cheerfulness when the user signals negativity
 - Keep a professional baseline when needed
 - If uncertain, default to calm, warm presence
-`.trim();
+${constraintOverlay}`.trim();
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][PromptTemplate]', {
@@ -421,6 +454,19 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 - At most one question. Prefer one short, gentle question only if needed.`;
       default:
         return '';
+    }
+  }
+
+  private static formatRelationshipLabel(
+    style: PromptProfile['relationshipStyle'],
+  ): string {
+    switch (style) {
+      case 'PROFESSIONAL':
+        return 'Professional — polite, calm, and respectful';
+      case 'FRIENDLY':
+        return 'Friendly — warm, open, and conversational';
+      case 'CASUAL':
+        return 'Casual — relaxed, personable, and natural';
     }
   }
 }

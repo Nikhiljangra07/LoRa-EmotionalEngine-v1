@@ -82,6 +82,19 @@ export interface SessionLog {
   endedAt: number;
 }
 
+export interface PromptProfileDiffPayload {
+  messageId: string;
+  userId: string;
+  oldRelationshipStyle: string;
+  newRelationshipStyle: string;
+  band: string;
+  maxInitiative: number;
+  maxDepth: number;
+  assertiveness: number;
+  clarificationBias: number;
+  maxResponseTokens: number;
+}
+
 export interface ETVUpdateLogPayload {
   userId: string;
   sessionId: string;
@@ -138,5 +151,10 @@ export class DecisionLogger {
   static logETVUpdateV1(payload: ETVUpdateLogPayload): void {
     if (!decisionLogEnabled) return;
     console.log('[LoRa::ETVUpdateV1]', JSON.stringify(payload));
+  }
+
+  static logPromptProfileDiff(payload: PromptProfileDiffPayload): void {
+    if (!decisionLogEnabled) return;
+    console.log('[LoRa::PromptProfileDiff]', JSON.stringify(payload));
   }
 }

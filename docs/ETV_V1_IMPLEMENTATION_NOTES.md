@@ -84,8 +84,44 @@ The `AVIScorer` (RMSSD-based) lives at `src/emotion-core/scorers/AVIScorer.ts`.
 - Atomic writes: write to `.tmp` then `rename` (prevents partial writes on crash)
 - Schema: `{ userId, r, s, lastSessionEndedAt, updatedAt }`
 
-## What this does NOT include
+## Prompt Integration Rollout
 
-- **No prompt-builder integration**: ETV V1 computes policy and logs it, but does not yet feed knobs into the prompt template.
+ETV V1 policy knobs are now wired into `PromptTemplateBuilder` behind the
+feature flag `LORA_ETV_POLICY_PROMPT` (default OFF).
+
+### Architecture
+
+```
+ETVPolicy (from engine.ts)
+  → mapETVPolicyToPrompt()    [etvPolicyPromptMap.ts]
+  → renderConstraintOverlay() [categorical labels only, no raw floats]
+  → injected into prompt after GLOBAL CONSTRAINTS block
+```
+
+**Dual-path logic** in `PromptTemplateBuilder.build()`:
+1. Legacy `mapETVToRelationshipStyle(etvState.value)` always runs first.
+2. If `LORA_ETV_POLICY_PROMPT === '1'` AND `options.etvPolicy` is present:
+   - New mapping overrides relationship style (band-based).
+   - Constraint overlay is appended to the prompt.
+   - `DecisionLogger.logPromptProfileDiff()` logs the old-vs-new comparison.
+3. If flag is OFF or `etvPolicy` is undefined: output is identical to legacy.
+
+### Rollout plan
+
+| Phase | Action | Flag state |
+|-------|--------|------------|
+| **A — Shadow diff logs** | Enable `LORA_ETV_V1=1`. ETV updates compute policy and log trajectory. `LORA_ETV_POLICY_PROMPT` stays OFF. Compare old vs new via `[LoRa::PromptProfileDiff]` logs. | V1=ON, Prompt=OFF |
+| **B — Single test user** | Enable `LORA_ETV_POLICY_PROMPT=1` for one test user. Monitor prompt output, response quality, and policy knob values. | V1=ON, Prompt=ON (1 user) |
+| **C — Widen rollout** | If Phase B is healthy, enable for all users. Continue monitoring `[LoRa::PromptProfileDiff]` for regression. | V1=ON, Prompt=ON (all) |
+
+### Safety constraints
+
+- All bands include `Do NOT use intimacy cues, dependency language, or bonding phrases`.
+- Bands 0-1 enforce conservative caps (LOW initiative, SHALLOW depth, high clarification bias).
+- Even Band 4 keeps assertiveness < 1 and tokens capped at 520.
+- No raw numeric values appear in prompt text — only categorical labels.
+
+## What this does NOT yet include
+
 - **No old code deletion**: Legacy `ETVEngine.updateETV()` remains and runs alongside V1.
 - **No memory-layer signals**: Future z_t expansions (correctionRate, contradictionRate, etc.) will arrive when memory-layer detection is ready.
