@@ -26,7 +26,7 @@ const TRACE_ENABLED = process.env.LORA_TRACE_DEMO === '1';
 
 (TRACE_ENABLED ? describe : describe.skip)('Trace Demo — 12-message mixed scenario', () => {
   test('trace output', async () => {
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    console.log('\nTRACE DEMO STARTED\n');
 
     setScenarioAdaptiveOn();
     process.env.LORA_HINT_RESOLVER = '1';
@@ -44,9 +44,10 @@ const TRACE_ENABLED = process.env.LORA_TRACE_DEMO === '1';
 
     const results = await runSequence(steps, { stepFn: buildStepFn(steps) });
 
-    console.log('\n── Trace Demo (formatted) ──');
-    console.log(formatTrace(results));
-    console.log('\n── Trace Demo (JSON) ──');
-    console.log(JSON.stringify(exportTraceJSON(results), null, 2));
+    process.stdout.write('\n— Trace Demo (formatted) —\n');
+    process.stdout.write(formatTrace(results) + '\n');
+
+    process.stdout.write('\n— Trace Demo (JSON) —\n');
+    process.stdout.write(JSON.stringify(exportTraceJSON(results), null, 2) + '\n');
   });
 });
