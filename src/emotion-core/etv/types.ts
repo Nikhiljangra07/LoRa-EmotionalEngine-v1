@@ -84,6 +84,13 @@ export type ETVUpdateLog = {
   band: ETVBand;
   policy: ETVPolicy;
   timestamp: number;
+
+  effectiveN: number;
+  riskAdjusted: number;
+  conf: number;
+  messageCount: number;
+  eivMean: number;
+  aviMean: number;
 };
 
 // ── Config shape (for future per-user tuning) ─────────────────────

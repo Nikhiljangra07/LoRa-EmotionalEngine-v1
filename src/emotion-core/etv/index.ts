@@ -23,7 +23,8 @@ export {
 
 export { computeEvidenceScore } from './evidenceScore';
 export { applyDecay, applyEvidence, computeDerived, toFullState } from './betaUpdate';
-export { computePolicy, computeBand } from './policyMap';
+export { computePolicy, computeBand, computeRiskAdjusted, computeConf } from './policyMap';
 export { ETVStorage } from './storage';
 export { buildSessionSummary } from './sessionSummary';
-export { ETVEngineV1 } from './engine';
+export { ETVEngineV1, formatTrajectorySnapshot } from './engine';
+export { etvInvariant, assertStoredValid, assertDerivedValid, assertPolicyValid } from './invariants';
