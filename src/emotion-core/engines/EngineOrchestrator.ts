@@ -25,7 +25,7 @@ import { enforceHintSemanticCoherence } from './hintSemanticGuard';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
 import { AVIScorer } from '../scorers/AVIScorer';
-import { ETVEngineV1, SESSION_GAP_MS } from '../etv';
+import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1 } from '../etv';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
@@ -76,6 +76,11 @@ export class EngineOrchestrator {
 
   private readonly appraisalBridge?: AppraisalBridgeRunner;
   private lastMessageTimestampMs = 0;
+
+  // ── Idempotent session-close guard (ETV V1) ──
+  private sessionOpen = false;
+  private currentSessionId: string | null = null;
+  private lastClosedSessionId: string | null = null;
 
   private activeExecution?: symbol;
   private lastDecision?: {
@@ -158,6 +163,8 @@ export class EngineOrchestrator {
 
     if (this.messageCount === 0) {
       this.sessionStartedAt = messageTimestampMs;
+      this.currentSessionId = `session-${messageTimestampMs}`;
+      this.sessionOpen = true;
     }
     this.messageCount += 1;
 
@@ -843,8 +850,17 @@ export class EngineOrchestrator {
   // Session boundary (ETV updates ONLY here)
   // ---------------------------------------------------
   endSession() {
-    if (this.sessionEIVs.length === 0) {
-      return { newETV: this.etvState.value };
+    // ── Idempotent guard (ETV V1): prevents double-close / double ETV update ──
+    if (featureFlags.etvV1Enabled) {
+      if (!this.sessionOpen || this.messageCount === 0) {
+        return { newETV: this.etvState.value };
+      }
+      this.sessionOpen = false;
+      this.lastClosedSessionId = this.currentSessionId;
+    } else {
+      if (this.sessionEIVs.length === 0) {
+        return { newETV: this.etvState.value };
+      }
     }
 
     const sessionMean =
@@ -859,8 +875,10 @@ export class EngineOrchestrator {
       this.sessionHasViolation
     );
 
+    const sessionId = this.currentSessionId ?? `session-${this.etvState.lastUpdated}`;
+
     DecisionLogger.logSessionEnd({
-      sessionId: `session-${this.etvState.lastUpdated}`,
+      sessionId,
       startETV: previousETV,
       endETV: newETV,
       meanSessionEIV: sessionMean,
@@ -872,26 +890,16 @@ export class EngineOrchestrator {
     // ── ETV V1: parallel Beta-with-decay update (Phase 1 — log only) ──
     if (featureFlags.etvV1Enabled) {
       const now = Date.now();
-      const aviMean = this.sessionAVIs.length > 0
-        ? this.sessionAVIs.reduce((a, b) => a + b, 0) / this.sessionAVIs.length
-        : 0;
-      const aviMax = this.sessionAVIs.length > 0
-        ? Math.max(...this.sessionAVIs)
-        : 0;
-      const eivMax = Math.max(...this.sessionEIVs);
-
-      const summary: SessionSummaryV1 = {
-        sessionId: `session-${this.etvState.lastUpdated}`,
+      const summary = buildSessionSummary({
+        sessionId,
         userId: 'default',
         startedAt: this.sessionStartedAt || now,
         endedAt: now,
         messageCount: this.messageCount,
-        eivMean: sessionMean,
-        eivMax,
-        aviMean,
-        aviMax,
+        eivBuffer: this.sessionEIVs,
+        aviBuffer: this.sessionAVIs,
         hasViolation: this.sessionHasViolation,
-      };
+      });
 
       try {
         const { log } = ETVEngineV1.updateFromSession(summary);
@@ -932,6 +940,7 @@ export class EngineOrchestrator {
     this.sessionHasViolation = false;
     this.messageCount = 0;
     this.lastMessageTimestampMs = 0;
+    this.currentSessionId = null;
     this.interpreter.reset();
     this.appraisalBridge?.reset();
     this.recentGuidanceModes = [];

@@ -1,4 +1,5 @@
 import { computeEvidenceScore } from '../evidenceScore';
+import { ETV_EIV_RISK } from '../constants';
 import type { SessionSummaryV1 } from '../types';
 
 function makeSummary(overrides: Partial<SessionSummaryV1> = {}): SessionSummaryV1 {
@@ -22,6 +23,7 @@ describe('computeEvidenceScore', () => {
     const z = computeEvidenceScore(makeSummary({
       aviMean: 0,
       aviMax: 0,
+      eivMean: 0.3,
       hasViolation: false,
     }));
     expect(z).toBe(1.0);
@@ -37,22 +39,24 @@ describe('computeEvidenceScore', () => {
     expect(z).toBeLessThanOrEqual(0.10);
   });
 
-  test('violation alone → z_t = 0.70', () => {
+  test('violation alone → z_t = 0.70 (eivMean below risk start)', () => {
     const z = computeEvidenceScore(makeSummary({
       aviMean: 0,
       aviMax: 0,
+      eivMean: 0.3,
       hasViolation: true,
     }));
     expect(z).toBeCloseTo(0.70, 2);
   });
 
-  test('moderate AVI, no violation → z_t ≈ 0.625', () => {
+  test('moderate AVI, no violation, low eivMean → z_t ≈ 0.625', () => {
     const z = computeEvidenceScore(makeSummary({
       aviMean: 0.5,
       aviMax: 0.7,
+      eivMean: 0.3,
       hasViolation: false,
     }));
-    // stability = 1 - 0.40*0.5 - 0.25*0.7 = 1 - 0.2 - 0.175 = 0.625
+    // stability = 1 - 0.40*0.5 - 0.25*0.7 = 0.625, eivRisk = 0
     expect(z).toBeCloseTo(0.625, 3);
   });
 
@@ -61,6 +65,7 @@ describe('computeEvidenceScore', () => {
       const z = computeEvidenceScore(makeSummary({
         aviMean: Math.random(),
         aviMax: Math.random(),
+        eivMean: Math.random(),
         hasViolation: Math.random() > 0.5,
       }));
       expect(z).toBeGreaterThanOrEqual(0);
@@ -75,5 +80,60 @@ describe('computeEvidenceScore', () => {
       hasViolation: false,
     }));
     expect(z).toBe(0.5);
+  });
+
+  // ── V1 eivRisk term tests ──
+
+  test('eivRisk: eivMean below threshold → no penalty', () => {
+    const zLow = computeEvidenceScore(makeSummary({
+      aviMean: 0, aviMax: 0, eivMean: 0.5, hasViolation: false,
+    }));
+    const zAtThreshold = computeEvidenceScore(makeSummary({
+      aviMean: 0, aviMax: 0, eivMean: ETV_EIV_RISK.startThreshold, hasViolation: false,
+    }));
+    expect(zLow).toBe(1.0);
+    expect(zAtThreshold).toBe(1.0);
+  });
+
+  test('eivRisk: eivMean=1.0 → max penalty (0.20)', () => {
+    const z = computeEvidenceScore(makeSummary({
+      aviMean: 0, aviMax: 0, eivMean: 1.0, hasViolation: false,
+    }));
+    // stability=1, safetyPenalty=0, eivRisk=0.20*1.0=0.20
+    expect(z).toBeCloseTo(0.80, 4);
+  });
+
+  test('eivRisk: eivMean=0.85 → half of max penalty', () => {
+    const z = computeEvidenceScore(makeSummary({
+      aviMean: 0, aviMax: 0, eivMean: 0.85, hasViolation: false,
+    }));
+    // eivRisk = 0.20 * (0.85 - 0.70) / 0.30 = 0.20 * 0.5 = 0.10
+    expect(z).toBeCloseTo(0.90, 4);
+  });
+
+  test('eivRisk: monotonicity — higher eivMean → lower z_t', () => {
+    const z1 = computeEvidenceScore(makeSummary({ eivMean: 0.75, aviMean: 0, aviMax: 0 }));
+    const z2 = computeEvidenceScore(makeSummary({ eivMean: 0.85, aviMean: 0, aviMax: 0 }));
+    const z3 = computeEvidenceScore(makeSummary({ eivMean: 0.95, aviMean: 0, aviMax: 0 }));
+    expect(z1).toBeGreaterThan(z2);
+    expect(z2).toBeGreaterThan(z3);
+  });
+
+  test('eivRisk + violation: both penalties stack', () => {
+    const zViolationOnly = computeEvidenceScore(makeSummary({
+      aviMean: 0, aviMax: 0, eivMean: 0.3, hasViolation: true,
+    }));
+    const zBoth = computeEvidenceScore(makeSummary({
+      aviMean: 0, aviMax: 0, eivMean: 1.0, hasViolation: true,
+    }));
+    expect(zBoth).toBeLessThan(zViolationOnly);
+  });
+
+  test('monotonicity: higher aviMean → lower z_t', () => {
+    const z1 = computeEvidenceScore(makeSummary({ aviMean: 0.1, aviMax: 0, eivMean: 0.3 }));
+    const z2 = computeEvidenceScore(makeSummary({ aviMean: 0.5, aviMax: 0, eivMean: 0.3 }));
+    const z3 = computeEvidenceScore(makeSummary({ aviMean: 0.9, aviMax: 0, eivMean: 0.3 }));
+    expect(z1).toBeGreaterThan(z2);
+    expect(z2).toBeGreaterThan(z3);
   });
 });

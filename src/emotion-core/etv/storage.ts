@@ -50,6 +50,7 @@ export class ETVStorage {
   static save(state: ETVStateStored): void {
     ensureDir();
     const fp = userPath(state.userId);
+    const tmp = fp + '.tmp';
     const data: ETVStateStored = {
       userId: state.userId,
       r: state.r,
@@ -57,7 +58,8 @@ export class ETVStorage {
       lastSessionEndedAt: state.lastSessionEndedAt,
       updatedAt: state.updatedAt,
     };
-    fs.writeFileSync(fp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmp, fp);
   }
 
   static initState(userId: string): ETVStateStored {
