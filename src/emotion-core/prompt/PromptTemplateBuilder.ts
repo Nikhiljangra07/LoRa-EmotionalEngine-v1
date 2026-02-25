@@ -41,6 +41,9 @@ export class PromptTemplateBuilder {
 - Do not escalate intensity`
       : '';
 
+    // Phase 1.1: compatibility mapping for new modes
+    const modeOverlay = this.getGuidanceModeOverlay(options?.guidanceMode);
+
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
       : '';
@@ -56,7 +59,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -190,5 +193,38 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 - Respond calmly and naturally
 - Maintain emotional steadiness
 `.trim();
+  }
+
+  /* ============================================================
+   * Phase 1.1: compatibility mapping for new guidance modes
+   *
+   * Existing modes return '' (no overlay) to preserve behavior.
+   * New modes map to safe, grounded guidance aligned with the
+   * closest legacy template.
+   * ============================================================
+   */
+  private static getGuidanceModeOverlay(
+    mode?: PromptProfile['guidanceMode']
+  ): string {
+    switch (mode) {
+      // Maps to DE_ESCALATE-adjacent grounding guidance
+      case 'STABILIZE':
+        return `
+- Prioritize emotional grounding and stability
+- Use simple, clear language
+- Avoid probing or challenging the user
+- Default to a calm, steady presence`;
+
+      // Maps to SUPPORTIVE/VALIDATING-adjacent reflective guidance
+      case 'SUPPORTIVE_REFLECTION':
+        return `
+- Gently reflect what the user has shared
+- Validate their experience without judgment
+- Offer space for the user to process
+- Maintain warmth and patience`;
+
+      default:
+        return '';
+    }
   }
 }
