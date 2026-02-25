@@ -59,6 +59,7 @@ export interface MessageDecisionLog {
 
   appraisalOverride?: string;
   pacingHint?: PacingHint;
+  driftDetected?: true;
 }
 
 export interface SessionLog {

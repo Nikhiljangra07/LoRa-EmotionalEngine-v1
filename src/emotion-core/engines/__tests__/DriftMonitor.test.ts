@@ -262,4 +262,70 @@ describe('DriftMonitor', () => {
     );
     expect(driftCalls.length).toBeGreaterThanOrEqual(1);
   });
+
+  // G) driftDetected appears in decision payload exactly once per unstable window
+  test('driftDetected in payload only once per unstable window, reappears after reset', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    let callIdx = 0;
+    const stepFn = jest.fn(() => {
+      callIdx++;
+      // Phase 1 (1–10): oscillate
+      if (callIdx <= 10) {
+        return callIdx % 2 === 0
+          ? makeMockResult({ collapseEvent: true })
+          : makeMockResult();
+      }
+      // Phase 2 (11–22): stable
+      if (callIdx <= 22) {
+        return makeMockResult();
+      }
+      // Phase 3 (23+): oscillate again
+      return callIdx % 2 === 0
+        ? makeMockResult({ collapseEvent: true })
+        : makeMockResult();
+    });
+
+    const { EngineOrchestrator, InputProcessor } = setupModules({ drift: true, stepFn });
+    const engine = new EngineOrchestrator(0.5, {}, () => ({
+      generateResponse: async () => 'ok',
+    }));
+
+    // Phase 1: oscillate → should trigger driftDetected once
+    for (let i = 0; i < 10; i++) {
+      await sendMessage(engine, InputProcessor);
+    }
+
+    const getPayloads = () =>
+      logSpy.mock.calls
+        .filter((c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'))
+        .map((c) => JSON.parse(c[1]));
+
+    const phase1Payloads = getPayloads();
+    const phase1Drift = phase1Payloads.filter((p: any) => p.driftDetected === true);
+    expect(phase1Drift).toHaveLength(1);
+
+    // Subsequent unstable messages should NOT have driftDetected
+    const phase1NonDrift = phase1Payloads.filter((p: any) => p.driftDetected === undefined);
+    expect(phase1NonDrift.length).toBe(phase1Payloads.length - 1);
+
+    // Phase 2: stabilize (resets driftWarningActive)
+    logSpy.mockClear();
+    for (let i = 0; i < 12; i++) {
+      await sendMessage(engine, InputProcessor);
+    }
+    const phase2Payloads = getPayloads();
+    const phase2Drift = phase2Payloads.filter((p: any) => p.driftDetected === true);
+    expect(phase2Drift).toHaveLength(0);
+
+    // Phase 3: oscillate again → driftDetected should appear again
+    logSpy.mockClear();
+    for (let i = 0; i < 10; i++) {
+      await sendMessage(engine, InputProcessor);
+    }
+    const phase3Payloads = getPayloads();
+    const phase3Drift = phase3Payloads.filter((p: any) => p.driftDetected === true);
+    expect(phase3Drift).toHaveLength(1);
+  });
 });
