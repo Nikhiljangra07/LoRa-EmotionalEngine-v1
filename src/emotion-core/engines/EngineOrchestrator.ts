@@ -76,6 +76,13 @@ export class EngineOrchestrator {
     llmOutput: string;
   };
 
+  // ── Drift monitor (observability-only, gated by driftMonitorEnabled) ──
+  private readonly driftWindowSize = 10;
+  private recentGuidanceModes: string[] = [];
+  private recentPacingHints: (string | undefined)[] = [];
+  private recentEscalationLevels: number[] = [];
+  private driftWarningActive = false;
+
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
     llmConfig: Partial<LLMConfig> = {},
@@ -256,6 +263,34 @@ export class EngineOrchestrator {
         pacingHint = 'SLOW';
       }
       // else: stays undefined (NORMAL case — nothing passed to builder)
+    }
+
+    // ── Drift monitor: update rolling buffers + check ──
+    if (featureFlags.driftMonitorEnabled) {
+      this.recentGuidanceModes.push(guidanceMode);
+      this.recentPacingHints.push(pacingHint);
+      this.recentEscalationLevels.push(
+        appraisalResult ? appraisalResult.escalation.level : 0,
+      );
+
+      while (this.recentGuidanceModes.length > this.driftWindowSize) {
+        this.recentGuidanceModes.shift();
+      }
+      while (this.recentPacingHints.length > this.driftWindowSize) {
+        this.recentPacingHints.shift();
+      }
+      while (this.recentEscalationLevels.length > this.driftWindowSize) {
+        this.recentEscalationLevels.shift();
+      }
+
+      const unstable = this.checkDrift();
+      if (unstable && !this.driftWarningActive) {
+        console.warn('[DRIFT_MONITOR] Excessive strategy oscillation detected');
+        this.driftWarningActive = true;
+      }
+      if (!unstable) {
+        this.driftWarningActive = false;
+      }
     }
 
     const userMessage = signalPacket?.messageText ?? '';
@@ -500,8 +535,30 @@ export class EngineOrchestrator {
     this.lastMessageTimestampMs = 0;
     this.interpreter.reset();
     this.appraisalBridge?.reset();
+    this.recentGuidanceModes = [];
+    this.recentPacingHints = [];
+    this.recentEscalationLevels = [];
+    this.driftWarningActive = false;
 
     return { newETV };
+  }
+
+  // ---------------------------------------------------
+  // Drift monitor (observability-only)
+  // ---------------------------------------------------
+  private checkDrift(): boolean {
+    const transitions = <T>(arr: T[]): number => {
+      let count = 0;
+      for (let i = 1; i < arr.length; i++) {
+        if (arr[i] !== arr[i - 1]) count++;
+      }
+      return count;
+    };
+
+    if (transitions(this.recentGuidanceModes) >= 4) return true;
+    if (transitions(this.recentPacingHints) >= 3) return true;
+    if (transitions(this.recentEscalationLevels) >= 3) return true;
+    return false;
   }
 
   // ---------------------------------------------------
