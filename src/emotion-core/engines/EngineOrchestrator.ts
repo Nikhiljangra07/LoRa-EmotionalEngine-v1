@@ -20,6 +20,7 @@ import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
 import { resolveHints } from './hintResolver';
+import { applyHintStickiness, type StickyHints, type StickyHintKey } from './hintStickiness';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
 
@@ -80,6 +81,10 @@ export class EngineOrchestrator {
   private readonly minimumMessagesForAdaptiveControl = 3;
 
   private overrideCooldownRemaining = 0;
+
+  // ── Hint stickiness (hysteresis, gated by hintStickinessEnabled) ──
+  private lastStickyHints: StickyHints = {};
+  private hintHoldsRemaining: Partial<Record<StickyHintKey, number>> = {};
 
   // ── Drift monitor (observability-only, gated by driftMonitorEnabled) ──
   private readonly driftWindowSize = 10;
@@ -573,6 +578,48 @@ export class EngineOrchestrator {
       questionBudgetHint = resolved.questionBudgetHint as typeof questionBudgetHint;
     }
 
+    // 5c. Hint stickiness — hysteresis to reduce oscillation (feature-flagged)
+    if (
+      featureFlags.hintStickinessEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl
+    ) {
+      const HOLD_CONFIG: Partial<Record<StickyHintKey, number>> = {
+        pacingHint: 2,
+        questionBudgetHint: 2,
+        interruptHint: 2,
+        toneHint: 1,
+        validationHint: 1,
+        actionHint: 1,
+        validationIntensity: 1,
+        stepHint: 0,
+      };
+      const { final, holdsRemainingNext } = applyHintStickiness({
+        resolved: {
+          pacingHint,
+          toneHint,
+          validationIntensity,
+          validationHint,
+          actionHint,
+          interruptHint,
+          stepHint,
+          questionBudgetHint,
+        },
+        previous: this.lastStickyHints,
+        holdsRemaining: this.hintHoldsRemaining,
+        holdConfig: HOLD_CONFIG,
+      });
+      pacingHint = final.pacingHint as typeof pacingHint;
+      toneHint = final.toneHint as typeof toneHint;
+      validationIntensity = final.validationIntensity as typeof validationIntensity;
+      validationHint = final.validationHint as typeof validationHint;
+      actionHint = final.actionHint as typeof actionHint;
+      interruptHint = final.interruptHint as typeof interruptHint;
+      stepHint = final.stepHint as typeof stepHint;
+      questionBudgetHint = final.questionBudgetHint as typeof questionBudgetHint;
+      this.lastStickyHints = final;
+      this.hintHoldsRemaining = holdsRemainingNext;
+    }
+
     // 6. Build prompt (PURE)
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
@@ -798,6 +845,8 @@ export class EngineOrchestrator {
     this.recentEscalationLevels = [];
     this.driftWarningActive = false;
     this.overrideCooldownRemaining = 0;
+    this.lastStickyHints = {};
+    this.hintHoldsRemaining = {};
 
     return { newETV };
   }

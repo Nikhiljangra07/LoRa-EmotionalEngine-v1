@@ -17,6 +17,7 @@ const FLAG_KEYS = [
   'LORA_INTERVENTION_STEP_HINT',
   'LORA_INTERVENTION_QUESTION_BUDGET',
   'LORA_HINT_RESOLVER',
+  'LORA_HINT_STICKINESS',
 ] as const;
 const origEnv: Record<string, string | undefined> = {};
 for (const k of FLAG_KEYS) origEnv[k] = process.env[k];
@@ -57,6 +58,7 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.interventionStepHintEnabled).toBe(false);
     expect(flags.interventionQuestionBudgetEnabled).toBe(false);
     expect(flags.hintResolverEnabled).toBe(false);
+    expect(flags.hintStickinessEnabled).toBe(false);
   });
 
   // B) Validation only
@@ -179,6 +181,16 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.interventionStepHintEnabled).toBe(false);
   });
 
+  // N) Hint stickiness only
+  test('LORA_HINT_STICKINESS=1 → hintStickinessEnabled true', () => {
+    clearAllFlags();
+    process.env.LORA_HINT_STICKINESS = '1';
+    const flags = loadFlags();
+    expect(flags.hintStickinessEnabled).toBe(true);
+    expect(flags.hintResolverEnabled).toBe(false);
+    expect(flags.interventionQuestionBudgetEnabled).toBe(false);
+  });
+
   // Existing flags are unaffected by new flag env vars
   test('setting new flags does not alter existing flags', () => {
     clearAllFlags();
@@ -193,6 +205,7 @@ describe('FeatureFlags contract matrix', () => {
     process.env.LORA_INTERVENTION_STEP_HINT = '1';
     process.env.LORA_INTERVENTION_QUESTION_BUDGET = '1';
     process.env.LORA_HINT_RESOLVER = '1';
+    process.env.LORA_HINT_STICKINESS = '1';
     const flags = loadFlags();
     expect(flags.appraisalBridgeEnabled).toBe(false);
     expect(flags.appraisalBridgeModeEnabled).toBe(false);
