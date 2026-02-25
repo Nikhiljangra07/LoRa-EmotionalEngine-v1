@@ -202,7 +202,37 @@ describe('ValidationIntensity invariant', () => {
     }
   });
 
-  // 5) Decision payload contains validationIntensity only when defined
+  // 5a) Neutral guarantee: LOW suppression → key absent from both builder and payload
+  test('LOW eiv produces no validationIntensity key in builder args or payload', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    const { EngineOrchestrator, InputProcessor, PromptTemplateBuilder } = setupModules({
+      validationIntensity: true,
+    });
+    const buildSpy = jest.spyOn(PromptTemplateBuilder, 'build');
+    const engine = makeEngine(EngineOrchestrator);
+
+    // 3 low-signal messages
+    await send(engine, InputProcessor, 'ok');
+    await send(engine, InputProcessor, 'ok');
+    await send(engine, InputProcessor, 'ok');
+
+    // Builder: last call options must not contain key at all
+    const lastOpts = buildSpy.mock.calls[buildSpy.mock.calls.length - 1][2] as
+      | Record<string, unknown>
+      | undefined;
+    expect(lastOpts).toBeDefined();
+    expect(lastOpts).not.toHaveProperty('validationIntensity');
+
+    // Payload: last decision log must not contain key
+    const payloads = logSpy.mock.calls
+      .filter((c) => typeof c[0] === 'string' && c[0].includes('[LoRa::MessageDecision]'))
+      .map((c) => JSON.parse(c[1]));
+    const lastPayload = payloads[payloads.length - 1];
+    expect(lastPayload).not.toHaveProperty('validationIntensity');
+  });
+
+  // 5b) Decision payload contains validationIntensity only when defined
   test('decision payload includes validationIntensity for HIGH, absent for LOW', async () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
