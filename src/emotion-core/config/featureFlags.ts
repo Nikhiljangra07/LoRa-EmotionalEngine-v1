@@ -9,4 +9,5 @@ export const featureFlags = Object.freeze({
   appraisalToneHintEnabled: process.env.LORA_APPRAISAL_TONE_HINT === '1',
   interventionValidationHintEnabled: process.env.LORA_INTERVENTION_VALIDATION_HINT === '1',
   interventionPacingHintEnabled: process.env.LORA_INTERVENTION_PACING_HINT === '1',
+  interventionToneHintEnabled: process.env.LORA_INTERVENTION_TONE_HINT === '1',
 });
