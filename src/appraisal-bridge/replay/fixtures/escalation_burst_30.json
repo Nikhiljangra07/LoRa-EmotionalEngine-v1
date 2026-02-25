@@ -1,0 +1,572 @@
+[
+  {
+    "messageIndex": 1,
+    "timestampMs": 1000,
+    "deltaMessageSeconds": 0,
+    "valenceScore": -0.2,
+    "valenceConfidence": 0.75,
+    "arousalScore": 0.3,
+    "arousalConfidence": 0.7,
+    "expressionStrength": 0.3,
+    "esConfidence": 0.7,
+    "eivValue": 0.3,
+    "eivTier": "low",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.75
+    }
+  },
+  {
+    "messageIndex": 2,
+    "timestampMs": 4000,
+    "deltaMessageSeconds": 4.879310344827586,
+    "valenceScore": -0.22413793103448276,
+    "valenceConfidence": 0.756896551724138,
+    "arousalScore": 0.32241379310344825,
+    "arousalConfidence": 0.7086206896551723,
+    "expressionStrength": 0.32068965517241377,
+    "esConfidence": 0.7086206896551723,
+    "eivValue": 0.3189655172413793,
+    "eivTier": "low",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.756896551724138
+    }
+  },
+  {
+    "messageIndex": 3,
+    "timestampMs": 7000,
+    "deltaMessageSeconds": 4.758620689655173,
+    "valenceScore": -0.2482758620689655,
+    "valenceConfidence": 0.7637931034482759,
+    "arousalScore": 0.3448275862068965,
+    "arousalConfidence": 0.7172413793103448,
+    "expressionStrength": 0.3413793103448276,
+    "esConfidence": 0.7172413793103448,
+    "eivValue": 0.33793103448275863,
+    "eivTier": "low",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.7637931034482759
+    }
+  },
+  {
+    "messageIndex": 4,
+    "timestampMs": 10000,
+    "deltaMessageSeconds": 4.637931034482759,
+    "valenceScore": -0.27241379310344827,
+    "valenceConfidence": 0.7706896551724138,
+    "arousalScore": 0.36724137931034484,
+    "arousalConfidence": 0.7258620689655172,
+    "expressionStrength": 0.3620689655172414,
+    "esConfidence": 0.7258620689655172,
+    "eivValue": 0.3568965517241379,
+    "eivTier": "low",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.7706896551724138
+    }
+  },
+  {
+    "messageIndex": 5,
+    "timestampMs": 13000,
+    "deltaMessageSeconds": 4.517241379310345,
+    "valenceScore": -0.29655172413793107,
+    "valenceConfidence": 0.7775862068965518,
+    "arousalScore": 0.3896551724137931,
+    "arousalConfidence": 0.7344827586206896,
+    "expressionStrength": 0.38275862068965516,
+    "esConfidence": 0.7344827586206896,
+    "eivValue": 0.3758620689655172,
+    "eivTier": "low",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.7775862068965518
+    }
+  },
+  {
+    "messageIndex": 6,
+    "timestampMs": 16000,
+    "deltaMessageSeconds": 4.396551724137931,
+    "valenceScore": -0.3206896551724138,
+    "valenceConfidence": 0.7844827586206896,
+    "arousalScore": 0.41206896551724137,
+    "arousalConfidence": 0.743103448275862,
+    "expressionStrength": 0.40344827586206894,
+    "esConfidence": 0.743103448275862,
+    "eivValue": 0.39482758620689656,
+    "eivTier": "low",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.7844827586206896
+    }
+  },
+  {
+    "messageIndex": 7,
+    "timestampMs": 19000,
+    "deltaMessageSeconds": 4.275862068965518,
+    "valenceScore": -0.3448275862068966,
+    "valenceConfidence": 0.7913793103448276,
+    "arousalScore": 0.43448275862068964,
+    "arousalConfidence": 0.7517241379310344,
+    "expressionStrength": 0.4241379310344827,
+    "esConfidence": 0.7517241379310344,
+    "eivValue": 0.41379310344827586,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.7913793103448276
+    }
+  },
+  {
+    "messageIndex": 8,
+    "timestampMs": 22000,
+    "deltaMessageSeconds": 4.155172413793103,
+    "valenceScore": -0.3689655172413793,
+    "valenceConfidence": 0.7982758620689655,
+    "arousalScore": 0.4568965517241379,
+    "arousalConfidence": 0.7603448275862068,
+    "expressionStrength": 0.44482758620689655,
+    "esConfidence": 0.7603448275862068,
+    "eivValue": 0.4327586206896552,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.7982758620689655
+    }
+  },
+  {
+    "messageIndex": 9,
+    "timestampMs": 25000,
+    "deltaMessageSeconds": 4.0344827586206895,
+    "valenceScore": -0.3931034482758621,
+    "valenceConfidence": 0.8051724137931034,
+    "arousalScore": 0.47931034482758617,
+    "arousalConfidence": 0.7689655172413793,
+    "expressionStrength": 0.46551724137931033,
+    "esConfidence": 0.7689655172413793,
+    "eivValue": 0.4517241379310345,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.8051724137931034
+    }
+  },
+  {
+    "messageIndex": 10,
+    "timestampMs": 28000,
+    "deltaMessageSeconds": 3.913793103448276,
+    "valenceScore": -0.41724137931034483,
+    "valenceConfidence": 0.8120689655172414,
+    "arousalScore": 0.5017241379310344,
+    "arousalConfidence": 0.7775862068965517,
+    "expressionStrength": 0.4862068965517241,
+    "esConfidence": 0.7775862068965517,
+    "eivValue": 0.4706896551724138,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.8120689655172414
+    }
+  },
+  {
+    "messageIndex": 11,
+    "timestampMs": 31000,
+    "deltaMessageSeconds": 3.793103448275862,
+    "valenceScore": -0.4413793103448276,
+    "valenceConfidence": 0.8189655172413793,
+    "arousalScore": 0.5241379310344828,
+    "arousalConfidence": 0.7862068965517242,
+    "expressionStrength": 0.506896551724138,
+    "esConfidence": 0.7862068965517242,
+    "eivValue": 0.4896551724137931,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.8189655172413793
+    }
+  },
+  {
+    "messageIndex": 12,
+    "timestampMs": 34000,
+    "deltaMessageSeconds": 3.6724137931034484,
+    "valenceScore": -0.46551724137931033,
+    "valenceConfidence": 0.8258620689655173,
+    "arousalScore": 0.546551724137931,
+    "arousalConfidence": 0.7948275862068965,
+    "expressionStrength": 0.5275862068965517,
+    "esConfidence": 0.7948275862068965,
+    "eivValue": 0.5086206896551724,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.8258620689655173
+    }
+  },
+  {
+    "messageIndex": 13,
+    "timestampMs": 37000,
+    "deltaMessageSeconds": 3.5517241379310347,
+    "valenceScore": -0.4896551724137931,
+    "valenceConfidence": 0.8327586206896551,
+    "arousalScore": 0.5689655172413792,
+    "arousalConfidence": 0.8034482758620689,
+    "expressionStrength": 0.5482758620689655,
+    "esConfidence": 0.8034482758620689,
+    "eivValue": 0.5275862068965518,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.8327586206896551
+    }
+  },
+  {
+    "messageIndex": 14,
+    "timestampMs": 40000,
+    "deltaMessageSeconds": 3.4310344827586206,
+    "valenceScore": -0.5137931034482759,
+    "valenceConfidence": 0.8396551724137931,
+    "arousalScore": 0.5913793103448276,
+    "arousalConfidence": 0.8120689655172413,
+    "expressionStrength": 0.5689655172413792,
+    "esConfidence": 0.8120689655172413,
+    "eivValue": 0.5465517241379311,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "MEDIUM",
+      "valence": "NEGATIVE",
+      "confidence": 0.8396551724137931
+    }
+  },
+  {
+    "messageIndex": 15,
+    "timestampMs": 43000,
+    "deltaMessageSeconds": 3.3103448275862064,
+    "valenceScore": -0.5379310344827586,
+    "valenceConfidence": 0.846551724137931,
+    "arousalScore": 0.6137931034482759,
+    "arousalConfidence": 0.8206896551724138,
+    "expressionStrength": 0.5896551724137931,
+    "esConfidence": 0.8206896551724138,
+    "eivValue": 0.5655172413793104,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.846551724137931
+    }
+  },
+  {
+    "messageIndex": 16,
+    "timestampMs": 46000,
+    "deltaMessageSeconds": 3.1896551724137927,
+    "valenceScore": -0.5620689655172414,
+    "valenceConfidence": 0.853448275862069,
+    "arousalScore": 0.6362068965517242,
+    "arousalConfidence": 0.8293103448275861,
+    "expressionStrength": 0.6103448275862069,
+    "esConfidence": 0.8293103448275861,
+    "eivValue": 0.5844827586206898,
+    "eivTier": "moderate",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.853448275862069
+    }
+  },
+  {
+    "messageIndex": 17,
+    "timestampMs": 49000,
+    "deltaMessageSeconds": 3.0689655172413794,
+    "valenceScore": -0.5862068965517242,
+    "valenceConfidence": 0.8603448275862069,
+    "arousalScore": 0.6586206896551724,
+    "arousalConfidence": 0.8379310344827586,
+    "expressionStrength": 0.6310344827586207,
+    "esConfidence": 0.8379310344827586,
+    "eivValue": 0.603448275862069,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.8603448275862069
+    }
+  },
+  {
+    "messageIndex": 18,
+    "timestampMs": 52000,
+    "deltaMessageSeconds": 2.9482758620689657,
+    "valenceScore": -0.6103448275862069,
+    "valenceConfidence": 0.8672413793103448,
+    "arousalScore": 0.6810344827586207,
+    "arousalConfidence": 0.846551724137931,
+    "expressionStrength": 0.6517241379310345,
+    "esConfidence": 0.846551724137931,
+    "eivValue": 0.6224137931034482,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.8672413793103448
+    }
+  },
+  {
+    "messageIndex": 19,
+    "timestampMs": 55000,
+    "deltaMessageSeconds": 2.8275862068965516,
+    "valenceScore": -0.6344827586206896,
+    "valenceConfidence": 0.8741379310344828,
+    "arousalScore": 0.703448275862069,
+    "arousalConfidence": 0.8551724137931034,
+    "expressionStrength": 0.6724137931034483,
+    "esConfidence": 0.8551724137931034,
+    "eivValue": 0.6413793103448275,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.8741379310344828
+    }
+  },
+  {
+    "messageIndex": 20,
+    "timestampMs": 58000,
+    "deltaMessageSeconds": 2.706896551724138,
+    "valenceScore": -0.6586206896551724,
+    "valenceConfidence": 0.8810344827586207,
+    "arousalScore": 0.7258620689655173,
+    "arousalConfidence": 0.8637931034482758,
+    "expressionStrength": 0.693103448275862,
+    "esConfidence": 0.8637931034482758,
+    "eivValue": 0.6603448275862069,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.8810344827586207
+    }
+  },
+  {
+    "messageIndex": 21,
+    "timestampMs": 61000,
+    "deltaMessageSeconds": 2.586206896551724,
+    "valenceScore": -0.6827586206896552,
+    "valenceConfidence": 0.8879310344827587,
+    "arousalScore": 0.7482758620689656,
+    "arousalConfidence": 0.8724137931034482,
+    "expressionStrength": 0.7137931034482758,
+    "esConfidence": 0.8724137931034482,
+    "eivValue": 0.6793103448275862,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.8879310344827587
+    }
+  },
+  {
+    "messageIndex": 22,
+    "timestampMs": 64000,
+    "deltaMessageSeconds": 2.4655172413793105,
+    "valenceScore": -0.7068965517241379,
+    "valenceConfidence": 0.8948275862068966,
+    "arousalScore": 0.7706896551724138,
+    "arousalConfidence": 0.8810344827586206,
+    "expressionStrength": 0.7344827586206897,
+    "esConfidence": 0.8810344827586206,
+    "eivValue": 0.6982758620689655,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.8948275862068966
+    }
+  },
+  {
+    "messageIndex": 23,
+    "timestampMs": 67000,
+    "deltaMessageSeconds": 2.344827586206897,
+    "valenceScore": -0.7310344827586206,
+    "valenceConfidence": 0.9017241379310345,
+    "arousalScore": 0.7931034482758621,
+    "arousalConfidence": 0.8896551724137931,
+    "expressionStrength": 0.7551724137931034,
+    "esConfidence": 0.8896551724137931,
+    "eivValue": 0.7172413793103448,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9017241379310345
+    }
+  },
+  {
+    "messageIndex": 24,
+    "timestampMs": 70000,
+    "deltaMessageSeconds": 2.2241379310344827,
+    "valenceScore": -0.7551724137931035,
+    "valenceConfidence": 0.9086206896551724,
+    "arousalScore": 0.8155172413793104,
+    "arousalConfidence": 0.8982758620689655,
+    "expressionStrength": 0.7758620689655172,
+    "esConfidence": 0.8982758620689655,
+    "eivValue": 0.7362068965517241,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9086206896551724
+    }
+  },
+  {
+    "messageIndex": 25,
+    "timestampMs": 73000,
+    "deltaMessageSeconds": 2.103448275862069,
+    "valenceScore": -0.7793103448275862,
+    "valenceConfidence": 0.9155172413793103,
+    "arousalScore": 0.8379310344827586,
+    "arousalConfidence": 0.9068965517241379,
+    "expressionStrength": 0.796551724137931,
+    "esConfidence": 0.9068965517241379,
+    "eivValue": 0.7551724137931035,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9155172413793103
+    }
+  },
+  {
+    "messageIndex": 26,
+    "timestampMs": 76000,
+    "deltaMessageSeconds": 1.9827586206896552,
+    "valenceScore": -0.8034482758620689,
+    "valenceConfidence": 0.9224137931034483,
+    "arousalScore": 0.8603448275862069,
+    "arousalConfidence": 0.9155172413793102,
+    "expressionStrength": 0.8172413793103448,
+    "esConfidence": 0.9155172413793102,
+    "eivValue": 0.7741379310344827,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9224137931034483
+    }
+  },
+  {
+    "messageIndex": 27,
+    "timestampMs": 79000,
+    "deltaMessageSeconds": 1.8620689655172413,
+    "valenceScore": -0.8275862068965516,
+    "valenceConfidence": 0.9293103448275862,
+    "arousalScore": 0.8827586206896552,
+    "arousalConfidence": 0.9241379310344827,
+    "expressionStrength": 0.8379310344827586,
+    "esConfidence": 0.9241379310344827,
+    "eivValue": 0.7931034482758621,
+    "eivTier": "elevated",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9293103448275862
+    }
+  },
+  {
+    "messageIndex": 28,
+    "timestampMs": 82000,
+    "deltaMessageSeconds": 1.7413793103448276,
+    "valenceScore": -0.8517241379310345,
+    "valenceConfidence": 0.9362068965517242,
+    "arousalScore": 0.9051724137931034,
+    "arousalConfidence": 0.9327586206896551,
+    "expressionStrength": 0.8586206896551725,
+    "esConfidence": 0.9327586206896551,
+    "eivValue": 0.8120689655172415,
+    "eivTier": "high",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9362068965517242
+    }
+  },
+  {
+    "messageIndex": 29,
+    "timestampMs": 85000,
+    "deltaMessageSeconds": 1.6206896551724137,
+    "valenceScore": -0.8758620689655172,
+    "valenceConfidence": 0.9431034482758621,
+    "arousalScore": 0.9275862068965517,
+    "arousalConfidence": 0.9413793103448276,
+    "expressionStrength": 0.8793103448275863,
+    "esConfidence": 0.9413793103448276,
+    "eivValue": 0.8310344827586207,
+    "eivTier": "high",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.9431034482758621
+    }
+  },
+  {
+    "messageIndex": 30,
+    "timestampMs": 88000,
+    "deltaMessageSeconds": 1.5,
+    "valenceScore": -0.8999999999999999,
+    "valenceConfidence": 0.95,
+    "arousalScore": 0.95,
+    "arousalConfidence": 0.95,
+    "expressionStrength": 0.8999999999999999,
+    "esConfidence": 0.95,
+    "eivValue": 0.8500000000000001,
+    "eivTier": "high",
+    "emotionalState": {
+      "dominant": "NEUTRAL",
+      "arousal": "HIGH",
+      "valence": "NEGATIVE",
+      "confidence": 0.95
+    }
+  }
+]
