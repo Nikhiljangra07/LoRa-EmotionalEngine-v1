@@ -8,6 +8,8 @@ export type ValidationIntensity = 'LOW' | 'MEDIUM' | 'HIGH';
 
 export type ToneHint = 'GENTLE' | 'FIRM';
 
+export type ValidationHint = 'LIGHT' | 'STRONG';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;

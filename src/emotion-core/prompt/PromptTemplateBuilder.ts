@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -31,6 +31,7 @@ export class PromptTemplateBuilder {
       pacingHint?: PacingHint;
       validationIntensity?: ValidationIntensity;
       toneHint?: ToneHint;
+      validationHint?: ValidationHint;
     }
   ): string {
     if (
@@ -74,6 +75,7 @@ export class PromptTemplateBuilder {
 
     const validationOverlay = this.getValidationOverlay(options?.validationIntensity);
     const toneOverlay = this.getToneOverlay(options?.toneHint);
+    const validationHintOverlay = this.getValidationHintOverlay(options?.validationHint);
 
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
@@ -90,7 +92,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -318,6 +320,21 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
         return `
 [PACING_HINT:FAST]
 - Pacing: keep it brisk. Use concise, direct responses.`;
+      default:
+        return '';
+    }
+  }
+
+  private static getValidationHintOverlay(hint?: ValidationHint): string {
+    switch (hint) {
+      case 'STRONG':
+        return `
+[VALIDATION_HINT:STRONG]
+- Provide clear emotional reassurance. Reflect and normalize the user's experience before moving forward.`;
+      case 'LIGHT':
+        return `
+[VALIDATION_HINT:LIGHT]
+- Keep validation brief. Do not over-soothe. Acknowledge, then move to substance.`;
       default:
         return '';
     }
