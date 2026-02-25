@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -29,6 +29,7 @@ export class PromptTemplateBuilder {
       answerFirst?: boolean;
       microContext?: string;
       pacingHint?: PacingHint;
+      validationIntensity?: ValidationIntensity;
     }
   ): string {
     if (
@@ -70,6 +71,8 @@ export class PromptTemplateBuilder {
     // Phase 2: pacing overlay driven by derived hint (never an appraisal object)
     const pacingOverlay = this.getPacingOverlay(options?.pacingHint);
 
+    const validationOverlay = this.getValidationOverlay(options?.validationIntensity);
+
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
       : '';
@@ -85,7 +88,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -249,6 +252,28 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 - Offer space for the user to process
 - Maintain warmth and patience`;
 
+      default:
+        return '';
+    }
+  }
+
+  /* ============================================================
+   * Validation intensity overlay.
+   *
+   * Only MEDIUM and HIGH produce output; LOW/undefined are no-ops.
+   * ============================================================
+   */
+  private static getValidationOverlay(intensity?: ValidationIntensity): string {
+    switch (intensity) {
+      case 'MEDIUM':
+        return `
+[VALIDATION_INTENSITY:MEDIUM]
+- Acknowledge the user's feelings clearly before responding to content.`;
+      case 'HIGH':
+        return `
+[VALIDATION_INTENSITY:HIGH]
+- Lead with strong, explicit emotional validation.
+- Name the feeling if contextually safe. Normalize the user's experience.`;
       default:
         return '';
     }
