@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -337,6 +337,27 @@ export class EngineOrchestrator {
       // LOW is suppressed — validationIntensity stays undefined
     }
 
+    // ── ToneHint: derived prompt overlay (feature-flagged, present-or-absent) ──
+    let toneHint: ToneHint | undefined;
+    if (
+      featureFlags.appraisalToneHintEnabled &&
+      featureFlags.appraisalBridgeEnabled &&
+      featureFlags.appraisalBridgeModeEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl
+    ) {
+      if (guidanceMode === 'STABILIZE') {
+        toneHint = 'GENTLE';
+      } else if (guidanceMode === 'DE_ESCALATE') {
+        toneHint = 'GENTLE';
+      } else if (appraisalOverride) {
+        toneHint = 'GENTLE';
+      } else if (appraisalResult && appraisalResult.escalation.level >= 2) {
+        toneHint = 'GENTLE';
+      } else if (appraisalResult && appraisalResult.intervention.interruptionLevel >= 2) {
+        toneHint = 'FIRM';
+      }
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -383,6 +404,7 @@ export class EngineOrchestrator {
       microContext,
       ...(pacingHint ? { pacingHint } : {}),
       ...(validationIntensity ? { validationIntensity } : {}),
+      ...(toneHint ? { toneHint } : {}),
     });
 
     const llmInput = userMessage
@@ -498,6 +520,7 @@ export class EngineOrchestrator {
       ...(appraisalOverride ? { appraisalOverride } : {}),
       ...(pacingHint ? { pacingHint } : {}),
       ...(validationIntensity ? { validationIntensity } : {}),
+      ...(toneHint ? { toneHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };

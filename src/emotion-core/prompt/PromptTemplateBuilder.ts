@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -30,6 +30,7 @@ export class PromptTemplateBuilder {
       microContext?: string;
       pacingHint?: PacingHint;
       validationIntensity?: ValidationIntensity;
+      toneHint?: ToneHint;
     }
   ): string {
     if (
@@ -72,6 +73,7 @@ export class PromptTemplateBuilder {
     const pacingOverlay = this.getPacingOverlay(options?.pacingHint);
 
     const validationOverlay = this.getValidationOverlay(options?.validationIntensity);
+    const toneOverlay = this.getToneOverlay(options?.toneHint);
 
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
@@ -88,7 +90,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -274,6 +276,27 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 [VALIDATION_INTENSITY:HIGH]
 - Lead with strong, explicit emotional validation.
 - Name the feeling if contextually safe. Normalize the user's experience.`;
+      default:
+        return '';
+    }
+  }
+
+  /* ============================================================
+   * Tone hint overlay.
+   *
+   * Only GENTLE and FIRM produce output; undefined is a no-op.
+   * ============================================================
+   */
+  private static getToneOverlay(hint?: ToneHint): string {
+    switch (hint) {
+      case 'GENTLE':
+        return `
+[TONE_HINT:GENTLE]
+- Soften wording. Avoid confrontational phrasing. Validate first before offering perspective.`;
+      case 'FIRM':
+        return `
+[TONE_HINT:FIRM]
+- Be concise and direct. Set boundaries clearly. Ask one clear question. Do not over-validate.`;
       default:
         return '';
     }
