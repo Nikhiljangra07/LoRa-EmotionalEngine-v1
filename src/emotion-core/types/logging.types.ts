@@ -35,6 +35,16 @@ export interface EmotionalStateSnapshot {
   valence: 'NEUTRAL' | 'POSITIVE' | 'NEGATIVE';
 }
 
+export interface PromptConstraints {
+  maxInitiative: number;
+  maxDepth: number;
+  assertiveness: number;
+  personalizationStrength: number;
+  clarificationBias: number;
+  maxResponseTokens: number;
+  band: string;
+}
+
 export interface PromptProfile {
   relationshipStyle: 'PROFESSIONAL' | 'FRIENDLY' | 'CASUAL';
   guidanceMode:
@@ -46,6 +56,7 @@ export interface PromptProfile {
     | 'STABILIZE'
     | 'SUPPORTIVE_REFLECTION'
     | 'FALLBACK';
+  promptConstraints?: PromptConstraints;
 }
 
 export interface MessageDecisionLog {
