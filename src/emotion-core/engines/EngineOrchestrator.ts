@@ -19,7 +19,7 @@ import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, Validati
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
-import { resolveHints } from './hintResolver';
+import { resolveHints, type ResolvableHints } from './hintResolver';
 import { applyHintStickiness, type StickyHints, type StickyHintKey } from './hintStickiness';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
@@ -555,9 +555,9 @@ export class EngineOrchestrator {
       });
     }
 
-    // 5b. Hint resolver — trim overlay stacking (feature-flagged)
-    if (featureFlags.hintResolverEnabled) {
-      const resolved = resolveHints({
+    // 5b–5d. Hint pipeline: resolve → stickiness → re-resolve
+    {
+      let currentHints: ResolvableHints = {
         guidanceMode,
         pacingHint,
         toneHint,
@@ -567,57 +567,52 @@ export class EngineOrchestrator {
         interruptHint,
         stepHint,
         questionBudgetHint,
-      });
-      pacingHint = resolved.pacingHint as typeof pacingHint;
-      toneHint = resolved.toneHint as typeof toneHint;
-      validationIntensity = resolved.validationIntensity as typeof validationIntensity;
-      validationHint = resolved.validationHint as typeof validationHint;
-      actionHint = resolved.actionHint as typeof actionHint;
-      interruptHint = resolved.interruptHint as typeof interruptHint;
-      stepHint = resolved.stepHint as typeof stepHint;
-      questionBudgetHint = resolved.questionBudgetHint as typeof questionBudgetHint;
-    }
-
-    // 5c. Hint stickiness — hysteresis to reduce oscillation (feature-flagged)
-    if (
-      featureFlags.hintStickinessEnabled &&
-      this.messageCount >= this.minimumMessagesForAdaptiveControl
-    ) {
-      const HOLD_CONFIG: Partial<Record<StickyHintKey, number>> = {
-        pacingHint: 2,
-        questionBudgetHint: 2,
-        interruptHint: 2,
-        toneHint: 1,
-        validationHint: 1,
-        actionHint: 1,
-        validationIntensity: 1,
-        stepHint: 0,
       };
-      const { final, holdsRemainingNext } = applyHintStickiness({
-        resolved: {
-          pacingHint,
-          toneHint,
-          validationIntensity,
-          validationHint,
-          actionHint,
-          interruptHint,
-          stepHint,
-          questionBudgetHint,
-        },
-        previous: this.lastStickyHints,
-        holdsRemaining: this.hintHoldsRemaining,
-        holdConfig: HOLD_CONFIG,
-      });
-      pacingHint = final.pacingHint as typeof pacingHint;
-      toneHint = final.toneHint as typeof toneHint;
-      validationIntensity = final.validationIntensity as typeof validationIntensity;
-      validationHint = final.validationHint as typeof validationHint;
-      actionHint = final.actionHint as typeof actionHint;
-      interruptHint = final.interruptHint as typeof interruptHint;
-      stepHint = final.stepHint as typeof stepHint;
-      questionBudgetHint = final.questionBudgetHint as typeof questionBudgetHint;
-      this.lastStickyHints = final;
-      this.hintHoldsRemaining = holdsRemainingNext;
+
+      // 5b. First resolve pass — priority trimming + hard cap
+      if (featureFlags.hintResolverEnabled) {
+        currentHints = resolveHints(currentHints);
+      }
+
+      // 5c. Stickiness — hysteresis to reduce oscillation
+      if (
+        featureFlags.hintStickinessEnabled &&
+        this.messageCount >= this.minimumMessagesForAdaptiveControl
+      ) {
+        const HOLD_CONFIG: Partial<Record<StickyHintKey, number>> = {
+          pacingHint: 2,
+          questionBudgetHint: 2,
+          interruptHint: 2,
+          toneHint: 1,
+          validationHint: 1,
+          actionHint: 1,
+          validationIntensity: 1,
+          stepHint: 0,
+        };
+        const { final, holdsRemainingNext } = applyHintStickiness({
+          resolved: currentHints,
+          previous: this.lastStickyHints,
+          holdsRemaining: this.hintHoldsRemaining,
+          holdConfig: HOLD_CONFIG,
+        });
+        currentHints = { ...currentHints, ...final };
+        this.lastStickyHints = final;
+        this.hintHoldsRemaining = holdsRemainingNext;
+      }
+
+      // 5d. Second resolve pass — re-enforce cap after stickiness may have reintroduced hints
+      if (featureFlags.hintResolverEnabled) {
+        currentHints = resolveHints(currentHints);
+      }
+
+      pacingHint = currentHints.pacingHint as typeof pacingHint;
+      toneHint = currentHints.toneHint as typeof toneHint;
+      validationIntensity = currentHints.validationIntensity as typeof validationIntensity;
+      validationHint = currentHints.validationHint as typeof validationHint;
+      actionHint = currentHints.actionHint as typeof actionHint;
+      interruptHint = currentHints.interruptHint as typeof interruptHint;
+      stepHint = currentHints.stepHint as typeof stepHint;
+      questionBudgetHint = currentHints.questionBudgetHint as typeof questionBudgetHint;
     }
 
     // 6. Build prompt (PURE)
