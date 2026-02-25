@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -455,6 +455,39 @@ export class EngineOrchestrator {
       // level 0 → undefined (absent)
     }
 
+    // ── StepHint: micro-step guard derived from actionMode (present-or-absent) ──
+    let stepHint: StepHint | undefined;
+    if (
+      featureFlags.interventionStepHintEnabled &&
+      featureFlags.appraisalBridgeEnabled &&
+      featureFlags.appraisalBridgeModeEnabled &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      appraisalResult
+    ) {
+      const am = appraisalResult.intervention.actionMode;
+      if (am === 'SHIFT_TO_REFLECTION' || am === 'INTERRUPT_LOOP') {
+        stepHint = 'ONE_STEP';
+      }
+      // 'ENCOURAGE_PAUSE', 'NONE', unknown → undefined
+
+      if (stepHint !== undefined) {
+        if (guidanceMode === 'STABILIZE') {
+          stepHint = undefined;
+        } else if (guidanceMode === 'DE_ESCALATE' && stepHint === 'TWO_STEPS') {
+          stepHint = 'ONE_STEP';
+        }
+        if (stepHint !== undefined && interruptHint) {
+          stepHint = undefined;
+        }
+        if (stepHint !== undefined && pacingHint === 'SLOW') {
+          stepHint = undefined;
+        }
+        if (stepHint !== undefined && appraisalResult.escalation.level >= 2) {
+          stepHint = undefined;
+        }
+      }
+    }
+
     const userMessage = signalPacket?.messageText ?? '';
     const normalizedUserMessage = userMessage.toLowerCase();
     const questionPatterns = [
@@ -505,6 +538,7 @@ export class EngineOrchestrator {
       ...(validationHint ? { validationHint } : {}),
       ...(actionHint ? { actionHint } : {}),
       ...(interruptHint ? { interruptHint } : {}),
+      ...(stepHint ? { stepHint } : {}),
     });
 
     const llmInput = userMessage
@@ -624,6 +658,7 @@ export class EngineOrchestrator {
       ...(validationHint ? { validationHint } : {}),
       ...(actionHint ? { actionHint } : {}),
       ...(interruptHint ? { interruptHint } : {}),
+      ...(stepHint ? { stepHint } : {}),
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
     };

@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 
@@ -34,6 +34,7 @@ export class PromptTemplateBuilder {
       validationHint?: ValidationHint;
       actionHint?: ActionHint;
       interruptHint?: InterruptHint;
+      stepHint?: StepHint;
     }
   ): string {
     if (
@@ -80,6 +81,7 @@ export class PromptTemplateBuilder {
     const validationHintOverlay = this.getValidationHintOverlay(options?.validationHint);
     const actionHintOverlay = this.getActionHintOverlay(options?.actionHint);
     const interruptHintOverlay = this.getInterruptHintOverlay(options?.interruptHint);
+    const stepHintOverlay = this.getStepHintOverlay(options?.stepHint);
 
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
@@ -96,7 +98,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -385,6 +387,21 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
         return `
 [INTERRUPT_HINT:HARD_STOP]
 - Hard boundary; refuse unsafe or looping demand and redirect.`;
+      default:
+        return '';
+    }
+  }
+
+  private static getStepHintOverlay(hint?: StepHint): string {
+    switch (hint) {
+      case 'ONE_STEP':
+        return `
+[STEP_HINT:ONE_STEP]
+- Offer at most one concrete step. Keep it concise.`;
+      case 'TWO_STEPS':
+        return `
+[STEP_HINT:TWO_STEPS]
+- Offer 1\u20132 concise steps. Avoid overload.`;
       default:
         return '';
     }

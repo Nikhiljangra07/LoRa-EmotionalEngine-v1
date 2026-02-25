@@ -19,6 +19,8 @@ export type ActionHint =
 
 export type InterruptHint = 'SOFT' | 'FIRM' | 'HARD_STOP';
 
+export type StepHint = 'ONE_STEP' | 'TWO_STEPS';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;
