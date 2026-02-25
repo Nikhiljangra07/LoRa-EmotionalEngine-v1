@@ -6,6 +6,8 @@ export type PacingHint = 'SLOW' | 'NORMAL' | 'FAST';
 
 export type ValidationIntensity = 'LOW' | 'MEDIUM' | 'HIGH';
 
+export type ToneHint = 'GENTLE' | 'FIRM';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;

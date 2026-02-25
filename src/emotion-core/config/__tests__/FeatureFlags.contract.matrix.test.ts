@@ -8,6 +8,7 @@ const FLAG_KEYS = [
   'LORA_DRIFT_MONITOR',
   'LORA_VALIDATION_INTENSITY',
   'LORA_ADAPTIVE_OVERRIDE_COOLDOWN',
+  'LORA_APPRAISAL_TONE_HINT',
 ] as const;
 const origEnv: Record<string, string | undefined> = {};
 for (const k of FLAG_KEYS) origEnv[k] = process.env[k];
@@ -33,12 +34,13 @@ describe('FeatureFlags contract matrix', () => {
     restoreEnv();
   });
 
-  // A) Baseline: no env vars → both new flags false
-  test('baseline: validationIntensityEnabled and adaptiveOverrideCooldownEnabled are false', () => {
+  // A) Baseline: no env vars → all additive flags false
+  test('baseline: validationIntensityEnabled, adaptiveOverrideCooldownEnabled, appraisalToneHintEnabled are false', () => {
     clearAllFlags();
     const flags = loadFlags();
     expect(flags.validationIntensityEnabled).toBe(false);
     expect(flags.adaptiveOverrideCooldownEnabled).toBe(false);
+    expect(flags.appraisalToneHintEnabled).toBe(false);
   });
 
   // B) Validation only
@@ -71,11 +73,22 @@ describe('FeatureFlags contract matrix', () => {
     expect(flags.appraisalBridgeModeEnabled).toBe(true);
   });
 
+  // E) Tone hint only
+  test('LORA_APPRAISAL_TONE_HINT=1 → appraisalToneHintEnabled true', () => {
+    clearAllFlags();
+    process.env.LORA_APPRAISAL_TONE_HINT = '1';
+    const flags = loadFlags();
+    expect(flags.appraisalToneHintEnabled).toBe(true);
+    expect(flags.validationIntensityEnabled).toBe(false);
+    expect(flags.adaptiveOverrideCooldownEnabled).toBe(false);
+  });
+
   // Existing flags are unaffected by new flag env vars
   test('setting new flags does not alter existing flags', () => {
     clearAllFlags();
     process.env.LORA_VALIDATION_INTENSITY = '1';
     process.env.LORA_ADAPTIVE_OVERRIDE_COOLDOWN = '1';
+    process.env.LORA_APPRAISAL_TONE_HINT = '1';
     const flags = loadFlags();
     expect(flags.appraisalBridgeEnabled).toBe(false);
     expect(flags.appraisalBridgeModeEnabled).toBe(false);
