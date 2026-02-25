@@ -1,4 +1,5 @@
 import type { EIVTier } from '../scorers/eivTiers';
+import type { PacingHint } from '../types/logging.types';
 import { decisionLogEnabled } from '../debug/debugGate';
 
 export interface MessageDecisionLog {
@@ -57,6 +58,7 @@ export interface MessageDecisionLog {
   };
 
   appraisalOverride?: string;
+  pacingHint?: PacingHint;
 }
 
 export interface SessionLog {

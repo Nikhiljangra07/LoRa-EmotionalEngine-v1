@@ -4,7 +4,7 @@ import { EmotionalState } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile } from '../types/logging.types';
+import type { PromptProfile, PacingHint } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 
 export class PromptTemplateBuilder {
@@ -16,6 +16,7 @@ export class PromptTemplateBuilder {
       momentumConfidence?: number;
       answerFirst?: boolean;
       microContext?: string;
+      pacingHint?: PacingHint;
     }
   ): string {
     const relationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
@@ -44,6 +45,9 @@ export class PromptTemplateBuilder {
     // Phase 1.1: compatibility mapping for new modes
     const modeOverlay = this.getGuidanceModeOverlay(options?.guidanceMode);
 
+    // Phase 2: pacing overlay driven by derived hint (never an appraisal object)
+    const pacingOverlay = this.getPacingOverlay(options?.pacingHint);
+
     const microContextBlock = options?.microContext
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
       : '';
@@ -59,7 +63,7 @@ Relationship Style:
 
 RESPONSE GUIDELINES
 ------------------
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -223,6 +227,25 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 - Offer space for the user to process
 - Maintain warmth and patience`;
 
+      default:
+        return '';
+    }
+  }
+
+  /* ============================================================
+   * Phase 2: pacing overlay from derived hint.
+   *
+   * Only SLOW and FAST produce output; NORMAL/undefined are no-ops.
+   * ============================================================
+   */
+  private static getPacingOverlay(hint?: PacingHint): string {
+    switch (hint) {
+      case 'SLOW':
+        return `
+- Pacing: slow down. Use shorter sentences. Pause between ideas. Avoid rapid questioning.`;
+      case 'FAST':
+        return `
+- Pacing: keep it brisk. Use concise, direct responses.`;
       default:
         return '';
     }

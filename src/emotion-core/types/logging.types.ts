@@ -2,6 +2,8 @@
 
 export type EIVTier = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME';
 
+export type PacingHint = 'SLOW' | 'NORMAL' | 'FAST';
+
 export interface AnalyzerSummary {
   emojiUsed: boolean;
   capsUsed: boolean;
