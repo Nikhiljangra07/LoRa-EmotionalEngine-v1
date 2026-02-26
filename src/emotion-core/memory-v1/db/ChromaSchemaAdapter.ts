@@ -12,6 +12,7 @@ export class ChromaSchemaAdapter {
     return client.getOrCreateCollection({
       name: COLLECTION_NAME,
       metadata: { 'hnsw:space': 'cosine' },
+      embeddingFunction: null as any,
     });
   }
 
