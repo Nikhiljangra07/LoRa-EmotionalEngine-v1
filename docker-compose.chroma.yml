@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  chroma:
+    image: chromadb/chroma
+    container_name: lora-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma
+    restart: unless-stopped
+
+volumes:
+  chroma_data:

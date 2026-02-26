@@ -43,7 +43,10 @@
     "memory:v1:debug-smoke": "ts-node scripts/memory_v1_debug_smoke.ts",
     "memory:v1:shadow-report": "ts-node scripts/memory_v1_shadow_report.ts",
     "memory:v1:stress": "ts-node scripts/memory_v1_stress_run.ts",
-    "chroma:smoke": "ts-node src/emotion-core/memory-v1/db/__smoke__/chromaSmokeTest.ts"
+    "chroma:smoke": "ts-node src/emotion-core/memory-v1/db/__smoke__/chromaSmokeTest.ts",
+    "chroma:start": "docker compose -f docker-compose.chroma.yml up -d",
+    "chroma:stop": "docker compose -f docker-compose.chroma.yml down",
+    "chroma:logs": "docker compose -f docker-compose.chroma.yml logs -f"
   },
   "dependencies": {
     "chromadb": "^3.3.1",
