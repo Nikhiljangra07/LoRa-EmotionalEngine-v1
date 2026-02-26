@@ -16,7 +16,7 @@ import { OpenAIResponder } from '../llm/OpenAIResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
-import { debugEnabled } from '../debug/debugGate';
+import { debugEnabled, decisionLogEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
 import { resolveHints, type ResolvableHints } from './hintResolver';
@@ -27,6 +27,14 @@ import type { AppraisalResult } from '../../appraisal-bridge/types';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1, ETVPolicy } from '../etv';
+import type { MemoryV1State, ProcessMessageInput as MemoryProcessMessageInput } from '../memory-v1/memoryV1EngineTypes';
+import type { MemoryContext } from '../memory-v1/memoryContextTypes';
+import type { StoredMemoryV1State, MemoryV1Storage } from '../memory-v1/storageTypes';
+import type { DominantEmotion } from '../memory-v1/types';
+import { createMemoryV1, processMessage as memV1ProcessMessage, endSession as memV1EndSession } from '../memory-v1/memoryV1Engine';
+import { createJSONStorage } from '../memory-v1/storage';
+import { createBuffer } from '../memory-v1/episodicBuffer';
+import { makeMemoryConsolidateLog } from '../memory-v1/decisionLogs';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -56,6 +64,10 @@ const llmTimeoutMs = Math.max(
 );
 
 import { writeSessionTrace } from '../../debug/sessionTrace';
+
+const VALID_DOMINANT_EMOTIONS: ReadonlySet<string> = new Set([
+  'JOY', 'SADNESS', 'ANGER', 'FEAR', 'CONTENTMENT', 'NEUTRAL',
+]);
 
 export class EngineOrchestrator {
   private etvState: ETVState;
@@ -111,6 +123,11 @@ export class EngineOrchestrator {
   private readonly userId: string;
   private sessionCounter = 0;
   private lastEtvPolicy: ETVPolicy | null = null;
+
+  // ── Memory V1 (gated by memoryV1Enabled / memoryV1ShadowEnabled) ──
+  private memoryV1State?: MemoryV1State;
+  private memoryV1Storage?: MemoryV1Storage;
+  private readonly memoryV1BaseDir = '.lora/memory-v1';
 
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
@@ -177,6 +194,10 @@ export class EngineOrchestrator {
         try {
           this.lastEtvPolicy = ETVEngineV1.getPolicy(this.userId);
         } catch { /* storage not yet initialized — will populate after first session */ }
+      }
+
+      if (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled) {
+        this.initMemoryV1();
       }
     }
     this.messageCount += 1;
@@ -682,6 +703,22 @@ export class EngineOrchestrator {
       questionBudgetHint = currentHints.questionBudgetHint as typeof questionBudgetHint;
     }
 
+    // ── Memory V1: per-message processing ──
+    let memoryContext: MemoryContext | undefined;
+    if (
+      (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled) &&
+      this.memoryV1State
+    ) {
+      memoryContext = this.processMemoryV1Message(
+        eivResult.value,
+        analyzerOutputs,
+        emotionalState,
+        momentum,
+        appraisalResult,
+        messageTimestampMs,
+      ) ?? undefined;
+    }
+
     // 6. Build prompt (PURE)
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
@@ -697,6 +734,9 @@ export class EngineOrchestrator {
       ...(stepHint ? { stepHint } : {}),
       ...(questionBudgetHint ? { questionBudgetHint } : {}),
       ...(this.lastEtvPolicy ? { etvPolicy: this.lastEtvPolicy } : {}),
+      ...(memoryContext && (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled)
+        ? { memoryContext }
+        : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -949,6 +989,50 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── Memory V1: consolidate and persist ──
+    if (
+      (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled) &&
+      this.memoryV1State &&
+      this.memoryV1Storage
+    ) {
+      try {
+        const nowMs = Date.now();
+        const endResult = memV1EndSession(this.memoryV1State, nowMs);
+        this.memoryV1State = endResult.nextState;
+
+        const storedState: StoredMemoryV1State = {
+          version: 1,
+          userId: this.userId,
+          savedAtMs: nowMs,
+          schemas: endResult.nextState.schemas.schemas,
+          episodic: [],
+          rifGuard: endResult.nextState.rifGuard,
+        };
+        this.memoryV1Storage.save(storedState);
+
+        if (decisionLogEnabled) {
+          const cr = endResult.consolidationResult;
+          const log = makeMemoryConsolidateLog({
+            userId: this.userId,
+            sessionId: sessionId,
+            tsMs: nowMs,
+            createdCount: cr.createdSchemaIds.length,
+            mergedCount: cr.mergedPairs.length,
+            prunedCount: cr.prunedSchemaIds.length,
+            episodesEvicted: 0,
+            totalSchemas: cr.updatedSchemas.length,
+            totalEpisodes: 0,
+            noveltyFlag: cr.noveltyFlag,
+          });
+          console.log(`[LoRa::Memory]`, JSON.stringify(log));
+        }
+      } catch {
+        if (debugEnabled) {
+          console.error('[LoRa::MemoryV1] endSession consolidation failed');
+        }
+      }
+    }
+
     // Reset session
     this.etvState = {
       value: newETV,
@@ -977,6 +1061,81 @@ export class EngineOrchestrator {
     this.guidanceDwellMode = null;
 
     return { newETV };
+  }
+
+  // ---------------------------------------------------
+  // Memory V1 helpers
+  // ---------------------------------------------------
+  private initMemoryV1(): void {
+    if (!this.memoryV1Storage) {
+      this.memoryV1Storage = createJSONStorage(this.memoryV1BaseDir);
+    }
+    try {
+      const stored = this.memoryV1Storage.load(this.userId);
+      this.memoryV1State = stored
+        ? {
+            userId: stored.userId,
+            episodic: createBuffer(),
+            schemas: { userId: stored.userId, schemas: stored.schemas, maxSchemas: 20 },
+            rifGuard: stored.rifGuard,
+          }
+        : createMemoryV1(this.userId);
+    } catch {
+      this.memoryV1State = createMemoryV1(this.userId);
+    }
+  }
+
+  private processMemoryV1Message(
+    eivValue: number,
+    analyzerOutputs: AnalyzerOutputs,
+    emotionalState: EmotionalState,
+    momentum: { confidence: number; valenceBias: number; arousalBias: number },
+    appraisalResult: AppraisalResult | undefined,
+    timestampMs: number,
+  ): MemoryContext | null {
+    if (!this.memoryV1State) return null;
+
+    const dominant = emotionalState.dominant;
+    const dominantEmotion: DominantEmotion | undefined =
+      VALID_DOMINANT_EMOTIONS.has(dominant)
+        ? (dominant as DominantEmotion)
+        : undefined;
+
+    const avi = AVIScorer.computeAVI(this.sessionEIVs);
+
+    const input: MemoryProcessMessageInput = {
+      encoderInput: {
+        eivValue,
+        valenceScore: analyzerOutputs.valence.score,
+        arousalScore: analyzerOutputs.arousal.score,
+        expressionStrength: analyzerOutputs.expressionStrength.score,
+        dominantEmotion,
+        avi,
+        valenceBias: momentum.valenceBias,
+        arousalBias: momentum.arousalBias,
+        momentumConfidence: momentum.confidence,
+        ...(appraisalResult && featureFlags.appraisalBridgeEnabled
+          ? {
+              appraisalBridgeEnabled: true,
+              pressureScalar: appraisalResult.pressure.scalar,
+              pressureSlope: appraisalResult.pressure.slope,
+              pressureVolatility: appraisalResult.pressure.volatility,
+              escalationScore: appraisalResult.escalation.score,
+              collapseSeverity: appraisalResult.collapse.event ? 1.0 : 0.0,
+            }
+          : {}),
+      },
+      eventId: `msg-${this.messageCount}`,
+      timestampMs,
+    };
+
+    try {
+      const result = memV1ProcessMessage(this.memoryV1State, input);
+      this.memoryV1State = result.nextState;
+      return result.memoryContext;
+    } catch {
+      return null;
+    }
   }
 
   // ---------------------------------------------------

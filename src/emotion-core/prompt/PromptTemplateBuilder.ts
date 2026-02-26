@@ -23,6 +23,9 @@ const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
 ]);
 
 export class PromptTemplateBuilder {
+  private static memoryShadowLastLogged = new Map<string, number>();
+  private static readonly MEMORY_SHADOW_COOLDOWN_MS = 5 * 60 * 1000;
+
   static build(
     emotionalState: EmotionalState,
     etvState: ETVState,
@@ -40,6 +43,16 @@ export class PromptTemplateBuilder {
       stepHint?: StepHint;
       questionBudgetHint?: QuestionBudgetHint;
       etvPolicy?: ETVPolicy;
+      memoryContext?: {
+        topSchemas: Array<{
+          schemaId: string;
+          emotionTrajectory: string;
+          behavioralTendency: string;
+          relevance: string;
+        }>;
+        sessionPattern: string;
+        confidenceLevel: string;
+      };
       messageId?: string;
       userId?: string;
     }
@@ -129,6 +142,11 @@ export class PromptTemplateBuilder {
       ? `\n\nRECENT CONTEXT (same session)\n-----------------------------\n${options.microContext}`
       : '';
 
+    const memoryContextBlock = this.getMemoryContextBlock(
+      options?.memoryContext,
+      options?.userId,
+    );
+
     const prompt = `
 You are LoRa, an emotionally aware AI companion.
 ${microContextBlock}
@@ -151,7 +169,7 @@ GLOBAL CONSTRAINTS
 - Avoid cheerfulness when the user signals negativity
 - Keep a professional baseline when needed
 - If uncertain, default to calm, warm presence
-${constraintOverlay}`.trim();
+${constraintOverlay}${memoryContextBlock}`.trim();
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][PromptTemplate]', {
@@ -462,6 +480,71 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
       default:
         return '';
     }
+  }
+
+  private static getMemoryContextBlock(
+    memoryContext?: {
+      topSchemas: Array<{
+        schemaId: string;
+        emotionTrajectory: string;
+        behavioralTendency: string;
+        relevance: string;
+      }>;
+      sessionPattern: string;
+      confidenceLevel: string;
+    },
+    userId?: string,
+  ): string {
+    if (!memoryContext) return '';
+
+    if (featureFlags.memoryV1ShadowEnabled && !featureFlags.memoryV1Enabled) {
+      const sig = memoryContext.topSchemas
+        .slice(0, 3)
+        .map((s) => s.schemaId)
+        .join(',');
+      const key = `${userId ?? 'unknown'}|${sig}`;
+      const now = Date.now();
+      const last = this.memoryShadowLastLogged.get(key);
+      if (last === undefined || now - last >= this.MEMORY_SHADOW_COOLDOWN_MS) {
+        this.memoryShadowLastLogged.set(key, now);
+        console.log(
+          '[LoRa::MemoryV1Shadow]',
+          JSON.stringify({
+            event: 'memory_would_inject',
+            userId: userId ?? 'unknown',
+            signature: sig,
+            confidenceLevel: memoryContext.confidenceLevel,
+            schemaCount: memoryContext.topSchemas.length,
+            tsMs: now,
+          }),
+        );
+      }
+      return '';
+    }
+
+    if (!featureFlags.memoryV1Enabled) return '';
+
+    const lines: string[] = [
+      '',
+      '',
+      'MEMORY CONTEXT (privacy-safe, categorical)',
+      '-------------------------------------------',
+      `- sessionPattern: ${memoryContext.sessionPattern}`,
+      `- confidence: ${memoryContext.confidenceLevel}`,
+      '- topSchemas:',
+    ];
+
+    for (const s of memoryContext.topSchemas.slice(0, 3)) {
+      lines.push(
+        `  - [${s.schemaId}] trajectory=${s.emotionTrajectory} tendency=${s.behavioralTendency} relevance=${s.relevance}`,
+      );
+    }
+
+    return lines.join('\n');
+  }
+
+  static resetMemoryShadowLimiter(): void {
+    this.memoryShadowLastLogged.clear();
   }
 
   private static formatRelationshipLabel(
