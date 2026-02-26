@@ -23,3 +23,15 @@ export {
   applyDimSpec,
   cosineSimilarity,
 } from './normalize';
+
+export type {
+  FactAnchorStore,
+  FactAnchorStoreState,
+  UpsertInput,
+  UpsertResult,
+  MaintainInput,
+  MaintainReport,
+  GetCandidatesInput,
+} from './factAnchorStoreTypes';
+
+export { createInMemoryFactAnchorStore } from './factAnchorStore';
