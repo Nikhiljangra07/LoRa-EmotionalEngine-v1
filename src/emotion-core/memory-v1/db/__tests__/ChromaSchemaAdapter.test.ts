@@ -6,7 +6,7 @@ const DB_ON = process.env.LORA_TEST_DB === '1';
 
 async function assertChromaReachable(url: string): Promise<void> {
   try {
-    const res = await fetch(`${url}/api/v1/heartbeat`);
+    const res = await fetch(`${url}/api/v2/heartbeat`);
     if (!res.ok) throw new Error();
   } catch {
     throw new Error(
