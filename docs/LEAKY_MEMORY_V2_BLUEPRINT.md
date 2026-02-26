@@ -1,6 +1,6 @@
 # Leaky Schema Memory V2 -- Formal Engineering Blueprint
 
-**Version:** 2.1.0
+**Version:** 2.2.0
 **Date:** 2026-02-26
 **Status:** SPECIFICATION (pre-implementation)
 **Scope:** Dual-database memory layer (ChromaDB + FalkorDB), integration with `EngineOrchestrator`, `PromptTemplateBuilder`, and ETV
@@ -1325,3 +1325,112 @@ src/emotion-core/memory/
     integration.test.ts
     stress.test.ts
 ```
+
+---
+
+## Appendix C: Known Structural Risks
+
+These are not bugs. They are documented design trade-offs with known consequences. Each risk is accepted for V1 with stated mitigations and monitoring.
+
+### RISK-1: Cross-Mode Vector Drift
+
+**Affected sections:** 8.1 (DIM_SPEC), 10.1 (Schema Matching)
+
+**The issue:** Baseline mode populates dims 0-13 and zero-fills dims 14-20. Enhanced mode populates all 21 dims. Both produce valid L2-normalized vectors, and cosine similarity between them is mathematically correct. However, enhanced-mode vectors carry higher dimensional density (more non-zero signal), while baseline vectors have lower signal entropy (7 dims are always zero). Over time, if a user enables the appraisal bridge after accumulating baseline schemas, the schema space shifts: new enhanced vectors will cluster differently in the 21-dim space than old baseline vectors do in the effective 14-dim subspace. Enhanced schemas may dominate similarity scoring simply because they carry more discriminative signal, not because they represent stronger emotional patterns.
+
+**Severity:** Low-medium. Does not break correctness. Does create gradual schema bias toward enhanced-mode entries.
+
+**Why this is acceptable for V1:** Mode transitions are rare (the appraisal bridge is either on or off for a deployment). The EWMA centroid update will gradually absorb the mode shift as new episodes touch old schemas. The merge/prune machinery handles schema evolution.
+
+**Required mitigation:**
+1. Log every mode transition per user: `[LoRa::MemoryModeTransition] userId={id}, from={baseline|enhanced}, schemasAffected={count}`
+2. Store `mode: 'baseline' | 'enhanced'` on each SchemaRecord (already in type definition)
+3. On retrieval, log when a baseline schema wins against an enhanced query or vice versa: `[LoRa::MemoryCrossMode] schemaMode={mode}, queryMode={mode}, rawSim={sim}`
+
+**Long-term fix (V2+):** If mode transitions become frequent, introduce a one-time schema re-encoding pass that projects baseline centroids into the enhanced subspace using the user's recent enhanced vectors as calibration anchors.
+
+---
+
+### RISK-2: Fact Extractor V1 Over-Extraction
+
+**Affected sections:** 13.2 (Extraction), 13.3 (Quarantine)
+
+**The issue:** Rule-based extraction using capitalized-word detection will produce false positives. Example:
+
+> "I met Jake and the Dog barked."
+
+A naive capitalized-word rule extracts both "Jake" (correct: person) and "Dog" (incorrect: common noun that happened to be capitalized, or mid-sentence stylistic capitalization). This creates noise nodes in FalkorDB -- phantom entities that clutter the graph and dilute relevance scoring.
+
+**Severity:** Medium. Won't crash anything. Will degrade anchor quality and potentially inject irrelevant context into prompts if false entities get reinforced.
+
+**Why this is acceptable for V1:** Three layers of defense already exist:
+1. **Confidence scoring** -- a capitalized word without a relationship signal ("my", possessive, role noun) gets confidence ~0.35, which is below the 0.60 threshold -> **quarantined automatically**
+2. **Quarantine mechanism** -- false extractions that are never re-mentioned expire after 3 sessions
+3. **Anchor cap** -- MAX_ANCHORS_PER_SESSION = 3 limits flood rate
+
+**Additional mitigation (add to FactExtractor implementation):**
+- Maintain a stoplist of common nouns frequently capitalized mid-sentence: `["Monday", "Tuesday", ..., "January", ..., "Internet", "God", "Christmas", "Easter", "The"]`
+- Require person-type extractions to co-occur with at least one relationship signal OR appear as the grammatical subject/object of a verb phrase -- not just any capitalized token
+- Log all quarantined extractions for extraction quality monitoring: `[LoRa::MemoryExtractQuarantine] type={type}, summary={summary}, confidence={conf}, reason="no_relationship_signal"`
+
+**Long-term fix (V2+):** Replace regex extraction with a lightweight LLM call (post-response, off hot path) that returns structured JSON. Expected to raise precision from ~60% to ~85-90%.
+
+---
+
+### RISK-3: Schema Capacity at 20 — Intentional Forgetting
+
+**Affected sections:** 12.2 (Pressure-Merge), 12.3 (Capacity Behavior)
+
+**The issue:** 20 schemas per user is a hard cap. Human emotional pattern diversity may exceed this over months or years of use. The merge -> relax -> prune pipeline is deterministic and clean, but it produces **behavioral compression**: niche emotional patterns that occur rarely will be absorbed into nearby schemas or pruned entirely. Over long timescales, LoRa's schema space converges toward the user's dominant emotional patterns and forgets infrequent ones.
+
+**Severity:** Low. This is a design feature, not a bug.
+
+**Why this is philosophically correct:** Fuzzy-Trace Theory (Section 5.1) predicts exactly this behavior in human memory. Humans do not retain infinite emotional pattern granularity -- rare experiences are absorbed into broader schemas ("that felt like the other stressful time") while frequent patterns sharpen. The 20-schema cap mirrors this cognitive constraint. LoRa's memory becomes a compressed representation of the user's emotional landscape, weighted toward recency and frequency. This IS the design intent.
+
+**What this means in practice:**
+- A user who has 5 dominant emotional patterns will have sharp, well-calibrated schemas
+- A user with 30+ distinct patterns will see niche ones compressed or forgotten
+- The merge logic preserves the most salient patterns and compresses the least distinctive ones
+- Pruned schemas are gone permanently -- there is no recovery
+
+**Required monitoring:**
+- Log every prune event: `[LoRa::MemorySchemaPrune] schemaId={id}, salienceWeight={w}, episodeCount={count}, age={sessions}`
+- Track schema churn rate: if > 3 prunes per 10 sessions, the cap may be too low for this user
+- Dashboard metric: `schemasAtCapacity` count per user -- if a significant percentage of users are persistently at 20, consider raising the cap
+
+**Long-term option (V2+):** Introduce tiered schemas -- "active" (max 20, in ChromaDB) and "archived" (overflow, in cold storage). Archived schemas can be reactivated if a new episode matches them with high similarity. This preserves niche patterns without inflating the active retrieval space.
+
+---
+
+### RISK-4: Retrieval Temperature (T = 0.15) — Winner-Take-All
+
+**Affected section:** 11.1 (Softmax Retrieval)
+
+**The issue:** T = 0.15 produces an extremely sharp softmax distribution. For two schemas with cosine similarities 0.80 and 0.75:
+
+```
+p_1 = exp(0.80 / 0.15) / (exp(0.80/0.15) + exp(0.75/0.15))
+    = exp(5.33) / (exp(5.33) + exp(5.00))
+    = 207 / (207 + 148)
+    = 0.583
+
+p_2 = 0.417
+```
+
+Even with only 0.05 cosine difference, the winner gets 58% probability. With a 0.10 gap the winner approaches 70%+. This means LoRa will almost always commit to a single schema interpretation, even when the user's emotional state genuinely overlaps two patterns.
+
+**Severity:** Low. This is a deliberate design choice.
+
+**Why this is acceptable:**
+1. **Stability over nuance.** Blended retrieval (high T) causes response strategy oscillation -- LoRa's behavioral output would mix signals from multiple schemas, producing inconsistent tone. A sharp winner provides clear, committed response strategy.
+2. **RIF guard compatibility.** The RIF mechanism assumes a single winner per retrieval. Blended retrieval would require a fundamentally different RIF model (multi-winner suppression), adding complexity for marginal benefit.
+3. **Confidence gating depends on it.** The `confidenceLevel = max(p_i)` metric is only meaningful when the softmax is sharp enough to discriminate. At high T, confidenceLevel would hover around `1/numSchemas` for everything, defeating the no-match gate.
+
+**What this sacrifices:** Genuine emotional transitions where the user is "between" two patterns will be interpreted as one or the other, not a blend. LoRa may slightly over-commit to the closer schema. The user would not notice this in most cases -- the response strategy difference between two adjacent schemas is small.
+
+**Required monitoring:**
+- Log margin between top-2 softmax probabilities: `[LoRa::MemoryRetrieveMargin] p1={p1}, p2={p2}, margin={p1-p2}`
+- If margin < 0.10 for > 50% of retrievals in a session, the user may be in a transitional emotional state -> log `[LoRa::MemoryNarrowMargin]` for analysis
+- This data informs whether T should be relaxed in future versions
+
+**Long-term option (V2+):** Introduce adaptive temperature: `T_effective = T_base + margin_penalty` where `margin_penalty` increases when recent retrievals have narrow margins. This would soften the softmax only when the data suggests genuine ambiguity, maintaining sharpness otherwise.
