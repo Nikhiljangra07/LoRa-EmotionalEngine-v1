@@ -1,3 +1,5 @@
+import type { MemoryV1Policy } from './policyTypes';
+
 export type TrajectoryLabel =
   | 'calm-stable'
   | 'escalating-negative'
@@ -12,14 +14,17 @@ export type TendencyLabel =
   | 'needs-structure'
   | 'unknown';
 
+export type GovernedTrajectoryLabel = TrajectoryLabel | 'omitted';
+export type GovernedTendencyLabel = TendencyLabel | 'omitted';
+
 export type MemoryContext = {
   topSchemas: Array<{
     schemaId: string;
-    emotionTrajectory: TrajectoryLabel;
-    behavioralTendency: TendencyLabel;
+    emotionTrajectory: GovernedTrajectoryLabel;
+    behavioralTendency: GovernedTendencyLabel;
     relevance: 'HIGH' | 'MED' | 'LOW';
   }>;
-  sessionPattern: TrajectoryLabel;
+  sessionPattern: GovernedTrajectoryLabel;
   confidenceLevel: 'HIGH' | 'MED' | 'LOW';
 };
 
@@ -36,4 +41,5 @@ export type BuildMemoryContextInput = {
   }>;
   thetaRetrieve: number;
   cMin: number;
+  policy?: MemoryV1Policy;
 };

@@ -93,6 +93,9 @@ export function processMessage(
     state.schemas.schemas,
     retrievalResult,
   );
+  if (contextInput && input.policy) {
+    contextInput.policy = input.policy;
+  }
   const memoryContext = contextInput ? buildMemoryContext(contextInput) : null;
 
   return {

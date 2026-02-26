@@ -1,5 +1,6 @@
 import { buildMemoryContext } from '../memoryContext';
 import type { BuildMemoryContextInput } from '../memoryContextTypes';
+import { getMemoryV1Policy } from '../policyMap';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -315,5 +316,94 @@ describe('memoryContext – sessionPattern', () => {
   it('always returns unknown in V1', () => {
     const r = buildMemoryContext(makeInput());
     expect(r!.sessionPattern).toBe('unknown');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. Governor (policy-based)
+// ---------------------------------------------------------------------------
+
+describe('memoryContext – governor (MemoryV1Policy)', () => {
+  it('B0 policy returns null (no prompt injection)', () => {
+    const r = buildMemoryContext(makeInput({ policy: getMemoryV1Policy('B0') }));
+    expect(r).toBeNull();
+  });
+
+  it('B1 policy returns null (no prompt injection)', () => {
+    const r = buildMemoryContext(makeInput({ policy: getMemoryV1Policy('B1') }));
+    expect(r).toBeNull();
+  });
+
+  it('B2 policy caps schemas to 1 and omits tendency', () => {
+    const r = buildMemoryContext(makeInput({ policy: getMemoryV1Policy('B2') }));
+    expect(r).not.toBeNull();
+    expect(r!.topSchemas.length).toBeLessThanOrEqual(1);
+    for (const s of r!.topSchemas) {
+      expect(s.behavioralTendency).toBe('omitted');
+      expect(s.emotionTrajectory).not.toBe('omitted');
+    }
+  });
+
+  it('B2 policy omits sessionPattern', () => {
+    const r = buildMemoryContext(makeInput({ policy: getMemoryV1Policy('B2') }));
+    expect(r!.sessionPattern).toBe('omitted');
+  });
+
+  it('B3 policy caps schemas to 2, omits tendency, allows sessionPattern', () => {
+    const input = makeInput({
+      results: [
+        { schemaId: 's1', prob: 0.7, sim: 0.8 },
+        { schemaId: 's2', prob: 0.5, sim: 0.7 },
+        { schemaId: 's3', prob: 0.3, sim: 0.6 },
+      ],
+      schemasById: {
+        s1: { schemaId: 's1', trajectoryLabel: 'calm-stable', tendencyLabel: 'responds-to-validation' },
+        s2: { schemaId: 's2', trajectoryLabel: 'volatile', tendencyLabel: 'needs-structure' },
+        s3: { schemaId: 's3', trajectoryLabel: 'recovering' },
+      },
+      policy: getMemoryV1Policy('B3'),
+    });
+    const r = buildMemoryContext(input);
+    expect(r).not.toBeNull();
+    expect(r!.topSchemas.length).toBeLessThanOrEqual(2);
+    for (const s of r!.topSchemas) {
+      expect(s.behavioralTendency).toBe('omitted');
+    }
+    expect(r!.sessionPattern).not.toBe('omitted');
+  });
+
+  it('B4 policy allows up to 3 schemas with tendency', () => {
+    const input = makeInput({
+      results: [
+        { schemaId: 's1', prob: 0.7, sim: 0.8 },
+        { schemaId: 's2', prob: 0.5, sim: 0.7 },
+        { schemaId: 's3', prob: 0.3, sim: 0.6 },
+      ],
+      schemasById: {
+        s1: { schemaId: 's1', trajectoryLabel: 'calm-stable', tendencyLabel: 'responds-to-validation' },
+        s2: { schemaId: 's2', trajectoryLabel: 'volatile', tendencyLabel: 'needs-structure' },
+        s3: { schemaId: 's3', trajectoryLabel: 'recovering', tendencyLabel: 'resists-directiveness' },
+      },
+      policy: getMemoryV1Policy('B4'),
+    });
+    const r = buildMemoryContext(input);
+    expect(r).not.toBeNull();
+    expect(r!.topSchemas.length).toBeLessThanOrEqual(3);
+    for (const s of r!.topSchemas) {
+      expect(s.behavioralTendency).not.toBe('omitted');
+      expect(s.emotionTrajectory).not.toBe('omitted');
+    }
+  });
+
+  it('governed output contains no raw floats', () => {
+    const r = buildMemoryContext(makeInput({ policy: getMemoryV1Policy('B4') }));
+    const json = JSON.stringify(r);
+    expect(json).not.toMatch(/\d+\.\d+/);
+  });
+
+  it('no policy (undefined) preserves backward-compatible behavior', () => {
+    const withPolicy = buildMemoryContext(makeInput());
+    const without = buildMemoryContext(makeInput({ policy: undefined }));
+    expect(withPolicy).toEqual(without);
   });
 });

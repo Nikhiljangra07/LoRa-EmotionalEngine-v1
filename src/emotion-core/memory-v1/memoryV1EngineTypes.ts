@@ -19,6 +19,7 @@ export type ProcessMessageInput = {
   timestampMs: number;
   rifAlpha?: number;
   rifBeta?: number;
+  policy?: import('./policyTypes').MemoryV1Policy;
 };
 
 export type ProcessMessageOutput = {

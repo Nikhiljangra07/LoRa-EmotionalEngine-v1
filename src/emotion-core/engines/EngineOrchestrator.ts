@@ -36,6 +36,8 @@ import { createJSONStorage } from '../memory-v1/storage';
 import { createBuffer } from '../memory-v1/episodicBuffer';
 import { makeMemoryConsolidateLog } from '../memory-v1/decisionLogs';
 import { buildMemoryV1DebugSnapshot } from '../memory-v1/debugSnapshot';
+import { getMemoryV1Policy } from '../memory-v1/policyMap';
+import type { ETVBandHint } from '../memory-v1/policyTypes';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -711,6 +713,9 @@ export class EngineOrchestrator {
       (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled) &&
       this.memoryV1State
     ) {
+      const memPolicy = this.lastEtvPolicy
+        ? getMemoryV1Policy(this.lastEtvPolicy.band.replace('BAND_', 'B') as ETVBandHint)
+        : undefined;
       memoryV1Result = this.processMemoryV1Message(
         eivResult.value,
         analyzerOutputs,
@@ -718,6 +723,7 @@ export class EngineOrchestrator {
         momentum,
         appraisalResult,
         messageTimestampMs,
+        memPolicy,
       );
       memoryContext = memoryV1Result?.memoryContext ?? undefined;
     }
@@ -1121,6 +1127,7 @@ export class EngineOrchestrator {
     momentum: { confidence: number; valenceBias: number; arousalBias: number },
     appraisalResult: AppraisalResult | undefined,
     timestampMs: number,
+    memPolicy?: import('../memory-v1/policyTypes').MemoryV1Policy,
   ): MemoryProcessMessageOutput | null {
     if (!this.memoryV1State) return null;
 
@@ -1156,6 +1163,7 @@ export class EngineOrchestrator {
       },
       eventId: `msg-${this.messageCount}`,
       timestampMs,
+      ...(memPolicy ? { policy: memPolicy } : {}),
     };
 
     try {
