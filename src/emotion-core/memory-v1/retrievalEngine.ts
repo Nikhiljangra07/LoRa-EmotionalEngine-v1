@@ -1,4 +1,4 @@
-import { clamp, safeNumber } from './normalize';
+import { clamp, safeNumber, cosineSimilarity } from './normalize';
 import type { SchemaRecord } from './schemaStore';
 import { applyRIF, applyBiasDecay, type RIFState } from './rif';
 import { updateGuard, type RIFGuardState } from './rifGuard';
@@ -100,22 +100,6 @@ export function retrieveSchemas(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const len = Math.min(a.length, b.length);
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < len; i++) {
-    const va = safeNumber(a[i], 0);
-    const vb = safeNumber(b[i], 0);
-    dot += va * vb;
-    normA += va * va;
-    normB += vb * vb;
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  if (denom < 1e-12) return 0;
-  return clamp(safeNumber(dot / denom, 0), -1, 1);
-}
 
 function softmax(scores: number[], temperature: number): number[] {
   const t = Math.max(temperature, 1e-12);

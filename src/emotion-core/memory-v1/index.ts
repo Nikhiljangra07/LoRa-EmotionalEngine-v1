@@ -21,4 +21,5 @@ export {
   tanhSignedTo01,
   l2Normalize,
   applyDimSpec,
+  cosineSimilarity,
 } from './normalize';
