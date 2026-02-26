@@ -1,5 +1,5 @@
 import type { DominantEmotion, EncoderInput } from '../types';
-import type { StressSession, StressMessage } from './stressTypes';
+import type { StressSession, StressMessage, BandSchedule } from './stressTypes';
 
 // ---------------------------------------------------------------------------
 // Seeded PRNG (deterministic, no external deps)
@@ -118,6 +118,19 @@ function regimeD(sessionIdx: number, rng: () => number): StressMessage[] {
 // ---------------------------------------------------------------------------
 
 const TOTAL_SESSIONS = 20;
+
+export function defaultBandSchedule(): BandSchedule {
+  const schedule: BandSchedule = [];
+  for (let s = 0; s < TOTAL_SESSIONS; s++) {
+    let band: 'B0' | 'B1' | 'B2' | 'B3' | 'B4';
+    if (s <= 2) band = 'B1';
+    else if (s <= 8) band = 'B2';
+    else if (s <= 15) band = 'B3';
+    else band = 'B4';
+    schedule.push({ sessionIndex: s, band });
+  }
+  return schedule;
+}
 
 export function generateStressSessions(seed: number): StressSession[] {
   const rng = createRng(seed);

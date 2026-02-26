@@ -1,5 +1,17 @@
 import type { EncoderInput, DominantEmotion } from '../types';
 
+export type BandHint = 'B0' | 'B1' | 'B2' | 'B3' | 'B4';
+
+export type BandSchedule = Array<{
+  sessionIndex: number;
+  band: BandHint;
+}>;
+
+export type StressRunOptions = {
+  seed: number;
+  bandSchedule?: BandSchedule;
+};
+
 export type StressMessage = {
   encoderInput: EncoderInput;
   dominant: DominantEmotion;
@@ -20,6 +32,8 @@ export type StressSessionResult = {
   createdSchemas: number;
   mergedSchemas: number;
   prunedSchemas: number;
+  band: BandHint;
+  policySignature: string;
 };
 
 export type StressRunResult = {
@@ -30,6 +44,7 @@ export type StressRunResult = {
   totalOscillations: number;
   schemaGrowthOverTime: number[];
   sessionResults: StressSessionResult[];
+  messagesPolicyAllowsInjection: number;
 };
 
 export type StressVerdict =
