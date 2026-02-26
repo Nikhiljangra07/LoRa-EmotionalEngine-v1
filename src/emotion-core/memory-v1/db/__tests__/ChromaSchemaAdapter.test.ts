@@ -32,6 +32,7 @@ function makeSchema(id: string, overrides?: Partial<SchemaRecord>): SchemaRecord
 
 (DB_ON ? describe : describe.skip)('ChromaSchemaAdapter (DB)', () => {
   let adapter: ChromaSchemaAdapter;
+  let restoreWarn: () => void;
 
   beforeAll(async () => {
     const url = process.env.LORA_CHROMA_URL;
@@ -41,7 +42,20 @@ function makeSchema(id: string, overrides?: Partial<SchemaRecord>): SchemaRecord
       );
     }
     await assertChromaReachable(url);
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      const msg = typeof args[0] === 'string' ? args[0] : '';
+      if (msg.includes('No embedding function configuration found')) return;
+      originalWarn.apply(console, args as [string?, ...unknown[]]);
+    };
+    restoreWarn = () => {
+      console.warn = originalWarn;
+    };
     adapter = new ChromaSchemaAdapter();
+  });
+
+  afterAll(() => {
+    restoreWarn?.();
   });
 
   afterEach(async () => {
