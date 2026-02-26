@@ -4,7 +4,7 @@ import type {
   ConsolidationEpisode,
   CSchema,
 } from './consolidationTypes';
-import { clamp, safeNumber, l2Normalize } from './normalize';
+import { clamp, safeNumber, l2Normalize, cosineSimilarity } from './normalize';
 import { MEMORY_V1_CONFIG } from './constants';
 
 // ---------------------------------------------------------------------------
@@ -202,22 +202,6 @@ export function consolidate(input: ConsolidationInput): ConsolidationResult {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  const len = Math.min(a.length, b.length);
-  let dot = 0;
-  let nA = 0;
-  let nB = 0;
-  for (let i = 0; i < len; i++) {
-    const va = safeNumber(a[i], 0);
-    const vb = safeNumber(b[i], 0);
-    dot += va * vb;
-    nA += va * va;
-    nB += vb * vb;
-  }
-  const denom = Math.sqrt(nA) * Math.sqrt(nB);
-  if (denom < 1e-12) return 0;
-  return clamp(safeNumber(dot / denom, 0), -1, 1);
-}
 
 function computeMeanVec(vecs: number[][], length: number): number[] {
   const mean = new Array(length).fill(0);

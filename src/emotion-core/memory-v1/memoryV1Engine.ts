@@ -18,7 +18,7 @@ import { createSchemaStore } from './schemaStore';
 import { retrieveSchemas } from './retrievalEngine';
 import { buildMemoryContext } from './memoryContext';
 import { consolidate } from './consolidationEngine';
-import { safeNumber, clamp } from './normalize';
+import { safeNumber, clamp, cosineSimilarity } from './normalize';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -168,7 +168,7 @@ function prepareContextInput(
     return {
       schemaId: id,
       prob: id === retrieval.winnerId ? retrieval.confidence : nonWinnerProb,
-      sim: schema ? cosineSim(queryVec, schema.centroid) : 0,
+      sim: schema ? cosineSimilarity(queryVec, schema.centroid) : 0,
     };
   });
 
@@ -185,18 +185,3 @@ function prepareContextInput(
   };
 }
 
-function cosineSim(a: number[], b: number[]): number {
-  const len = Math.min(a.length, b.length);
-  let dot = 0;
-  let nA = 0;
-  let nB = 0;
-  for (let i = 0; i < len; i++) {
-    const va = safeNumber(a[i], 0);
-    const vb = safeNumber(b[i], 0);
-    dot += va * vb;
-    nA += va * va;
-    nB += vb * vb;
-  }
-  const denom = Math.sqrt(nA) * Math.sqrt(nB);
-  return denom < 1e-12 ? 0 : clamp(safeNumber(dot / denom, 0), -1, 1);
-}

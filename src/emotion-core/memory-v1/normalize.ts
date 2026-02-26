@@ -47,6 +47,24 @@ export function l2Normalize(vec: number[], eps: number): number[] {
   return out;
 }
 
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+  const len = a.length;
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < len; i++) {
+    const va = safeNumber(a[i], 0);
+    const vb = safeNumber(b[i], 0);
+    dot += va * vb;
+    normA += va * va;
+    normB += vb * vb;
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denom < 1e-12) return 0;
+  return clamp(safeNumber(dot / denom, 0), -1, 1);
+}
+
 export function applyDimSpec(inputScalar: number | undefined | null, spec: DimSpec): number {
   const raw = safeNumber(inputScalar as number, NaN);
 
