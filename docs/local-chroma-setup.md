@@ -21,10 +21,10 @@ This starts a Chroma container (`lora-chroma`) on port 8000 with a persistent vo
 ## Verify
 
 ```bash
-curl http://localhost:8000/api/v1/heartbeat
+curl http://localhost:8000/api/v2/heartbeat
 ```
 
-A successful response indicates Chroma is reachable.
+A successful response (e.g. `{"nanosecond heartbeat": ...}`) indicates Chroma is reachable.
 
 ## Run DB tests
 
