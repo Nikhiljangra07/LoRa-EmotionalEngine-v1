@@ -27,7 +27,7 @@ import type { AppraisalResult } from '../../appraisal-bridge/types';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1, ETVPolicy } from '../etv';
-import type { MemoryV1State, ProcessMessageInput as MemoryProcessMessageInput } from '../memory-v1/memoryV1EngineTypes';
+import type { MemoryV1State, ProcessMessageInput as MemoryProcessMessageInput, ProcessMessageOutput as MemoryProcessMessageOutput } from '../memory-v1/memoryV1EngineTypes';
 import type { MemoryContext } from '../memory-v1/memoryContextTypes';
 import type { StoredMemoryV1State, MemoryV1Storage } from '../memory-v1/storageTypes';
 import type { DominantEmotion } from '../memory-v1/types';
@@ -35,6 +35,7 @@ import { createMemoryV1, processMessage as memV1ProcessMessage, endSession as me
 import { createJSONStorage } from '../memory-v1/storage';
 import { createBuffer } from '../memory-v1/episodicBuffer';
 import { makeMemoryConsolidateLog } from '../memory-v1/decisionLogs';
+import { buildMemoryV1DebugSnapshot } from '../memory-v1/debugSnapshot';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -705,18 +706,20 @@ export class EngineOrchestrator {
 
     // ── Memory V1: per-message processing ──
     let memoryContext: MemoryContext | undefined;
+    let memoryV1Result: MemoryProcessMessageOutput | null = null;
     if (
       (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled) &&
       this.memoryV1State
     ) {
-      memoryContext = this.processMemoryV1Message(
+      memoryV1Result = this.processMemoryV1Message(
         eivResult.value,
         analyzerOutputs,
         emotionalState,
         momentum,
         appraisalResult,
         messageTimestampMs,
-      ) ?? undefined;
+      );
+      memoryContext = memoryV1Result?.memoryContext ?? undefined;
     }
 
     // 6. Build prompt (PURE)
@@ -740,6 +743,32 @@ export class EngineOrchestrator {
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
+
+    // ── Memory V1: debug snapshot (zero behavior impact) ──
+    if (featureFlags.memoryV1DebugEnabled && memoryV1Result) {
+      try {
+        const encoderMode: 'baseline' | 'enhanced' =
+          appraisalResult && featureFlags.appraisalBridgeEnabled ? 'enhanced' : 'baseline';
+        const snapshot = buildMemoryV1DebugSnapshot({
+          userId: this.userId,
+          sessionId: this.currentSessionId ?? undefined,
+          messageId: `msg-${this.messageCount}`,
+          encoderMode,
+          wroteEpisode: memoryV1Result.salience.shouldWrite,
+          noMatch: memoryV1Result.retrievalResult.noMatch,
+          topSchemaIds: memoryV1Result.retrievalResult.topSchemaIds,
+          winnerSchemaId: memoryV1Result.retrievalResult.winnerId ?? null,
+          memoryContext: memoryContext ? {
+            sessionPattern: memoryContext.sessionPattern,
+            confidenceLevel: memoryContext.confidenceLevel,
+          } : null,
+          etvPolicy: this.lastEtvPolicy ? { band: this.lastEtvPolicy.band } : null,
+        });
+        console.log('[LoRa::MemoryV1Debug]', JSON.stringify(snapshot));
+      } catch {
+        // Debug must never crash the pipeline
+      }
+    }
 
     const llmInput = userMessage
       ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
@@ -1092,7 +1121,7 @@ export class EngineOrchestrator {
     momentum: { confidence: number; valenceBias: number; arousalBias: number },
     appraisalResult: AppraisalResult | undefined,
     timestampMs: number,
-  ): MemoryContext | null {
+  ): MemoryProcessMessageOutput | null {
     if (!this.memoryV1State) return null;
 
     const dominant = emotionalState.dominant;
@@ -1132,7 +1161,7 @@ export class EngineOrchestrator {
     try {
       const result = memV1ProcessMessage(this.memoryV1State, input);
       this.memoryV1State = result.nextState;
-      return result.memoryContext;
+      return result;
     } catch {
       return null;
     }

@@ -23,4 +23,5 @@ export const featureFlags = Object.freeze({
   etvPolicyPromptShadowEnabled: process.env.LORA_ETV_POLICY_PROMPT_SHADOW === '1',
   memoryV1Enabled: process.env.LORA_MEMORY_V1 === '1',
   memoryV1ShadowEnabled: process.env.LORA_MEMORY_V1_SHADOW === '1',
+  memoryV1DebugEnabled: process.env.LORA_MEMORY_V1_DEBUG === '1',
 });
