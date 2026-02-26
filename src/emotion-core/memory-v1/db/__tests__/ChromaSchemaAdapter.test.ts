@@ -4,6 +4,19 @@ import type { SchemaRecord } from '../../schemaStore';
 
 const DB_ON = process.env.LORA_TEST_DB === '1';
 
+async function assertChromaReachable(url: string): Promise<void> {
+  try {
+    const res = await fetch(`${url}/api/v1/heartbeat`);
+    if (!res.ok) throw new Error();
+  } catch {
+    throw new Error(
+      `[ChromaSchemaAdapterTest] ChromaDB not reachable at ${url}.
+Start it with:
+  docker run -d -p 8000:8000 chromadb/chroma`,
+    );
+  }
+}
+
 function makeSchema(id: string, overrides?: Partial<SchemaRecord>): SchemaRecord {
   return {
     schemaId: id,
@@ -20,11 +33,19 @@ function makeSchema(id: string, overrides?: Partial<SchemaRecord>): SchemaRecord
 (DB_ON ? describe : describe.skip)('ChromaSchemaAdapter (DB)', () => {
   let adapter: ChromaSchemaAdapter;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    const url = process.env.LORA_CHROMA_URL;
+    if (!url) {
+      throw new Error(
+        '[ChromaSchemaAdapterTest] ChromaDB not reachable at <url>. Start local Chroma (Docker or Python) before running DB tests.',
+      );
+    }
+    await assertChromaReachable(url);
     adapter = new ChromaSchemaAdapter();
   });
 
   afterEach(async () => {
+    if (!adapter) return;
     await adapter.purgeUser('test-user-1');
     await adapter.purgeUser('test-user-2');
   });
