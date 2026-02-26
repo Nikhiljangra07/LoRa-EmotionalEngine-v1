@@ -1,6 +1,6 @@
 # Leaky Schema Memory V2 -- Formal Engineering Blueprint
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 **Date:** 2026-02-26
 **Status:** SPECIFICATION (pre-implementation)
 **Scope:** Dual-database memory layer (ChromaDB + FalkorDB), integration with `EngineOrchestrator`, `PromptTemplateBuilder`, and ETV
@@ -91,7 +91,7 @@ These are non-negotiable constraints that must hold at all times:
 
 | ID | Invariant |
 |----|-----------|
-| INV-1 | No raw user message text is persisted in either database. Only numeric vectors and structured fact extractions survive. |
+| INV-1 | No raw user message text is persisted in either database. Only numeric vectors and structured fact extractions survive. **Note:** Fact anchors contain named entities (people, dates, summaries) and constitute relational personal data -- see Section 13.5 for data classification and required safeguards. |
 | INV-2 | Schema count per user <= 20 (ChromaDB) |
 | INV-3 | Episodic event count per user <= 30 (ChromaDB) |
 | INV-4 | Fact anchor count per user <= 15 (FalkorDB) |
@@ -105,6 +105,9 @@ These are non-negotiable constraints that must hold at all times:
 | INV-12 | Consolidation runs ONLY at endSession() or idle timeout -- never per-message |
 | INV-13 | All memory operations gated by featureFlags.memoryLayerEnabled |
 | INV-14 | Deterministic: same inputs produce identical outputs |
+| INV-15 | Fact anchors with confidence < ANCHOR_CONFIRM_THRESHOLD (0.60) are quarantined -- never surfaced in MemoryContext until reinforced or confirmed |
+| INV-16 | Anchor injection into MemoryContext requires passing the Anchor Relevance Arbiter -- emotional-context relevance score >= ANCHOR_RELEVANCE_FLOOR (0.25) |
+| INV-17 | User deletion request purges ALL fact anchors and ALL schemas for that userId from both databases within one call. No partial deletion. |
 
 ---
 
@@ -278,16 +281,26 @@ if (featureFlags.memoryLayerEnabled) {
     this.sessionEncodeCount++;
   }
 
-  if (signalPacket?.messageText) {
-    const anchors = FactExtractor.extract(signalPacket.messageText, this.userId);
+  if (featureFlags.factAnchorEnabled && signalPacket?.messageText) {
+    const anchors = FactExtractor.extract(
+      signalPacket.messageText, this.userId, emotionVec,
+    );
     for (const anchor of anchors) {
       await this.factAnchorStore.upsert(anchor);
     }
   }
 
   const schemaMatch = await this.schemaStore.retrieve(emotionVec);
-  const relevantAnchors = await this.factAnchorStore.getRelevant(this.userId);
-  this.currentMemoryContext = { ...schemaMatch, relevantAnchors };
+
+  if (featureFlags.factAnchorEnabled) {
+    const candidateAnchors = await this.factAnchorStore.getCandidates(this.userId);
+    const scoredAnchors = AnchorRelevanceArbiter.score(
+      candidateAnchors, emotionVec, MEMORY_CONFIG.anchorRelevanceWeights,
+    );
+    this.currentMemoryContext = { ...schemaMatch, relevantAnchors: scoredAnchors };
+  } else {
+    this.currentMemoryContext = { ...schemaMatch, relevantAnchors: [] };
+  }
 }
 ```
 
@@ -349,14 +362,17 @@ type FactAnchor = {
   anchorId: string;
   userId: string;
   type: 'date_event' | 'person' | 'preference' | 'goal' | 'life_event';
-  summary: string;              // max 120 chars
+  summary: string;              // max 120 chars, no raw verbatim
   date?: string;                // ISO date if time-bound
   entities: string[];
   salience: number;             // [0, 1]
+  extractionConfidence: number; // [0, 1] -- rule-match quality score
+  status: 'quarantined' | 'confirmed'; // quarantined until reinforced or confidence >= 0.60
   sessionId: string;
   createdAt: number;
   expiresAt?: number;
   reinforceCount: number;
+  emotionVecAtCreation: EmotionVec; // snapshot of emotion_vec when anchor was extracted
 };
 
 type MemoryContext = {
@@ -374,7 +390,8 @@ type MemoryContext = {
     summary: string;
     date?: string;
     entities: string[];
-    relevance: number;
+    relevance: number;            // arbiter composite score
+    emotionalProximity: number;   // cosine(current_emotionVec, anchor.emotionVecAtCreation)
     isUpcoming?: boolean;
   }>;
 };
@@ -430,8 +447,16 @@ type MemoryConfig = {
   mergeMinAge: number;           // 2 sessions
   episodicHalflife: number;      // 72 hours
   survivalLockTurns: number;     // 5
-  anchorSalienceFloor: number;   // 0.30
-  anchorGracePeriodDays: number; // 7
+  anchorSalienceFloor: number;        // 0.30
+  anchorGracePeriodDays: number;      // 7
+  anchorConfirmThreshold: number;     // 0.60 -- below this, anchor stays quarantined
+  anchorRelevanceFloor: number;       // 0.25 -- minimum arbiter score to inject into prompt
+  anchorRelevanceWeights: {
+    emotionalProximity: number;       // 0.40
+    recency: number;                  // 0.30
+    reinforcement: number;            // 0.20
+    temporalUrgency: number;          // 0.10
+  };
 };
 ```
 
@@ -678,21 +703,73 @@ After consolidation, prune episodic events that:
 
 ## 13. Fact Anchor Layer
 
-### 13.1 Extraction (V1: Rule-Based)
+### 13.1 Data Classification Warning
 
-The FactExtractor runs on `signalPacket.messageText` during `processMessage()`:
+> **LEGAL NOTICE:** The Fact Anchor Layer persists **named entities** (people's names, dates, relationships, preferences) tied to a userId. This constitutes **relational personal data** under GDPR Article 4(1) and similar frameworks. The Emotional Pattern Layer (ChromaDB) stores only anonymous numeric vectors -- behavioral signal memory. The Fact Anchor Layer (FalkorDB) stores structured personal context -- **personal relationship memory**. These are different legal categories.
 
-| Type | Pattern | Example Input | Extracted |
-|------|---------|--------------|-----------|
-| date_event | Date regex + event keyword | "Jake's birthday is March 22nd" | { type: "date_event", summary: "Jake birthday", date: "2026-03-22", entities: ["Jake"] } |
-| person | Possessive + relationship OR proper noun | "my therapist Dr. Chen" | { type: "person", summary: "therapist Dr Chen", entities: ["Dr. Chen", "therapist"] } |
-| preference | "I love/hate/enjoy/can't stand..." | "I love hiking but hate mornings" | { type: "preference", summary: "loves hiking dislikes mornings" } |
-| goal | "I want to/I'm trying to/I need to..." | "I'm trying to exercise more" | { type: "goal", summary: "wants to exercise more" } |
-| date_event | Relative dates + context | "I have an interview next Tuesday" | { type: "date_event", summary: "job interview", date: computed, entities: [] } |
+**Required safeguards before production deployment:**
 
-Max MAX_ANCHORS_PER_SESSION = 3 new anchors per session.
+| Requirement | Implementation |
+|-------------|---------------|
+| Explicit consent | User must opt-in to factual memory separately from emotional memory. Feature flag: `factAnchorEnabled` (independent of `memoryLayerEnabled`) |
+| Right to deletion | `FactAnchorStore.purgeAll(userId)` must delete ALL nodes and edges for a user in a single atomic call. No orphan edges. |
+| Right to access | `FactAnchorStore.exportAll(userId)` must return all anchors in human-readable JSON format |
+| Data minimization | Summaries capped at 120 chars. No raw sentences stored. Entity names stored as extracted tokens, not in sentence context. |
+| Retention limits | All anchors have either explicit `expiresAt` (date_events) or implicit decay (preferences/goals decay by recency). Maximum absolute retention: 365 days from creation. |
+| Isolation | Each userId has its own subgraph. No cross-user edges. Enforced by graph query prefix: `MATCH (u:User {id: $userId})` on every query. |
 
-### 13.2 Storage in FalkorDB
+**If consent is not obtained or the legal review is incomplete:** Set `factAnchorEnabled = false`. The emotional pattern layer operates independently and stores zero personal data.
+
+### 13.2 Extraction (V1: Rule-Based with Confidence Scoring)
+
+The FactExtractor runs on `signalPacket.messageText` during `processMessage()`. This is the **last point where raw text is read** -- it is never persisted.
+
+**Known limitation:** Rule-based extraction is inherently fragile. Expected accuracy for V1: ~55-65% precision, ~40-50% recall. This is deliberately low. The system is designed to be **conservative** -- missing a real anchor is acceptable; injecting a false anchor is not. The quarantine mechanism (Section 13.3) absorbs extraction errors.
+
+| Type | Pattern | Confidence | Example Input | Extracted |
+|------|---------|-----------|--------------|-----------|
+| date_event | ISO date or well-formed relative date ("next Tuesday", "March 22nd") + event keyword within 10 tokens | 0.80 | "Jake's birthday is March 22nd" | { type: "date_event", summary: "Jake birthday", date: "2026-03-22", entities: ["Jake"], confidence: 0.80 } |
+| date_event | Relative date without clear event keyword | 0.45 | "maybe something next week" | { ..., confidence: 0.45 } -> **quarantined** |
+| person | Possessive ("my") + relationship noun ("therapist", "friend", "boss") + proper noun | 0.75 | "my therapist Dr. Chen" | { type: "person", summary: "therapist Dr Chen", entities: ["Dr. Chen"], confidence: 0.75 } |
+| person | Proper noun only, no relationship signal | 0.35 | "I talked to Sarah" | { ..., confidence: 0.35 } -> **quarantined** |
+| preference | Strong signal phrase ("I love", "I hate", "I can't stand", "I always") | 0.70 | "I love hiking but hate mornings" | { type: "preference", summary: "loves hiking dislikes mornings", confidence: 0.70 } |
+| preference | Weak signal ("I kind of like", "maybe I prefer") | 0.40 | "I kind of like jazz" | { ..., confidence: 0.40 } -> **quarantined** |
+| goal | Clear intent ("I want to", "I'm trying to", "I need to", "my goal is") | 0.70 | "I'm trying to exercise more" | { type: "goal", summary: "wants to exercise more", confidence: 0.70 } |
+
+**Confidence scoring rules:**
+- Each extraction pattern has a base confidence (see table above)
+- Confidence += 0.10 if multiple signals co-occur (e.g., date + person + event keyword in same utterance)
+- Confidence -= 0.15 if extraction relies on a single weak signal
+- Final confidence clamped to [0, 1]
+
+**Max MAX_ANCHORS_PER_SESSION = 3 new anchors per session.**
+
+**V2 upgrade path:** Replace rule-based extraction with a lightweight LLM call (post-response, off the hot path) that produces structured JSON. This raises precision to ~85-90% but adds latency and cost. The quarantine mechanism still applies -- even LLM extraction is not 100%.
+
+### 13.3 Quarantine Mechanism
+
+Anchors with `extractionConfidence < ANCHOR_CONFIRM_THRESHOLD (0.60)` enter quarantine:
+
+```
+status = confidence >= 0.60 ? 'confirmed' : 'quarantined'
+```
+
+**Quarantined anchors:**
+- ARE stored in FalkorDB (so reinforcement can find them)
+- Are NOT surfaced in MemoryContext (INV-15)
+- Are NOT injected into prompts
+- Remain invisible to LoRa's response generation
+
+**Promotion from quarantine:**
+- If user re-mentions the same entity/fact in a later message or session: `reinforceCount++`
+- If `reinforceCount >= 1` (mentioned at least twice): promote to `status = 'confirmed'`
+- Rationale: If the user mentions something twice, it is real regardless of extraction confidence
+
+**Quarantine expiry:**
+- Quarantined anchors that are not reinforced within 3 sessions are deleted
+- This prevents junk anchors from accumulating
+
+### 13.4 Storage in FalkorDB
 
 ```cypher
 CREATE (u:User {id: $userId})
@@ -700,24 +777,81 @@ CREATE (p:Person {name: "Jake", relation: "friend"})
 CREATE (e:Event {type: "birthday_party", date: "2026-03-22", summary: "Jake birthday party"})
 CREATE (u)-[:MENTIONED]->(p)
 CREATE (p)-[:HAS_EVENT]->(e)
-CREATE (e)-[:EMOTIONAL_CONTEXT]->(t:EmotionTag {eivAtCreation: 0.72, sessionId: "sess-1"})
+CREATE (e)-[:EMOTIONAL_CONTEXT]->(t:EmotionTag {
+  eivAtCreation: 0.72, sessionId: "sess-1",
+  emotionVecSnapshot: [0.8, 0.6, ...],
+  extractionConfidence: 0.80,
+  status: "confirmed"
+})
 ```
 
-### 13.3 Retrieval
-
-Anchor retrieval is based on recency, upcoming dates (within 14 days), reinforcement count, and emotional match:
+**Deletion (Right to erasure):**
 ```cypher
-MATCH (u:User {id: $userId})-[:MENTIONED]->(p)-[:HAS_EVENT]->(e)
-WHERE e.date > date() - duration({days: 7})
-RETURN e, p ORDER BY e.date ASC LIMIT 5
+MATCH (u:User {id: $userId})-[r1]->(n)-[r2]->()
+DELETE r1, r2, n
+WITH u
+MATCH (u)-[r3]->()
+DELETE r3, u
 ```
 
-### 13.4 Anchor Lifecycle
+### 13.5 Anchor Relevance Arbiter
 
-- **Reinforcement:** If user re-mentions the same fact, reinforceCount++ and salienceWeight increases
-- **Expiry:** date_event anchors get expiresAt = date + GRACE_PERIOD (7 days)
-- **Preferences and goals don't expire** -- they decay purely by recency and reinforcement
-- **Eviction:** When at capacity (15), lowest `salienceWeight * recencyFactor * (1 + reinforceCount * 0.2)` is evicted
+**Problem:** Without arbitration, anchors are injected based on recency alone. This produces context bleed -- "Jake's birthday next week" surfaces while the user is talking about work stress, because Jake's birthday is recent. The anchor is real but irrelevant to the current emotional moment.
+
+**Solution:** Every candidate anchor is scored against the current emotional context before injection.
+
+**Arbiter score computation:**
+
+```
+emotionalProximity = cosineSim(current_emotionVec, anchor.emotionVecAtCreation)
+recencyScore = exp(-deltaHours / anchorRecencyHalflife)
+reinforcementScore = min(anchor.reinforceCount / 5, 1.0)
+temporalUrgency = anchor.isUpcoming ? (1 - daysUntil / 14) : 0
+
+arbiterScore = W_emotion * emotionalProximity
+             + W_recency * recencyScore
+             + W_reinforce * reinforcementScore
+             + W_temporal * temporalUrgency
+```
+
+Where:
+- `W_emotion = 0.40` -- strongest weight: emotional context match
+- `W_recency = 0.30` -- recent mentions get priority
+- `W_reinforce = 0.20` -- repeatedly mentioned anchors are more important
+- `W_temporal = 0.10` -- upcoming dates get a small boost
+
+**Gating:**
+- If `arbiterScore < ANCHOR_RELEVANCE_FLOOR (0.25)` -> anchor is **suppressed** for this message
+- Only anchors with `status = 'confirmed'` are candidates (INV-15)
+- Maximum 3 anchors injected per message (top-3 by arbiterScore)
+
+**Why emotional proximity is the dominant weight:**
+Two conversations -- "interview anxiety" and "car accident anxiety" -- share similar emotional patterns but have completely different anchors. The emotional proximity score ensures that when the user is in an "interview anxiety" emotional state, the interview-related anchors (created during a similar emotional moment) rank higher than car-related anchors. This is what disambiguates identical emotions by context (Goal G4).
+
+**Edge case: temporalUrgency override.**
+If an anchor has `isUpcoming = true` AND `daysUntil <= 2` (imminent event), it bypasses the relevance floor. Rationale: a birthday party tomorrow is relevant regardless of current emotional state. The arbiterScore is still computed and logged, but the floor gate is skipped. This is the ONLY override.
+
+### 13.6 Retrieval Query (Updated)
+
+```cypher
+MATCH (u:User {id: $userId})-[:MENTIONED]->(n)
+WHERE n.status = 'confirmed'
+OPTIONAL MATCH (n)-[:HAS_EVENT]->(e)
+RETURN n, e
+ORDER BY n.reinforceCount DESC, n.createdAt DESC
+LIMIT 10
+```
+
+The top 10 candidates are then scored by the Anchor Relevance Arbiter in TypeScript. Top 3 by arbiterScore (above floor) are included in MemoryContext.
+
+### 13.7 Anchor Lifecycle
+
+- **Creation:** Extracted with confidence score. If confidence >= 0.60 -> confirmed. Otherwise -> quarantined.
+- **Reinforcement:** If user re-mentions the same fact, reinforceCount++ and salience increases. If quarantined and reinforceCount >= 1 -> promote to confirmed.
+- **Expiry:** date_event anchors get expiresAt = date + GRACE_PERIOD (7 days). All anchors have absolute max retention of 365 days.
+- **Quarantine expiry:** Quarantined anchors not reinforced within 3 sessions are deleted.
+- **Preferences and goals don't expire by date** -- they decay purely by recency and reinforcement.
+- **Eviction:** When at capacity (15), lowest `salienceWeight * recencyFactor * (1 + reinforceCount * 0.2)` is evicted. Quarantined anchors are evicted first.
 
 ---
 
@@ -742,6 +876,14 @@ RETURN e, p ORDER BY e.date ASC LIMIT 5
 ### 14.5 Memory Wipe
 **Detection:** High-salience event (S > 0.8) pruned prematurely.
 **Correction:** Enforce survival lock timer strictly. Increase distinctiveness floor.
+
+### 14.6 Anchor Context Bleed
+**Detection:** Arbiter consistently suppresses >80% of confirmed anchors across 5+ consecutive messages (all anchors failing relevance floor).
+**Correction:** This indicates either (a) anchors are stale and should be decayed faster, or (b) the user's current emotional context has shifted far from when anchors were created. Log `[LoRa::MemoryAnchorBleed]` and temporarily raise `W_recency` from 0.30 to 0.50 for 1 session. If persists for 3+ sessions, trigger aggressive anchor decay (halve all anchor salience weights).
+
+### 14.7 Quarantine Overflow
+**Detection:** Quarantined anchor count > 2x confirmed anchor count for a user.
+**Correction:** Extraction quality is poor. Log `[LoRa::MemoryQuarantineOverflow]` and reduce MAX_ANCHORS_PER_SESSION to 1 for next 3 sessions. Purge oldest quarantined anchors exceeding the 2x ratio.
 
 ---
 
@@ -896,6 +1038,14 @@ Gated by feature flag. When off, zero impact on existing prompt path.
 | Merge produces valid centroid | INV-7 on merge |
 | Prune removes lowest score | Deterministic prune |
 | FactExtractor extracts dates/people | Rule-based extraction |
+| FactExtractor confidence scoring correct | Confidence bounds |
+| Quarantined anchors never in MemoryContext | INV-15 |
+| Quarantine promotion on reinforcement | Quarantine -> confirmed |
+| Quarantine expiry after 3 sessions | Junk cleanup |
+| Arbiter scores below floor -> suppressed | INV-16 |
+| Arbiter emotionalProximity cosine correct | Context relevance |
+| Temporal urgency override for imminent events | Edge case |
+| purgeAll deletes ALL user data | INV-17 |
 | Anchor lifecycle (reinforce, expire) | Anchor maintenance |
 
 ### 19.2 Integration Tests
@@ -908,6 +1058,8 @@ Gated by feature flag. When off, zero impact on existing prompt path.
 | ChromaDB persistence survives restart | Data durability |
 | FalkorDB persistence survives restart | Data durability |
 | MemoryContext flows to PromptBuilder | End-to-end |
+| factAnchorEnabled=false -> zero FalkorDB ops | Independent gating |
+| Arbiter filters irrelevant anchors in live flow | Relevance gating |
 | No raw text in any log | INV-1 |
 
 ### 19.3 Stress Tests
@@ -950,12 +1102,15 @@ Gated by feature flag. When off, zero impact on existing prompt path.
 
 **Test:** Deterministic output for same inputs. All dims in [0,1]. L2 norm == 1.0. Salience floor gates correctly.
 
-### Step 3: Feature Flag (Day 2)
+### Step 3: Feature Flags (Day 2)
 
 **Edit:** `src/emotion-core/config/featureFlags.ts`
-- Add `memoryLayerEnabled: boolean` (default: false)
+- Add `memoryLayerEnabled: boolean` (default: false) -- gates emotional pattern layer
+- Add `factAnchorEnabled: boolean` (default: false) -- gates factual anchor layer INDEPENDENTLY
 
-**Test:** Flag off -> nothing in memory path executes.
+**Two independent flags because:** Emotional pattern memory stores anonymous numeric vectors (no legal burden). Factual anchor memory stores named entities (relational personal data, requires consent). A deployment can run emotional memory without factual anchors.
+
+**Test:** Both flags off -> nothing in memory path executes. memoryLayerEnabled=true, factAnchorEnabled=false -> emotional encoding works, zero FalkorDB operations.
 
 ### Step 4: Episodic Buffer (Day 2-3)
 
@@ -998,26 +1153,41 @@ Gated by feature flag. When off, zero impact on existing prompt path.
 
 **Test:** Merge criteria correct. Capacity behavior deterministic. Prune removes correct schema.
 
-### Step 8: Fact Extractor (Day 6-7)
+### Step 8: Fact Extractor with Confidence Scoring (Day 6-7)
 
 **Create:** `src/emotion-core/memory/FactExtractor.ts`
-- `extract(messageText, userId)` -- rule-based extraction returning FactAnchor[]
-- Date regex patterns (absolute + relative)
-- Entity patterns (possessive + relationship, proper nouns)
-- Preference/goal patterns
+- `extract(messageText, userId, emotionVec)` -- rule-based extraction returning FactAnchor[]
+- Each pattern has a base confidence score (see Section 13.2)
+- Co-occurrence bonus (+0.10), weak-signal penalty (-0.15)
+- Anchors with confidence >= 0.60 -> status: 'confirmed'
+- Anchors with confidence < 0.60 -> status: 'quarantined'
+- Stores `emotionVecAtCreation` snapshot on each anchor for arbiter use
 
-**Test:** Extracts dates, people, preferences, goals from sample messages. Respects per-session cap.
+**Test:** Extracts dates, people, preferences, goals from sample messages. Confidence scores correct. Quarantine classification correct. Respects per-session cap.
 
-### Step 9: Fact Anchor Store (Day 7-8)
+### Step 9: Fact Anchor Store with Quarantine (Day 7-8)
 
 **Create:** `src/emotion-core/memory/FactAnchorStore.ts`
-- `upsert(anchor)` -- add or reinforce existing anchor in FalkorDB
-- `getRelevant(userId)` -- retrieve relevant anchors (upcoming dates, recent, reinforced)
-- `maintain(userId)` -- expire old date_events, decay, evict at capacity
+- `upsert(anchor)` -- add or reinforce existing anchor in FalkorDB. On reinforcement of quarantined anchor: promote to confirmed if reinforceCount >= 1
+- `getCandidates(userId)` -- retrieve all confirmed anchors (quarantined excluded)
+- `maintain(userId)` -- expire old date_events, purge quarantined anchors not reinforced within 3 sessions, decay, evict at capacity
+- `purgeAll(userId)` -- atomic deletion of ALL nodes and edges for userId (INV-17)
+- `exportAll(userId)` -- return all anchors in human-readable JSON (right to access)
 
 **Dependency:** `npm install falkordblite`
 
-**Test:** Upsert reinforces existing. Expiry works. Capacity maintained at 15.
+**Test:** Upsert reinforces existing. Quarantine blocks surfacing. Promotion works. Quarantine expiry works. Expiry works. Capacity maintained at 15. purgeAll leaves zero traces.
+
+### Step 9.5: Anchor Relevance Arbiter (Day 8)
+
+**Create:** `src/emotion-core/memory/AnchorRelevanceArbiter.ts`
+- `score(candidates, currentEmotionVec, weights)` -- compute arbiter score for each candidate anchor
+- `emotionalProximity` = cosine similarity between current emotion_vec and anchor's emotionVecAtCreation
+- `temporalUrgency` override for events within 2 days
+- Filter by ANCHOR_RELEVANCE_FLOOR (0.25)
+- Return top 3 scored anchors
+
+**Test:** Arbiter suppresses low-relevance anchors. Emotional proximity dominates scoring. Temporal override works for imminent events. Empty input -> empty output.
 
 ### Step 10: EngineOrchestrator Integration (Day 8-9)
 
@@ -1111,6 +1281,14 @@ Gated by feature flag. When off, zero impact on existing prompt path.
 | survivalLockTurns | 5 | int | [3, 10] | High-salience event protection |
 | anchorSalienceFloor | 0.30 | float | [0.10, 0.50] | Minimum salience for anchor creation |
 | anchorGracePeriodDays | 7 | int | [3, 14] | Days after event date before sharp decay |
+| anchorConfirmThreshold | 0.60 | float | [0.40, 0.80] | Below this, anchor quarantined until reinforced |
+| anchorRelevanceFloor | 0.25 | float | [0.10, 0.40] | Minimum arbiter score for prompt injection |
+| W_emotion | 0.40 | float | [0.25, 0.60] | Arbiter: emotional proximity weight (dominant) |
+| W_recency | 0.30 | float | [0.15, 0.40] | Arbiter: recency weight |
+| W_reinforce | 0.20 | float | [0.10, 0.30] | Arbiter: reinforcement count weight |
+| W_temporal | 0.10 | float | [0.05, 0.20] | Arbiter: upcoming date urgency weight |
+| anchorMaxRetentionDays | 365 | int | [180, 730] | Absolute max retention for any anchor |
+| quarantineMaxSessions | 3 | int | [2, 5] | Sessions before unconfirmed anchor is purged |
 | BLOCK_WEIGHTS.scalars | 1.0 | float | fixed | Baseline magnitude |
 | BLOCK_WEIGHTS.onehot | 0.4 | float | [0.2, 0.6] | Directional anchor, not dominator |
 | BLOCK_WEIGHTS.momentum | 0.7 | float | [0.4, 1.0] | Moderate influence |
@@ -1130,8 +1308,9 @@ src/emotion-core/memory/
   SchemaStore.ts        -- ChromaDB schema management + EWMA
   RetrievalEngine.ts    -- Softmax retrieval + RIF + guard
   ConsolidationEngine.ts -- Merge, prune, capacity management
-  FactExtractor.ts      -- Rule-based fact extraction from text
-  FactAnchorStore.ts    -- FalkorDB anchor management
+  FactExtractor.ts      -- Rule-based fact extraction with confidence scoring
+  FactAnchorStore.ts    -- FalkorDB anchor management with quarantine
+  AnchorRelevanceArbiter.ts -- Emotional-context relevance scoring for anchors
   index.ts              -- Public exports
   __tests__/
     EmotionEncoder.test.ts
@@ -1142,6 +1321,7 @@ src/emotion-core/memory/
     ConsolidationEngine.test.ts
     FactExtractor.test.ts
     FactAnchorStore.test.ts
+    AnchorRelevanceArbiter.test.ts
     integration.test.ts
     stress.test.ts
 ```
