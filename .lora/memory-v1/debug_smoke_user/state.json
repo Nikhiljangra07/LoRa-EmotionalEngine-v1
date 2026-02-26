@@ -1,7 +1,7 @@
 {
   "version": 1,
   "userId": "debug_smoke_user",
-  "savedAtMs": 1772103892956,
+  "savedAtMs": 1772104296189,
   "schemas": [
     {
       "schemaId": "schema_new_0",
@@ -31,8 +31,8 @@
       "salienceWeight": 0.5935362826046078,
       "episodeCount": 5,
       "retrievalBias": 0,
-      "createdAt": 1772103892956,
-      "lastUpdatedAt": 1772103892956,
+      "createdAt": 1772104296189,
+      "lastUpdatedAt": 1772104296189,
       "sessionCount": 1
     }
   ],
