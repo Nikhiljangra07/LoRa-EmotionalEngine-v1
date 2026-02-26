@@ -301,4 +301,147 @@ describe('PromptTemplateBuilder — Memory V1 Integration', () => {
       expect(prompt).toContain('MEMORY CONTEXT (privacy-safe, categorical)');
     });
   });
+
+  describe('governor-shaped context (omitted labels)', () => {
+    beforeEach(() => {
+      mockFlags.memoryV1Enabled = true;
+      mockFlags.memoryV1ShadowEnabled = false;
+    });
+
+    it('Band B1 scenario: no MEMORY CONTEXT block when context is null', () => {
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        { memoryContext: undefined },
+      );
+      expect(prompt).not.toContain('MEMORY CONTEXT');
+    });
+
+    it('Band B2 scenario: tendency omitted, sessionPattern omitted', () => {
+      const ctx = {
+        topSchemas: [
+          {
+            schemaId: 'schema_b2',
+            emotionTrajectory: 'calm-stable',
+            behavioralTendency: 'omitted',
+            relevance: 'HIGH',
+          },
+        ],
+        sessionPattern: 'omitted',
+        confidenceLevel: 'MED',
+      };
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        { memoryContext: ctx },
+      );
+      expect(prompt).toContain('MEMORY CONTEXT');
+      expect(prompt).not.toContain('sessionPattern');
+      expect(prompt).not.toContain('tendency=');
+      expect(prompt).toContain('trajectory=calm-stable');
+      expect(prompt).toContain('relevance=HIGH');
+      expect(prompt).toContain('[schema_b2]');
+    });
+
+    it('Band B4 scenario: tendency label visible, still passes blacklist', () => {
+      const ctx = {
+        topSchemas: [
+          {
+            schemaId: 'schema_b4',
+            emotionTrajectory: 'volatile',
+            behavioralTendency: 'responds-to-validation',
+            relevance: 'MED',
+          },
+        ],
+        sessionPattern: 'recovering',
+        confidenceLevel: 'HIGH',
+      };
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        { memoryContext: ctx },
+      );
+      expect(prompt).toContain('MEMORY CONTEXT');
+      expect(prompt).toContain('tendency=responds-to-validation');
+      expect(prompt).toContain('sessionPattern: recovering');
+
+      const FORBIDDEN = [
+        'companion', 'companionship', 'intimacy', 'intimate', 'bond',
+        'attachment', 'affection', 'closeness', 'love you', 'miss you',
+      ];
+      const memSection = prompt.split('MEMORY CONTEXT')[1] ?? '';
+      for (const f of FORBIDDEN) {
+        expect(memSection.toLowerCase()).not.toContain(f);
+      }
+    });
+
+    it('no numeric leak with governed context', () => {
+      const ctx = {
+        topSchemas: [
+          {
+            schemaId: 'schema_gov',
+            emotionTrajectory: 'omitted',
+            behavioralTendency: 'omitted',
+            relevance: 'LOW',
+          },
+        ],
+        sessionPattern: 'omitted',
+        confidenceLevel: 'LOW',
+      };
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        { memoryContext: ctx },
+      );
+      const memSection = prompt.split('MEMORY CONTEXT')[1] ?? '';
+      expect(memSection).not.toMatch(/\b0\.\d+\b/);
+      expect(memSection).not.toMatch(/\b\d+\.\d+\b/);
+    });
+
+    it('all labels omitted renders schemaId + relevance only', () => {
+      const ctx = {
+        topSchemas: [
+          {
+            schemaId: 'schema_minimal',
+            emotionTrajectory: 'omitted',
+            behavioralTendency: 'omitted',
+            relevance: 'MED',
+          },
+        ],
+        sessionPattern: 'omitted',
+        confidenceLevel: 'MED',
+      };
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        { memoryContext: ctx },
+      );
+      expect(prompt).toContain('[schema_minimal] relevance=MED');
+      expect(prompt).not.toContain('trajectory=');
+      expect(prompt).not.toContain('tendency=');
+    });
+
+    it('partial omission: trajectory shown, tendency omitted', () => {
+      const ctx = {
+        topSchemas: [
+          {
+            schemaId: 'schema_partial',
+            emotionTrajectory: 'escalating-negative',
+            behavioralTendency: 'omitted',
+            relevance: 'HIGH',
+          },
+        ],
+        sessionPattern: 'unknown',
+        confidenceLevel: 'HIGH',
+      };
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        { memoryContext: ctx },
+      );
+      expect(prompt).toContain('trajectory=escalating-negative');
+      expect(prompt).not.toContain('tendency=');
+      expect(prompt).toContain('relevance=HIGH');
+    });
+  });
 });

@@ -3,7 +3,10 @@ import type {
   MemoryContext,
   TrajectoryLabel,
   TendencyLabel,
+  GovernedTrajectoryLabel,
+  GovernedTendencyLabel,
 } from './memoryContextTypes';
+import type { MemoryV1Policy } from './policyTypes';
 
 const VALID_TRAJECTORIES: ReadonlySet<string> = new Set<TrajectoryLabel>([
   'calm-stable',
@@ -26,7 +29,9 @@ const TOP_K = 3;
 export function buildMemoryContext(
   input: BuildMemoryContextInput,
 ): MemoryContext | null {
-  const { results, schemasById, thetaRetrieve, cMin } = input;
+  const { results, schemasById, thetaRetrieve, cMin, policy } = input;
+
+  if (policy && !policy.allowPromptInjection) return null;
 
   if (results.length === 0) return null;
 
@@ -48,21 +53,35 @@ export function buildMemoryContext(
     return a.schemaId.localeCompare(b.schemaId);
   });
 
-  const top = sorted.slice(0, TOP_K);
+  const maxSchemas = policy ? policy.maxSchemasInPrompt : TOP_K;
+  const top = sorted.slice(0, Math.min(TOP_K, maxSchemas));
 
   const topSchemas = top.map((r) => {
     const meta = schemasById[r.schemaId];
+    const trajectory: GovernedTrajectoryLabel =
+      policy && !policy.allowTrajectoryLabel
+        ? 'omitted'
+        : sanitizeTrajectory(meta?.trajectoryLabel);
+    const tendency: GovernedTendencyLabel =
+      policy && !policy.allowTendencyLabel
+        ? 'omitted'
+        : sanitizeTendency(meta?.tendencyLabel);
     return {
       schemaId: r.schemaId,
-      emotionTrajectory: sanitizeTrajectory(meta?.trajectoryLabel),
-      behavioralTendency: sanitizeTendency(meta?.tendencyLabel),
+      emotionTrajectory: trajectory,
+      behavioralTendency: tendency,
       relevance: mapRelevance(r.prob),
     };
   });
 
+  const sessionPattern: GovernedTrajectoryLabel =
+    policy && !policy.allowSessionPattern
+      ? 'omitted'
+      : ('unknown' as TrajectoryLabel);
+
   return {
     topSchemas,
-    sessionPattern: 'unknown' as TrajectoryLabel,
+    sessionPattern,
     confidenceLevel,
   };
 }

@@ -529,15 +529,27 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
       '',
       'MEMORY CONTEXT (privacy-safe, categorical)',
       '-------------------------------------------',
-      `- sessionPattern: ${memoryContext.sessionPattern}`,
-      `- confidence: ${memoryContext.confidenceLevel}`,
-      '- topSchemas:',
     ];
 
+    if (memoryContext.sessionPattern !== 'omitted') {
+      lines.push(`- sessionPattern: ${memoryContext.sessionPattern}`);
+    }
+    lines.push(`- confidence: ${memoryContext.confidenceLevel}`);
+    lines.push('- topSchemas:');
+
     for (const s of memoryContext.topSchemas.slice(0, 3)) {
-      lines.push(
-        `  - [${s.schemaId}] trajectory=${s.emotionTrajectory} tendency=${s.behavioralTendency} relevance=${s.relevance}`,
-      );
+      const hasTrajectory = s.emotionTrajectory !== 'omitted';
+      const hasTendency = s.behavioralTendency !== 'omitted';
+
+      if (hasTrajectory || hasTendency) {
+        const parts = [`[${s.schemaId}]`];
+        if (hasTrajectory) parts.push(`trajectory=${s.emotionTrajectory}`);
+        if (hasTendency) parts.push(`tendency=${s.behavioralTendency}`);
+        parts.push(`relevance=${s.relevance}`);
+        lines.push(`  - ${parts.join(' ')}`);
+      } else {
+        lines.push(`  - [${s.schemaId}] relevance=${s.relevance}`);
+      }
     }
 
     return lines.join('\n');

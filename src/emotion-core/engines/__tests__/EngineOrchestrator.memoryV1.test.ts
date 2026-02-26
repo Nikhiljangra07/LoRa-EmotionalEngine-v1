@@ -236,4 +236,34 @@ describe('EngineOrchestrator — Memory V1 Integration', () => {
       }
     });
   });
+
+  describe('band-based governance', () => {
+    beforeEach(() => {
+      mockFlags.memoryV1Enabled = true;
+    });
+
+    it('same memory state produces valid output regardless of band (no crash)', async () => {
+      const userId = 'band-test-user';
+      const engine = new EngineOrchestrator(0.5, {}, mockResponder, { userId });
+      const result = await engine.processMessage(BASELINE_OUTPUTS, NEUTRAL_STATE);
+      expect(typeof result.prompt).toBe('string');
+      expect(result.prompt.length).toBeGreaterThan(0);
+    });
+
+    it('memory persistence is not affected by policy gating', async () => {
+      const userId = 'band-persist-user';
+
+      const engine1 = new EngineOrchestrator(0.5, {}, mockResponder, { userId });
+      await engine1.processMessage(BASELINE_OUTPUTS, NEUTRAL_STATE);
+      await engine1.processMessage(
+        { expressionStrength: { score: 0.9, confidence: 0.8 }, valence: { score: 0.8, confidence: 0.7 }, arousal: { score: 0.9, confidence: 0.8 } },
+        { dominant: 'JOY', arousal: 'HIGH', valence: 'POSITIVE', confidence: 0.9 },
+      );
+      engine1.endSession();
+
+      expect(mockMemoryStore.has(userId)).toBe(true);
+      const stored = mockMemoryStore.get(userId) as Record<string, unknown>;
+      expect(stored.version).toBe(1);
+    });
+  });
 });
