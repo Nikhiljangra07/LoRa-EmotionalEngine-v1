@@ -119,6 +119,49 @@ npx jest --testPathPatterns='liveEnable' --no-coverage
 
 Validates the same assertions directly on PromptTemplateBuilder (no orchestrator).
 
+## Phase 14C: Shadow Analytics Report
+
+### Running the shadow report
+
+```bash
+# From a log file:
+npm run memory:v1:shadow-report -- --in logs/shadow.jsonl
+
+# Or piped from stdin:
+cat logs/shadow.jsonl | npm run memory:v1:shadow-report
+```
+
+Output is written to `docs/MEMORY_V1_SHADOW_REPORT.md`.
+
+### What the report contains
+
+| Section | Description |
+|---------|-------------|
+| **Totals** | Event count, user count, injection count/rate |
+| **Counts by Band** | How many events at each ETV band (B0–B4) |
+| **Counts by Policy Signature** | Deterministic categorical signature frequency |
+| **Confidence Distribution** | LOW / MED / HIGH breakdown |
+| **Top Trajectories** | Most frequent trajectory labels (excluding "omitted") |
+| **Top Tendencies** | Most frequent tendency labels (excluding "omitted") |
+| **Flags** | HIGH and MED severity drift violations |
+
+### What the flags mean
+
+| Severity | Code | Trigger |
+|----------|------|---------|
+| HIGH | `INJECTION_AT_LOW_BAND` | Memory injected at B0 or B1 (should be blocked) |
+| HIGH | `OMITTED_FIELDS_VIOLATION` | Tendency/trajectory/sessionPattern shown when policy forbids |
+| HIGH | `SCHEMA_COUNT_OVER_CAP` | More schemas than `maxSchemasInPrompt` |
+| HIGH | `FORBIDDEN_TOKEN` | Companionship/intimacy/"CASUAL" token found in context |
+| MED | `EXCESSIVE_INJECTION_RATE` | Per-user injection rate > 85% |
+| MED | `OSCILLATION_SPIKE` | Schema winner flips too often (> 5 in a run) |
+| MED | `CONFIDENCE_IMPLAUSIBLE` | > 30% HIGH confidence at B0/B1 |
+
+### Rollout gate
+
+The shadow report **must be green** (zero HIGH flags) before widening rollout
+from shadow to live. MED flags are advisory but should be investigated.
+
 ## Promoting to live
 
 Set `LORA_MEMORY_V1=1` (and optionally `LORA_MEMORY_V1_SHADOW=0`) to enable

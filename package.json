@@ -40,7 +40,8 @@
     "layer2:validate-gating": "ts-node src/appraisal-lab/layer2/validate_gating.ts",
     "memory:v1:shadow-smoke": "ts-node scripts/memory_v1_shadow_smoke.ts",
     "memory:v1:live-smoke": "ts-node scripts/memory_v1_live_smoke.ts",
-    "memory:v1:debug-smoke": "ts-node scripts/memory_v1_debug_smoke.ts"
+    "memory:v1:debug-smoke": "ts-node scripts/memory_v1_debug_smoke.ts",
+    "memory:v1:shadow-report": "ts-node scripts/memory_v1_shadow_report.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
