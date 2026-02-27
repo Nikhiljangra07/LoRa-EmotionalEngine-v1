@@ -39,7 +39,7 @@ import { buildMemoryV1DebugSnapshot } from '../memory-v1/debugSnapshot';
 import { getMemoryV1Policy } from '../memory-v1/policyMap';
 import type { ETVBandHint } from '../memory-v1/policyTypes';
 import type { MemoryService } from '../memory-v1/service/MemoryService';
-import type { AnchorRecord, MemorySaveInput, EmotionBand } from '../memory-v1/service/memoryTypes';
+import type { AnchorRecord, MemorySaveInput, EmotionBand, RetrieveContextOpts } from '../memory-v1/service/memoryTypes';
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
@@ -746,17 +746,31 @@ export class EngineOrchestrator {
 
     if (featureFlags.memoryServiceEnabled && this.memoryService) {
       try {
-        const msResult = await this.memoryService.retrieveContext(this.userId, userMessage);
+        const currentBandRaw = this.lastEtvPolicy?.band.replace('BAND_', 'B');
+        const retrieveBand = (currentBandRaw === 'B0' || currentBandRaw === 'B1' || currentBandRaw === 'B2' || currentBandRaw === 'B3' || currentBandRaw === 'B4')
+          ? currentBandRaw as EmotionBand
+          : 'B0' as EmotionBand;
+
+        const retrieveOpts: RetrieveContextOpts = {
+          emotionVec: [
+            analyzerOutputs.valence.score,
+            analyzerOutputs.arousal.score,
+            analyzerOutputs.expressionStrength.score,
+            Math.min(
+              analyzerOutputs.valence.confidence,
+              analyzerOutputs.arousal.confidence,
+              analyzerOutputs.expressionStrength.confidence,
+            ),
+          ],
+          nowMs: messageTimestampMs,
+          band: retrieveBand,
+        };
+
+        const msResult = await this.memoryService.retrieveContext(this.userId, userMessage, retrieveOpts);
         memServiceDegraded = msResult.degraded;
 
         if (featureFlags.factAnchorEnabled) {
-          const ELIGIBLE_BANDS: ReadonlySet<string> = new Set(['B2', 'B3', 'B4']);
-          memServiceAnchors = msResult.anchors
-            .filter((a) => {
-              const b = a.metrics.band;
-              return b !== undefined && ELIGIBLE_BANDS.has(b);
-            })
-            .slice(0, MAX_ANCHORS_IN_PROMPT);
+          memServiceAnchors = msResult.anchors.slice(0, MAX_ANCHORS_IN_PROMPT);
         }
 
         if (msResult.degraded.falkor) this.falkorDegraded = true;
@@ -786,7 +800,6 @@ export class EngineOrchestrator {
         }
 
         if (decisionLogEnabled) {
-          const currentBand = this.lastEtvPolicy?.band.replace('BAND_', 'B') ?? undefined;
           const log = makeMemoryServiceRetrieveLog({
             userId: this.userId,
             sessionId: this.currentSessionId ?? undefined,
@@ -795,7 +808,7 @@ export class EngineOrchestrator {
             anchorCount: msResult.anchors.length,
             semanticCount: msResult.semantic.length,
             degraded: msResult.degraded,
-            band: currentBand,
+            band: retrieveBand,
           });
           console.log('[LoRa::MemoryServiceRetrieve]', JSON.stringify(log));
         }
@@ -1029,6 +1042,17 @@ export class EngineOrchestrator {
           eiv: eivResult.value * 100,
           ...(band ? { band } : {}),
         },
+        sessionId: this.currentSessionId ?? undefined,
+        emotionVec: [
+          analyzerOutputs.valence.score,
+          analyzerOutputs.arousal.score,
+          analyzerOutputs.expressionStrength.score,
+          Math.min(
+            analyzerOutputs.valence.confidence,
+            analyzerOutputs.arousal.confidence,
+            analyzerOutputs.expressionStrength.confidence,
+          ),
+        ],
       };
 
       const sessionIdCapture = this.currentSessionId;
@@ -1192,6 +1216,22 @@ export class EngineOrchestrator {
           console.error('[LoRa::MemoryV1] endSession consolidation failed');
         }
       }
+    }
+
+    // ── Fact Anchor lifecycle maintenance (fire-and-forget, gated) ──
+    if (
+      featureFlags.memoryServiceEnabled &&
+      featureFlags.factAnchorEnabled &&
+      this.memoryService
+    ) {
+      const maintainSessionId = sessionId;
+      const maintainNowMs = Date.now();
+      this.memoryService.maintainAnchors(this.userId, maintainSessionId, maintainNowMs).catch(() => {
+        if (!this.degradedLogged.falkor) {
+          this.falkorDegraded = true;
+          this.degradedLogged.falkor = true;
+        }
+      });
     }
 
     // Reset session

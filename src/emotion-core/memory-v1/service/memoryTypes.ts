@@ -20,6 +20,14 @@ export interface MemorySaveInput {
   timestamp: number;
   emotion: EmotionSignal;
   metrics: EmotionalMetrics;
+  sessionId?: string;
+  emotionVec?: number[];
+}
+
+export interface RetrieveContextOpts {
+  emotionVec?: number[];
+  nowMs?: number;
+  band?: EmotionBand;
 }
 
 export interface AnchorRecord {
@@ -75,4 +83,49 @@ export function validateMetrics(raw: EmotionalMetrics): EmotionalMetrics {
     out.band = raw.band;
   }
   return out;
+}
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  upcoming_event: 'Upcoming event',
+  past_event: 'Past event',
+  recurring_event: 'Recurring event',
+  person_role: 'Person role',
+  preference_positive: 'Preference (positive)',
+  preference_negative: 'Preference (negative)',
+  goal_active: 'Active goal',
+  goal_completed: 'Completed goal',
+};
+
+const SLOT_LABELS: Record<string, string> = {
+  job_interview: 'job interview',
+  exam: 'exam',
+  meeting: 'meeting',
+  birthday: 'birthday',
+  appointment: 'appointment',
+  wedding: 'wedding',
+  travel: 'travel',
+  deadline: 'deadline',
+  therapy_session: 'therapy session',
+  graduation: 'graduation',
+  friend: 'friend',
+  therapist: 'therapist',
+  family_member: 'family member',
+  manager: 'manager',
+  partner: 'partner',
+  colleague: 'colleague',
+  doctor: 'doctor',
+  mentor: 'mentor',
+  exercise: 'exercise',
+  diet: 'diet',
+  career_change: 'career change',
+  learning: 'learning',
+  hobby: 'hobby',
+  general_positive: 'general (positive)',
+  general_negative: 'general (negative)',
+};
+
+export function anchorSummaryLabel(template: string, slot: string): string {
+  const tLabel = TEMPLATE_LABELS[template] ?? template;
+  const sLabel = SLOT_LABELS[slot] ?? slot;
+  return `${tLabel}: ${sLabel}`;
 }
