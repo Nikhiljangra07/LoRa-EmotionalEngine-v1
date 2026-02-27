@@ -34,10 +34,13 @@ import type { DominantEmotion } from '../memory-v1/types';
 import { createMemoryV1, processMessage as memV1ProcessMessage, endSession as memV1EndSession } from '../memory-v1/memoryV1Engine';
 import { createJSONStorage } from '../memory-v1/storage';
 import { createBuffer } from '../memory-v1/episodicBuffer';
-import { makeMemoryConsolidateLog } from '../memory-v1/decisionLogs';
+import { makeMemoryConsolidateLog, makeMemoryServiceRetrieveLog, makeMemoryServiceSaveLog } from '../memory-v1/decisionLogs';
 import { buildMemoryV1DebugSnapshot } from '../memory-v1/debugSnapshot';
 import { getMemoryV1Policy } from '../memory-v1/policyMap';
 import type { ETVBandHint } from '../memory-v1/policyTypes';
+import type { MemoryService } from '../memory-v1/service/MemoryService';
+import type { AnchorRecord, MemorySaveInput, EmotionBand } from '../memory-v1/service/memoryTypes';
+import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -132,12 +135,18 @@ export class EngineOrchestrator {
   private memoryV1Storage?: MemoryV1Storage;
   private readonly memoryV1BaseDir = '.lora/memory-v1';
 
+  // ── Memory Service — dual DB pipeline (gated by memoryServiceEnabled) ──
+  private readonly memoryService?: MemoryService;
+  private chromaDegraded = false;
+  private falkorDegraded = false;
+  private degradedLogged = { chroma: false, falkor: false, dual: false };
+
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
     llmConfig: Partial<LLMConfig> = {},
     responderFactory: () => LLMResponder = () =>
       new OpenAIResponder(),
-    options: { userId?: string } = {},
+    options: { userId?: string; memoryService?: MemoryService } = {},
   ) {
     this.userId = options.userId ?? 'anonymous';
     this.etvState = {
@@ -154,6 +163,9 @@ export class EngineOrchestrator {
     this.interpreter = new EmotionalStateInterpreter();
     if (featureFlags.appraisalBridgeEnabled) {
       this.appraisalBridge = new AppraisalBridgeRunner();
+    }
+    if (featureFlags.memoryServiceEnabled && options.memoryService) {
+      this.memoryService = options.memoryService;
     }
   }
 
@@ -728,6 +740,70 @@ export class EngineOrchestrator {
       memoryContext = memoryV1Result?.memoryContext ?? undefined;
     }
 
+    // ── Memory Service: dual DB retrieval (gated by memoryServiceEnabled) ──
+    let memServiceAnchors: AnchorRecord[] = [];
+    let memServiceDegraded = { falkor: false, chroma: false };
+
+    if (featureFlags.memoryServiceEnabled && this.memoryService) {
+      try {
+        const msResult = await this.memoryService.retrieveContext(this.userId, userMessage);
+        memServiceDegraded = msResult.degraded;
+
+        if (featureFlags.factAnchorEnabled) {
+          const ELIGIBLE_BANDS: ReadonlySet<string> = new Set(['B2', 'B3', 'B4']);
+          memServiceAnchors = msResult.anchors
+            .filter((a) => {
+              const b = a.metrics.band;
+              return b !== undefined && ELIGIBLE_BANDS.has(b);
+            })
+            .slice(0, MAX_ANCHORS_IN_PROMPT);
+        }
+
+        if (msResult.degraded.falkor) this.falkorDegraded = true;
+        if (msResult.degraded.chroma) this.chromaDegraded = true;
+
+        if (msResult.degraded.falkor && msResult.degraded.chroma && !this.degradedLogged.dual) {
+          this.degradedLogged.dual = true;
+          if (decisionLogEnabled) {
+            console.log('[LoRa::MemoryDualFail]', JSON.stringify({
+              userId: this.userId, sessionId: this.currentSessionId, tsMs: Date.now(),
+            }));
+          }
+        } else if (msResult.degraded.chroma && !this.degradedLogged.chroma) {
+          this.degradedLogged.chroma = true;
+          if (decisionLogEnabled) {
+            console.log('[LoRa::MemoryChromaFail]', JSON.stringify({
+              userId: this.userId, sessionId: this.currentSessionId, tsMs: Date.now(),
+            }));
+          }
+        } else if (msResult.degraded.falkor && !this.degradedLogged.falkor) {
+          this.degradedLogged.falkor = true;
+          if (decisionLogEnabled) {
+            console.log('[LoRa::MemoryFalkorFail]', JSON.stringify({
+              userId: this.userId, sessionId: this.currentSessionId, tsMs: Date.now(),
+            }));
+          }
+        }
+
+        if (decisionLogEnabled) {
+          const currentBand = this.lastEtvPolicy?.band.replace('BAND_', 'B') ?? undefined;
+          const log = makeMemoryServiceRetrieveLog({
+            userId: this.userId,
+            sessionId: this.currentSessionId ?? undefined,
+            messageId: `msg-${this.messageCount}`,
+            tsMs: Date.now(),
+            anchorCount: msResult.anchors.length,
+            semanticCount: msResult.semantic.length,
+            degraded: msResult.degraded,
+            band: currentBand,
+          });
+          console.log('[LoRa::MemoryServiceRetrieve]', JSON.stringify(log));
+        }
+      } catch {
+        // MemoryService must never block response generation
+      }
+    }
+
     // 6. Build prompt (PURE)
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
@@ -745,6 +821,10 @@ export class EngineOrchestrator {
       ...(this.lastEtvPolicy ? { etvPolicy: this.lastEtvPolicy } : {}),
       ...(memoryContext && (featureFlags.memoryV1Enabled || featureFlags.memoryV1ShadowEnabled)
         ? { memoryContext }
+        : {}),
+      ...(memServiceAnchors.length > 0 ? { relevantAnchors: memServiceAnchors } : {}),
+      ...(memServiceDegraded.falkor || memServiceDegraded.chroma
+        ? { degraded: memServiceDegraded }
         : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
@@ -922,6 +1002,52 @@ export class EngineOrchestrator {
       });
     }
 
+    // ── Memory Service: save (fire-and-forget, gated by memoryServiceEnabled) ──
+    if (featureFlags.memoryServiceEnabled && this.memoryService) {
+      const currentBandRaw = this.lastEtvPolicy?.band.replace('BAND_', 'B');
+      const band = (currentBandRaw === 'B0' || currentBandRaw === 'B1' || currentBandRaw === 'B2' || currentBandRaw === 'B3' || currentBandRaw === 'B4')
+        ? currentBandRaw as EmotionBand
+        : undefined;
+
+      const saveInput: MemorySaveInput = {
+        userId: this.userId,
+        messageId: `msg-${this.messageCount}`,
+        content: userMessage,
+        timestamp: messageTimestampMs,
+        emotion: {
+          valence: analyzerOutputs.valence.score,
+          arousal: analyzerOutputs.arousal.score,
+          expressionStrength: analyzerOutputs.expressionStrength.score,
+          inferenceReliability: Math.min(
+            analyzerOutputs.valence.confidence,
+            analyzerOutputs.arousal.confidence,
+            analyzerOutputs.expressionStrength.confidence,
+          ),
+        },
+        metrics: {
+          etv: this.etvState.value * 100,
+          eiv: eivResult.value * 100,
+          ...(band ? { band } : {}),
+        },
+      };
+
+      const sessionIdCapture = this.currentSessionId;
+      this.memoryService.saveMessage(saveInput).then((ok) => {
+        if (decisionLogEnabled) {
+          const log = makeMemoryServiceSaveLog({
+            userId: this.userId,
+            sessionId: sessionIdCapture ?? undefined,
+            messageId: saveInput.messageId,
+            tsMs: Date.now(),
+            ok,
+          });
+          console.log('[LoRa::MemoryServiceSave]', JSON.stringify(log));
+        }
+      }).catch(() => {
+        // Save failure must never surface
+      });
+    }
+
     const result = {
       eiv: eivResult,
       prompt,
@@ -1094,6 +1220,9 @@ export class EngineOrchestrator {
     this.hintHoldsRemaining = {};
     this.guidanceDwellRemaining = 0;
     this.guidanceDwellMode = null;
+    this.chromaDegraded = false;
+    this.falkorDegraded = false;
+    this.degradedLogged = { chroma: false, falkor: false, dual: false };
 
     return { newETV };
   }

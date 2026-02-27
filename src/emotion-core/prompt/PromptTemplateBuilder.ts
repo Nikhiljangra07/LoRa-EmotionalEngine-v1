@@ -10,6 +10,8 @@ import { featureFlags } from '../config/featureFlags';
 import type { ETVPolicy } from '../etv/types';
 import { mapETVPolicyToPrompt, renderConstraintOverlay, computePromptSignature } from './etvPolicyPromptMap';
 import { DecisionLogger } from '../logging/DecisionLogger';
+import type { AnchorRecord } from '../memory-v1/service/memoryTypes';
+import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
 
 const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
   'CALM_NEUTRAL',
@@ -53,6 +55,8 @@ export class PromptTemplateBuilder {
         sessionPattern: string;
         confidenceLevel: string;
       };
+      relevantAnchors?: AnchorRecord[];
+      degraded?: { falkor: boolean; chroma: boolean };
       messageId?: string;
       userId?: string;
     }
@@ -147,6 +151,10 @@ export class PromptTemplateBuilder {
       options?.userId,
     );
 
+    const anchorContextBlock = this.getAnchorContextBlock(
+      options?.relevantAnchors,
+    );
+
     const prompt = `
 You are LoRa, an emotionally aware AI companion.
 ${microContextBlock}
@@ -169,7 +177,7 @@ GLOBAL CONSTRAINTS
 - Avoid cheerfulness when the user signals negativity
 - Keep a professional baseline when needed
 - If uncertain, default to calm, warm presence
-${constraintOverlay}${memoryContextBlock}`.trim();
+${constraintOverlay}${memoryContextBlock}${anchorContextBlock}`.trim();
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][PromptTemplate]', {
@@ -551,6 +559,47 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
         lines.push(`  - [${s.schemaId}] relevance=${s.relevance}`);
       }
     }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Renders fact anchors after the memory context block.
+   * Band B0/B1 anchors are filtered out; absolute cap of MAX_ANCHORS_IN_PROMPT.
+   * No companionship language ("I remember", "you said") is ever emitted.
+   */
+  private static getAnchorContextBlock(
+    anchors?: AnchorRecord[],
+  ): string {
+    if (!anchors || anchors.length === 0) return '';
+
+    const ELIGIBLE_BANDS: ReadonlySet<string> = new Set(['B2', 'B3', 'B4']);
+
+    const eligible = anchors
+      .filter((a) => {
+        const b = a.metrics.band;
+        return b !== undefined && ELIGIBLE_BANDS.has(b);
+      })
+      .slice(0, MAX_ANCHORS_IN_PROMPT);
+
+    if (eligible.length === 0) return '';
+
+    const lines: string[] = [
+      '',
+      '',
+      'FACT CONTEXT (possible anchors)',
+      '-------------------------------',
+      'Possible context:',
+    ];
+
+    for (const a of eligible) {
+      const ts = a.timestamp > 0
+        ? new Date(a.timestamp).toISOString().slice(0, 16).replace('T', ' ')
+        : 'unknown time';
+      lines.push(`- [${ts}] ${a.contentSummary}`);
+    }
+
+    lines.push('Does this relate to what you mean today?');
 
     return lines.join('\n');
   }

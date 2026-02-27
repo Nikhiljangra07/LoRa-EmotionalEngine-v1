@@ -24,4 +24,7 @@ export const featureFlags = Object.freeze({
   memoryV1Enabled: process.env.LORA_MEMORY_V1 === '1',
   memoryV1ShadowEnabled: process.env.LORA_MEMORY_V1_SHADOW === '1',
   memoryV1DebugEnabled: process.env.LORA_MEMORY_V1_DEBUG === '1',
+  memoryV1ChromaEnabled: process.env.LORA_MEMORY_V1_CHROMA === '1',
+  factAnchorEnabled: process.env.LORA_FACT_ANCHOR === '1',
+  memoryServiceEnabled: process.env.LORA_MEMORY_SERVICE === '1',
 });
