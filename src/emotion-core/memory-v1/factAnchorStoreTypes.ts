@@ -72,3 +72,30 @@ export interface FactAnchorStore {
     state: FactAnchorStoreState,
   ): { confirmed: FactAnchor[]; quarantined: FactAnchor[] };
 }
+
+/**
+ * Async interface for DB-backed FactAnchor stores (e.g. FalkorFactAnchorStore).
+ * All methods are userId-scoped. Returns null on DB failure (degraded mode).
+ */
+export interface AsyncFactAnchorStore {
+  upsertFromExtraction(
+    userId: string,
+    input: UpsertInput,
+  ): Promise<{ nextState: FactAnchorStoreState; results: UpsertResult } | null>;
+
+  getCandidates(
+    userId: string,
+    input: GetCandidatesInput,
+  ): Promise<FactAnchor[] | null>;
+
+  maintain(
+    userId: string,
+    input: MaintainInput,
+  ): Promise<{ report: MaintainReport } | null>;
+
+  purgeAll(userId: string): Promise<boolean>;
+
+  exportAll(
+    userId: string,
+  ): Promise<{ confirmed: FactAnchor[]; quarantined: FactAnchor[] } | null>;
+}

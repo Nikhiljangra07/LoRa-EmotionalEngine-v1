@@ -7,11 +7,15 @@ import type {
   MaintainInput,
   MaintainReport,
   GetCandidatesInput,
+  AsyncFactAnchorStore,
 } from '../factAnchorStoreTypes';
 import { createInMemoryFactAnchorStore } from '../factAnchorStore';
 
 const GRAPH_NAME = 'lora_anchors';
 const META_ANCHOR_ID = '__fact_store_meta__';
+
+/** Defensive cap: refuse to persist payloads larger than 8 KiB. */
+const MAX_PAYLOAD_BYTES = 8192;
 
 interface StoreMeta {
   sessionSeen: Record<string, true>;
@@ -66,7 +70,7 @@ function isValidAnchor(obj: unknown): obj is FactAnchor {
  * When loadState returns null (DB unreachable), methods propagate null immediately
  * rather than falling back to an empty state.
  */
-export class FalkorFactAnchorStore {
+export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
   async loadState(userId: string): Promise<FactAnchorStoreState | null> {
     try {
       const raw = await graphQuery(
@@ -154,11 +158,13 @@ export class FalkorFactAnchorStore {
       }
 
       for (const anchor of allAnchors) {
+        const payload = JSON.stringify(anchor);
+        if (payload.length > MAX_PAYLOAD_BYTES) continue;
         await graphQuery(
           GRAPH_NAME,
           `MERGE (a:Anchor { userId: $userId, anchorId: $anchorId })
            SET a.payloadJson = $payloadJson`,
-          { userId, anchorId: anchor.anchorId, payloadJson: JSON.stringify(anchor) },
+          { userId, anchorId: anchor.anchorId, payloadJson: payload },
         );
       }
 
