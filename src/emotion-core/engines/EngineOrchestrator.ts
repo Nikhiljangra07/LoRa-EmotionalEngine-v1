@@ -41,6 +41,8 @@ import type { ETVBandHint } from '../memory-v1/policyTypes';
 import type { MemoryService } from '../memory-v1/service/MemoryService';
 import type { AnchorRecord, MemorySaveInput, EmotionBand, RetrieveContextOpts } from '../memory-v1/service/memoryTypes';
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
+import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../intent/relationalIntent';
+import type { RelationalClassification } from '../intent/relationalIntent';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -117,6 +119,10 @@ export class EngineOrchestrator {
         intensityLevel: 'low' | 'medium' | 'high';
         anchorIntegration: boolean;
         degradedMode: boolean;
+      };
+      relational?: {
+        intent: string;
+        confidence: number;
       };
     };
   };
@@ -656,6 +662,14 @@ export class EngineOrchestrator {
       signalPacket?.metadata as { microContext?: string } | undefined
     )?.microContext;
 
+    let relationalResult: RelationalClassification | undefined;
+    if (featureFlags.relationalRouterEnabled && userMessage) {
+      const classification = classifyRelationalIntent(userMessage);
+      if (classification.intent !== 'none' && classification.confidence >= RELATIONAL_CONFIDENCE_THRESHOLD) {
+        relationalResult = classification;
+      }
+    }
+
     if (debugEnabled) {
       console.log('[LoRa::Audit][Engine]', {
         userText: userMessage,
@@ -872,6 +886,7 @@ export class EngineOrchestrator {
       band: currentBand,
       eiv: currentEiv,
       ...(sessionHistory && sessionHistory.length > 0 ? { sessionHistory } : {}),
+      ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -1122,6 +1137,7 @@ export class EngineOrchestrator {
           anchorIntegration: memServiceAnchors.length > 0,
           degradedMode: memServiceDegraded.falkor || memServiceDegraded.chroma,
         },
+        ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
       },
     };
 
