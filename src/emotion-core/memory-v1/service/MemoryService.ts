@@ -5,7 +5,7 @@ import { extractFactAnchor } from '../factExtractor';
 import { scoreAnchors, type AnchorScore } from '../anchorRelevanceArbiter';
 import type { FactAnchor } from '../factAnchorTypes';
 import type { SchemaRecord } from '../schemaStore';
-import type { MaintainReport } from '../factAnchorStoreTypes';
+import type { MaintainReport, AsyncFactAnchorStore } from '../factAnchorStoreTypes';
 import {
   type MemorySaveInput,
   type AnchorRecord,
@@ -31,13 +31,15 @@ export type { EmotionSignal, EmotionalMetrics, EmotionBand } from './memoryTypes
 const STUB_VECTOR_DIM = 5;
 
 export class MemoryService {
-  private factStore: FalkorFactAnchorStore;
+  private readonly factStore: AsyncFactAnchorStore;
+  private lastMaintainKey: string | null = null;
 
   constructor(
     _anchorAdapter: FalkorAnchorAdapter,
     private vectorAdapter: ChromaSchemaAdapter,
+    factStore?: AsyncFactAnchorStore,
   ) {
-    this.factStore = new FalkorFactAnchorStore();
+    this.factStore = factStore ?? new FalkorFactAnchorStore();
   }
 
   /**
@@ -132,13 +134,21 @@ export class MemoryService {
     };
   }
 
+  /**
+   * Run lifecycle maintenance (promotion, expiry) for the user's anchors.
+   * Idempotent per (userId, sessionId) pair — repeated calls in the same
+   * session are no-ops and return null.
+   */
   async maintainAnchors(
     userId: string,
     sessionId: string,
     nowMs: number,
   ): Promise<MaintainReport | null> {
+    const key = `${userId}::${sessionId}`;
+    if (this.lastMaintainKey === key) return null;
     try {
       const result = await this.factStore.maintain(userId, { sessionId, nowMs });
+      if (result !== null) this.lastMaintainKey = key;
       return result?.report ?? null;
     } catch {
       return null;
@@ -160,11 +170,11 @@ export class MemoryService {
   async healthCheck(): Promise<{ falkor: boolean; chroma: boolean }> {
     const [falkorResult, chromaResult] = await Promise.all([
       this.factStore.exportAll('__healthcheck__').catch(() => null),
-      this.vectorAdapter.loadSchemas('__healthcheck__').catch(() => null),
+      chromaHealthProbe(this.vectorAdapter).catch(() => false),
     ]);
     return {
       falkor: falkorResult !== null,
-      chroma: chromaResult !== null,
+      chroma: chromaResult,
     };
   }
 
@@ -220,4 +230,13 @@ function deterministicVector(seed: number, dim: number): number[] {
   }
   const norm = Math.sqrt(out.reduce((sum, x) => sum + x * x, 0)) || 1;
   return out.map((x) => x / norm);
+}
+
+/**
+ * Health probe for ChromaDB. Uses loadSchemas on a sentinel userId
+ * which returns [] on success and null on failure.
+ */
+async function chromaHealthProbe(adapter: ChromaSchemaAdapter): Promise<boolean> {
+  const result = await adapter.loadSchemas('__healthcheck__');
+  return result !== null;
 }
