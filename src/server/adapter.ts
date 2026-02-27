@@ -1,6 +1,7 @@
 import '../bootstrap';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { InputProcessor } from '../emotion-core/processors/InputProcessor';
 import { SessionManager } from './session/SessionManager';
 import { getLLMHealth } from './llmTelemetry';
@@ -19,6 +20,9 @@ app.use(
 );
 
 app.use(express.json());
+
+// Laura UI: serve public/ so GET / opens the chat page
+app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
 let apiChatRegistered = false;
 try {
