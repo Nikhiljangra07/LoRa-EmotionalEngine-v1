@@ -96,7 +96,7 @@ export function scoreAnchors(
 
   scored.sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    return a._idx - b._idx;
+    return a.anchor.anchorId.localeCompare(b.anchor.anchorId);
   });
 
   const cap = Math.min(limit, MAX_ANCHORS_IN_PROMPT);
