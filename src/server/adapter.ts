@@ -5,19 +5,29 @@ import { InputProcessor } from '../emotion-core/processors/InputProcessor';
 import { SessionManager } from './session/SessionManager';
 import { getLLMHealth } from './llmTelemetry';
 import { debugEnabled } from '../emotion-core/debug/debugGate';
+import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 
 const app = express();
 const port = 3000;
 
 app.use(
   cors({
-    origin: 'http://localhost:8080',
-    methods: ['POST', 'OPTIONS'],
+    origin: ['http://localhost:8080', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
   })
 );
 
 app.use(express.json());
+
+let apiChatRegistered = false;
+try {
+  registerChatRoute(app);
+  apiChatRegistered = true;
+} catch (err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.warn('[LoRa::Adapter] /api/chat not registered:', msg);
+}
 
 // ── Session layer ──────────────────────────────────────────────────
 // The frontend sends no session identifier, so all HTTP requests share
@@ -70,4 +80,7 @@ app.post('/chat', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`[LoRa::Adapter] listening on ${port}`);
+  if (apiChatRegistered) {
+    runStartupHealthChecks().catch(() => {});
+  }
 });
