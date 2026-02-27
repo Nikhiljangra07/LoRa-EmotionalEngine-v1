@@ -2,39 +2,50 @@ import Redis from 'ioredis';
 
 const DEFAULT_URL = 'redis://localhost:6379';
 
-let cachedClient: Redis | undefined = undefined;
+let client: Redis | null = null;
 
 export function getFalkorUrl(): string {
   return process.env.LORA_FALKOR_URL ?? DEFAULT_URL;
 }
 
+function createClient(): Redis {
+  const url = getFalkorUrl();
+  return new Redis(url, {
+    lazyConnect: false,
+    enableOfflineQueue: true,
+    retryStrategy: () => null,
+    maxRetriesPerRequest: 0,
+    connectTimeout: 1000,
+  });
+}
+
 /**
- * Singleton ioredis client for FalkorDB. Reads LORA_FALKOR_URL (default redis://localhost:6379).
- * Uses lazyConnect: true so tests can call connect() explicitly to control timing.
- * Retries disabled and short connectTimeout to avoid hangs when DB is unreachable.
+ * Returns a usable, connected FalkorDB client. Recreates the client if it is closed or reconnecting.
  */
 export function getFalkorClient(): Redis {
-  if (!cachedClient) {
-    const url = getFalkorUrl();
-    cachedClient = new Redis(url, {
-      lazyConnect: true,
-      retryStrategy: () => null,
-      maxRetriesPerRequest: 0,
-      enableOfflineQueue: false,
-      connectTimeout: 1000,
-    });
+  if (client === null) {
+    client = createClient();
+    return client;
   }
-  return cachedClient;
+  const status = client.status;
+  if (status === 'end' || status === 'close' || status === 'reconnecting') {
+    try {
+      client.disconnect();
+    } catch {
+      // ignore
+    }
+    client = createClient();
+  }
+  return client;
 }
 
 /**
  * For tests only: reset the singleton so the next getFalkorClient() uses current env.
- * Disconnects the client and clears the singleton.
  */
 export function resetFalkorClient(): void {
-  if (cachedClient) {
-    cachedClient.disconnect();
-    cachedClient = undefined;
+  if (client) {
+    client.disconnect();
+    client = null;
   }
 }
 
