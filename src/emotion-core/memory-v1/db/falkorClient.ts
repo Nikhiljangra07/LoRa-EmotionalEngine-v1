@@ -16,6 +16,7 @@ export function getFalkorClient(): Redis {
   if (!cachedClient) {
     const url = getFalkorUrl();
     cachedClient = new Redis(url, {
+      lazyConnect: false,
       retryStrategy: () => null,
       maxRetriesPerRequest: 0,
       enableOfflineQueue: false,
