@@ -105,6 +105,13 @@ export class EngineOrchestrator {
     eiv: ReturnType<typeof EIVScorer.calculate>;
     prompt: string;
     llmOutput: string;
+    debug: {
+      etv: number;
+      band: string;
+      anchorsUsed: number;
+      schemasUsed: number;
+      degraded: { falkor: boolean; chroma: boolean };
+    };
   };
 
   private readonly minimumMessagesForAdaptiveControl = 3;
@@ -743,6 +750,7 @@ export class EngineOrchestrator {
     // ── Memory Service: dual DB retrieval (gated by memoryServiceEnabled) ──
     let memServiceAnchors: AnchorRecord[] = [];
     let memServiceDegraded = { falkor: false, chroma: false };
+    let memServiceSemanticCount = 0;
 
     if (featureFlags.memoryServiceEnabled && this.memoryService) {
       try {
@@ -768,6 +776,7 @@ export class EngineOrchestrator {
 
         const msResult = await this.memoryService.retrieveContext(this.userId, userMessage, retrieveOpts);
         memServiceDegraded = msResult.degraded;
+        memServiceSemanticCount = msResult.semantic.length;
 
         if (featureFlags.factAnchorEnabled) {
           memServiceAnchors = msResult.anchors.slice(0, MAX_ANCHORS_IN_PROMPT);
@@ -1076,6 +1085,13 @@ export class EngineOrchestrator {
       eiv: eivResult,
       prompt,
       llmOutput,
+      debug: {
+        etv: this.etvState.value,
+        band: this.lastEtvPolicy?.band ?? 'B0',
+        anchorsUsed: memServiceAnchors.length,
+        schemasUsed: memServiceSemanticCount,
+        degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+      },
     };
 
     this.lastDecision = result;
