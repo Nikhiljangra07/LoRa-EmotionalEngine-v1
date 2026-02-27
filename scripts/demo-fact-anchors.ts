@@ -1,7 +1,7 @@
 import { FalkorAnchorAdapter } from '../src/emotion-core/memory-v1/db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../src/emotion-core/memory-v1/db/ChromaSchemaAdapter';
 import { FalkorFactAnchorStore } from '../src/emotion-core/memory-v1/db/FalkorFactAnchorStore';
-import { getFalkorClient } from '../src/emotion-core/memory-v1/db/falkorClient';
+import { getFalkorClient, resetFalkorClient } from '../src/emotion-core/memory-v1/db/falkorClient';
 import { MemoryService } from '../src/emotion-core/memory-v1/service/MemoryService';
 import { PromptTemplateBuilder } from '../src/emotion-core/prompt/PromptTemplateBuilder';
 import type { MemorySaveInput } from '../src/emotion-core/memory-v1/service/memoryTypes';
@@ -120,6 +120,8 @@ async function main() {
   } else {
     console.log('--- cleanup: skipped (LORA_DEMO_KEEP=1) ---');
   }
+
+  resetFalkorClient();
 }
 
 main().catch((err) => {
