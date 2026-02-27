@@ -7,11 +7,11 @@ FalkorDB and ChromaDB must be running locally.
 ```bash
 # Start both databases
 npm run falkor:start   # FalkorDB on redis://localhost:6379
-npm run chroma:start   # ChromaDB on http://localhost:8000
+npm run chroma:start   # ChromaDB on http://localhost:8000 (image: chromadb/chroma:1.5.1)
 
 # Verify they're up
+npm run chroma:health  # or: curl -sf http://localhost:8000/api/v2/heartbeat
 npm run falkor:logs
-npm run chroma:logs
 ```
 
 ## Environment Variables

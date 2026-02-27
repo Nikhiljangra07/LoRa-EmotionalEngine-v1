@@ -46,6 +46,7 @@
     "chroma:smoke": "ts-node src/emotion-core/memory-v1/db/__smoke__/chromaSmokeTest.ts",
     "chroma:start": "docker compose -f docker-compose.chroma.yml up -d",
     "chroma:stop": "docker compose -f docker-compose.chroma.yml down",
+    "chroma:health": "curl -sf http://localhost:8000/api/v2/heartbeat && echo ' chroma OK' || echo 'chroma UNREACHABLE'",
     "chroma:logs": "docker compose -f docker-compose.chroma.yml logs -f",
     "falkor:start": "docker compose -f docker-compose.falkor.yml up -d",
     "falkor:stop": "docker compose -f docker-compose.falkor.yml down",
