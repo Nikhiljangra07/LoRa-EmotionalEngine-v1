@@ -7,6 +7,7 @@ async function assertFalkorReachable(): Promise<void> {
   const url = getFalkorUrl();
   try {
     const client = getFalkorClient();
+    await client.connect();
     const pong = await client.ping();
     if (pong !== 'PONG') throw new Error('No PONG');
   } catch {
