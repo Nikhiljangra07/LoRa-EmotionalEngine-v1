@@ -22,16 +22,6 @@ interface StoreMeta {
 
 const pureStore = createInMemoryFactAnchorStore();
 
-function emptyState(): FactAnchorStoreState {
-  return {
-    confirmed: [],
-    quarantined: [],
-    sessionSeen: {},
-    sessionAnchorCount: {},
-    quarantineMeta: {},
-  };
-}
-
 function parseGraphResult(raw: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(raw) || raw.length < 2) return [];
   const header = raw[0];
@@ -72,7 +62,9 @@ function isValidAnchor(obj: unknown): obj is FactAnchor {
  * All pure lifecycle logic is delegated to createInMemoryFactAnchorStore — this
  * adapter only handles load/save against the graph.
  *
- * Degraded mode: every public method catches errors and returns null/false/[].
+ * Degraded mode: every public method catches errors and returns null/false.
+ * When loadState returns null (DB unreachable), methods propagate null immediately
+ * rather than falling back to an empty state.
  */
 export class FalkorFactAnchorStore {
   async loadState(userId: string): Promise<FactAnchorStoreState | null> {
@@ -194,7 +186,8 @@ export class FalkorFactAnchorStore {
     input: UpsertInput,
   ): Promise<{ nextState: FactAnchorStoreState; results: UpsertResult } | null> {
     try {
-      const state = (await this.loadState(userId)) ?? emptyState();
+      const state = await this.loadState(userId);
+      if (state === null) return null;
       const result = pureStore.upsertFromExtraction(state, input);
       const saved = await this.saveState(userId, result.nextState);
       if (!saved) return null;
@@ -207,12 +200,13 @@ export class FalkorFactAnchorStore {
   async getCandidates(
     userId: string,
     input: GetCandidatesInput,
-  ): Promise<FactAnchor[]> {
+  ): Promise<FactAnchor[] | null> {
     try {
-      const state = (await this.loadState(userId)) ?? emptyState();
+      const state = await this.loadState(userId);
+      if (state === null) return null;
       return pureStore.getCandidates(state, input);
     } catch {
-      return [];
+      return null;
     }
   }
 
@@ -221,7 +215,8 @@ export class FalkorFactAnchorStore {
     input: MaintainInput,
   ): Promise<{ report: MaintainReport } | null> {
     try {
-      const state = (await this.loadState(userId)) ?? emptyState();
+      const state = await this.loadState(userId);
+      if (state === null) return null;
       const result = pureStore.maintain(state, input);
       const saved = await this.saveState(userId, result.nextState);
       if (!saved) return null;
@@ -248,7 +243,8 @@ export class FalkorFactAnchorStore {
     userId: string,
   ): Promise<{ confirmed: FactAnchor[]; quarantined: FactAnchor[] } | null> {
     try {
-      const state = (await this.loadState(userId)) ?? emptyState();
+      const state = await this.loadState(userId);
+      if (state === null) return null;
       return pureStore.exportAll(state);
     } catch {
       return null;

@@ -30,6 +30,7 @@ export function getFalkorClient(): Redis {
   const status = client.status;
   if (status === 'end' || status === 'close' || status === 'reconnecting') {
     try {
+      client.removeAllListeners();
       client.disconnect();
     } catch {
       // ignore
@@ -44,6 +45,7 @@ export function getFalkorClient(): Redis {
  */
 export function resetFalkorClient(): void {
   if (client) {
+    client.removeAllListeners();
     client.disconnect();
     client = null;
   }

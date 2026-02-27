@@ -112,11 +112,11 @@ export class MemoryService {
     const emotionVec = opts?.emotionVec ?? [0, 0, 0, 0];
 
     const [rawCandidates, rawSchemas] = await Promise.all([
-      this.factStore.getCandidates(userId, { nowMs }).catch(() => [] as FactAnchor[]),
+      this.factStore.getCandidates(userId, { nowMs }).catch(() => null),
       this.vectorAdapter.loadSchemas(userId).catch(() => null),
     ]);
 
-    const falkorDown = rawCandidates.length === 0 && await this.isFalkorDown(userId);
+    const falkorDown = rawCandidates === null;
     const chromaDown = rawSchemas === null;
 
     let relevantAnchors: AnchorRecord[] = [];
@@ -168,14 +168,6 @@ export class MemoryService {
     };
   }
 
-  private async isFalkorDown(userId: string): Promise<boolean> {
-    try {
-      const state = await this.factStore.loadState(userId);
-      return state === null;
-    } catch {
-      return true;
-    }
-  }
 }
 
 function factAnchorToRecord(
