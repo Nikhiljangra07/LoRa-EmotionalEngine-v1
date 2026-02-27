@@ -2,7 +2,7 @@ import Redis from 'ioredis';
 
 const DEFAULT_URL = 'redis://localhost:6379';
 
-let cachedClient: Redis | null = null;
+let cachedClient: Redis | undefined = undefined;
 
 export function getFalkorUrl(): string {
   return process.env.LORA_FALKOR_URL ?? DEFAULT_URL;
@@ -10,13 +10,14 @@ export function getFalkorUrl(): string {
 
 /**
  * Singleton ioredis client for FalkorDB. Reads LORA_FALKOR_URL (default redis://localhost:6379).
+ * Uses lazyConnect: true so tests can call connect() explicitly to control timing.
  * Retries disabled and short connectTimeout to avoid hangs when DB is unreachable.
  */
 export function getFalkorClient(): Redis {
   if (!cachedClient) {
     const url = getFalkorUrl();
     cachedClient = new Redis(url, {
-      lazyConnect: false,
+      lazyConnect: true,
       retryStrategy: () => null,
       maxRetriesPerRequest: 0,
       enableOfflineQueue: false,
@@ -33,7 +34,7 @@ export function getFalkorClient(): Redis {
 export function resetFalkorClient(): void {
   if (cachedClient) {
     cachedClient.disconnect();
-    cachedClient = null;
+    cachedClient = undefined;
   }
 }
 
