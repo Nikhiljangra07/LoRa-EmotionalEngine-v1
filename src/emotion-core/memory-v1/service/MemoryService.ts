@@ -1,6 +1,25 @@
 import { FalkorAnchorAdapter, type AnchorRow } from '../db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../db/ChromaSchemaAdapter';
 import type { SchemaRecord } from '../schemaStore';
+import {
+  type MemorySaveInput,
+  type AnchorRecord,
+  type SemanticRecord,
+  type MemoryContextResult,
+  type EmotionSignal,
+  type EmotionalMetrics,
+  validateEmotionSignal,
+  validateMetrics,
+  contentSummary,
+} from './memoryTypes';
+
+export type {
+  MemorySaveInput,
+  AnchorRecord,
+  SemanticRecord,
+  MemoryContextResult,
+} from './memoryTypes';
+export type { EmotionSignal, EmotionalMetrics, EmotionBand } from './memoryTypes';
 
 /**
  * Must match the embedding dimension of the lora_schemas collection.
@@ -9,36 +28,6 @@ import type { SchemaRecord } from '../schemaStore';
  */
 const STUB_VECTOR_DIM = 5;
 
-export interface MemorySaveInput {
-  userId: string;
-  messageId: string;
-  content: string;
-  timestamp: number;
-  etv?: number;
-  eiv?: number;
-}
-
-export interface AnchorRecord {
-  anchorId: string;
-  content: string;
-  timestamp: number;
-  etv?: number;
-  eiv?: number;
-}
-
-export interface SemanticRecord {
-  schemaId: string;
-  salienceWeight: number;
-  episodeCount: number;
-  createdAt: number;
-  lastUpdatedAt: number;
-}
-
-export interface MemoryContextResult {
-  anchors: AnchorRecord[];
-  semantic: SemanticRecord[];
-}
-
 export class MemoryService {
   constructor(
     private anchorAdapter: FalkorAnchorAdapter,
@@ -46,50 +35,71 @@ export class MemoryService {
   ) {}
 
   async saveMessage(input: MemorySaveInput): Promise<boolean> {
-    const { userId, messageId, content, timestamp, etv, eiv } = input;
+    try {
+      const { userId, messageId, content, timestamp } = input;
+      const emotion = validateEmotionSignal(input.emotion);
+      const metrics = validateMetrics(input.metrics);
 
-    const schema: SchemaRecord = {
-      schemaId: messageId,
-      centroid: deterministicVector(hashString(content), STUB_VECTOR_DIM),
-      salienceWeight: etv ?? 0,
-      episodeCount: 1,
-      retrievalBias: 0,
-      createdAt: timestamp,
-      lastUpdatedAt: timestamp,
-    };
+      const falkorPayload = {
+        messageId,
+        timestamp,
+        contentSummary: contentSummary(content),
+        emotion,
+        metrics,
+      };
 
-    const [anchorOk, vectorOk] = await Promise.all([
-      this.anchorAdapter.upsertAnchor(userId, messageId, { content, timestamp, etv, eiv }),
-      this.vectorAdapter.saveSchemas(userId, [schema]),
-    ]);
+      const schema: SchemaRecord = {
+        schemaId: messageId,
+        centroid: deterministicVector(hashString(content), STUB_VECTOR_DIM),
+        salienceWeight: metrics.etv,
+        episodeCount: 1,
+        retrievalBias: metrics.eiv,
+        createdAt: timestamp,
+        lastUpdatedAt: timestamp,
+      };
 
-    return anchorOk && vectorOk;
+      const [anchorOk, vectorOk] = await Promise.all([
+        this.anchorAdapter.upsertAnchor(userId, messageId, falkorPayload),
+        this.vectorAdapter.saveSchemas(userId, [schema]),
+      ]);
+
+      return anchorOk && vectorOk;
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * Retrieve context for a user. The query parameter is accepted for future
-   * similarity ranking but is not used yet (deterministic fetch only).
+   * Retrieve context for a user. Returns degraded flags instead of null
+   * when individual DBs fail, so callers always get a usable result.
+   * The query parameter is accepted for future similarity ranking.
    */
-  async retrieveContext(userId: string, _query: string): Promise<MemoryContextResult | null> {
+  async retrieveContext(userId: string, _query: string): Promise<MemoryContextResult> {
     const [rawAnchors, rawSchemas] = await Promise.all([
-      this.anchorAdapter.getAnchors(userId),
-      this.vectorAdapter.loadSchemas(userId),
+      this.anchorAdapter.getAnchors(userId).catch(() => null),
+      this.vectorAdapter.loadSchemas(userId).catch(() => null),
     ]);
 
-    if (rawAnchors === null || rawSchemas === null) return null;
+    const falkorDown = rawAnchors === null;
+    const chromaDown = rawSchemas === null;
 
     return {
-      anchors: rawAnchors.map(toAnchorRecord),
-      semantic: rawSchemas.map(toSemanticRecord),
+      anchors: falkorDown ? [] : rawAnchors.map(toAnchorRecord),
+      semantic: chromaDown ? [] : rawSchemas.map(toSemanticRecord),
+      degraded: { falkor: falkorDown, chroma: chromaDown },
     };
   }
 
   async purgeUser(userId: string): Promise<boolean> {
-    const [falkorOk, chromaOk] = await Promise.all([
-      this.anchorAdapter.purgeUser(userId),
-      this.vectorAdapter.purgeUser(userId),
-    ]);
-    return falkorOk && chromaOk;
+    try {
+      const [falkorOk, chromaOk] = await Promise.all([
+        this.anchorAdapter.purgeUser(userId),
+        this.vectorAdapter.purgeUser(userId),
+      ]);
+      return falkorOk && chromaOk;
+    } catch {
+      return false;
+    }
   }
 
   async healthCheck(): Promise<{ falkor: boolean; chroma: boolean }> {
@@ -104,14 +114,43 @@ export class MemoryService {
   }
 }
 
+const DEFAULT_EMOTION: EmotionSignal = {
+  valence: 0,
+  arousal: 0,
+  expressionStrength: 0,
+  inferenceReliability: 0,
+};
+
+const DEFAULT_METRICS: EmotionalMetrics = { etv: 0, eiv: 0 };
+
 function toAnchorRecord(row: AnchorRow): AnchorRecord {
   const p = row.payload as Record<string, unknown> | null;
+
+  const rawEmotion = p?.emotion as Record<string, unknown> | undefined;
+  const emotion: EmotionSignal = rawEmotion
+    ? {
+        valence: typeof rawEmotion.valence === 'number' ? rawEmotion.valence : 0,
+        arousal: typeof rawEmotion.arousal === 'number' ? rawEmotion.arousal : 0,
+        expressionStrength: typeof rawEmotion.expressionStrength === 'number' ? rawEmotion.expressionStrength : 0,
+        inferenceReliability: typeof rawEmotion.inferenceReliability === 'number' ? rawEmotion.inferenceReliability : 0,
+      }
+    : { ...DEFAULT_EMOTION };
+
+  const rawMetrics = p?.metrics as Record<string, unknown> | undefined;
+  const metrics: EmotionalMetrics = rawMetrics
+    ? {
+        etv: typeof rawMetrics.etv === 'number' ? rawMetrics.etv : 0,
+        eiv: typeof rawMetrics.eiv === 'number' ? rawMetrics.eiv : 0,
+        ...(typeof rawMetrics.band === 'string' ? { band: rawMetrics.band as EmotionalMetrics['band'] } : {}),
+      }
+    : { ...DEFAULT_METRICS };
+
   return {
     anchorId: row.anchorId,
-    content: typeof p?.content === 'string' ? p.content : '',
+    contentSummary: typeof p?.contentSummary === 'string' ? p.contentSummary : '',
     timestamp: typeof p?.timestamp === 'number' ? p.timestamp : 0,
-    etv: typeof p?.etv === 'number' ? p.etv : undefined,
-    eiv: typeof p?.eiv === 'number' ? p.eiv : undefined,
+    emotion,
+    metrics,
   };
 }
 
