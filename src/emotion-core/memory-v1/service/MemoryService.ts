@@ -1,16 +1,22 @@
-import { FalkorAnchorAdapter, type AnchorRow } from '../db/FalkorAnchorAdapter';
+import { FalkorFactAnchorStore } from '../db/FalkorFactAnchorStore';
+import { FalkorAnchorAdapter } from '../db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../db/ChromaSchemaAdapter';
+import { extractFactAnchor } from '../factExtractor';
+import { scoreAnchors, type AnchorScore } from '../anchorRelevanceArbiter';
+import type { FactAnchor } from '../factAnchorTypes';
 import type { SchemaRecord } from '../schemaStore';
+import type { MaintainReport } from '../factAnchorStoreTypes';
 import {
   type MemorySaveInput,
   type AnchorRecord,
   type SemanticRecord,
   type MemoryContextResult,
+  type RetrieveContextOpts,
   type EmotionSignal,
   type EmotionalMetrics,
   validateEmotionSignal,
   validateMetrics,
-  contentSummary,
+  anchorSummaryLabel,
 } from './memoryTypes';
 
 export type {
@@ -18,35 +24,60 @@ export type {
   AnchorRecord,
   SemanticRecord,
   MemoryContextResult,
+  RetrieveContextOpts,
 } from './memoryTypes';
 export type { EmotionSignal, EmotionalMetrics, EmotionBand } from './memoryTypes';
 
-/**
- * Must match the embedding dimension of the lora_schemas collection.
- * The collection dimension is set by the first upsert; the existing
- * ChromaSchemaAdapter tests establish it at 5.
- */
 const STUB_VECTOR_DIM = 5;
 
 export class MemoryService {
-  constructor(
-    private anchorAdapter: FalkorAnchorAdapter,
-    private vectorAdapter: ChromaSchemaAdapter,
-  ) {}
+  private factStore: FalkorFactAnchorStore;
 
+  constructor(
+    _anchorAdapter: FalkorAnchorAdapter,
+    private vectorAdapter: ChromaSchemaAdapter,
+  ) {
+    this.factStore = new FalkorFactAnchorStore();
+  }
+
+  /**
+   * Process an incoming message: extract a fact anchor candidate (if any) and
+   * upsert it into Falkor, then persist the schema embedding to Chroma.
+   * Returns false if BOTH writes fail; partial writes still return true.
+   */
   async saveMessage(input: MemorySaveInput): Promise<boolean> {
     try {
       const { userId, messageId, content, timestamp } = input;
       const emotion = validateEmotionSignal(input.emotion);
       const metrics = validateMetrics(input.metrics);
 
-      const falkorPayload = {
-        messageId,
+      const sessionId = input.sessionId ?? messageId;
+      const emotionVec = input.emotionVec ?? [
+        emotion.valence,
+        emotion.arousal,
+        emotion.expressionStrength,
+        emotion.inferenceReliability,
+      ];
+
+      let anchorOk = true;
+      const candidate = extractFactAnchor(
+        userId,
+        content,
+        sessionId,
+        emotionVec,
         timestamp,
-        contentSummary: contentSummary(content),
-        emotion,
-        metrics,
-      };
+        0,
+      );
+
+      if (candidate) {
+        const upsertResult = await this.factStore.upsertFromExtraction(userId, {
+          userId,
+          sessionId,
+          nowMs: timestamp,
+          extracted: [candidate],
+        });
+        anchorOk = upsertResult !== null;
+      }
 
       const schema: SchemaRecord = {
         schemaId: messageId,
@@ -58,42 +89,66 @@ export class MemoryService {
         lastUpdatedAt: timestamp,
       };
 
-      const [anchorOk, vectorOk] = await Promise.all([
-        this.anchorAdapter.upsertAnchor(userId, messageId, falkorPayload),
-        this.vectorAdapter.saveSchemas(userId, [schema]),
-      ]);
+      const vectorOk = await this.vectorAdapter.saveSchemas(userId, [schema]);
 
-      return anchorOk && vectorOk;
+      return anchorOk || vectorOk;
     } catch {
       return false;
     }
   }
 
   /**
-   * Retrieve context for a user. Returns degraded flags instead of null
-   * when individual DBs fail, so callers always get a usable result.
-   * The query parameter is accepted for future similarity ranking.
+   * Retrieve context for prompt building. Loads confirmed anchors from Falkor,
+   * scores them through the relevance arbiter, and loads semantic schemas from
+   * Chroma. Returns degraded flags for each DB independently.
    */
-  async retrieveContext(userId: string, _query: string): Promise<MemoryContextResult> {
-    const [rawAnchors, rawSchemas] = await Promise.all([
-      this.anchorAdapter.getAnchors(userId).catch(() => null),
+  async retrieveContext(
+    userId: string,
+    _query: string,
+    opts?: RetrieveContextOpts,
+  ): Promise<MemoryContextResult> {
+    const nowMs = opts?.nowMs ?? Date.now();
+    const band = opts?.band ?? 'B0';
+    const emotionVec = opts?.emotionVec ?? [0, 0, 0, 0];
+
+    const [rawCandidates, rawSchemas] = await Promise.all([
+      this.factStore.getCandidates(userId, { nowMs }).catch(() => [] as FactAnchor[]),
       this.vectorAdapter.loadSchemas(userId).catch(() => null),
     ]);
 
-    const falkorDown = rawAnchors === null;
+    const falkorDown = rawCandidates.length === 0 && await this.isFalkorDown(userId);
     const chromaDown = rawSchemas === null;
 
+    let relevantAnchors: AnchorRecord[] = [];
+    if (!falkorDown && rawCandidates.length > 0) {
+      const scored: AnchorScore[] = scoreAnchors(rawCandidates, emotionVec, nowMs, band);
+      relevantAnchors = scored.map((s) => factAnchorToRecord(s.anchor, band));
+    }
+
     return {
-      anchors: falkorDown ? [] : rawAnchors.map(toAnchorRecord),
-      semantic: chromaDown ? [] : rawSchemas.map(toSemanticRecord),
+      anchors: relevantAnchors,
+      semantic: chromaDown ? [] : (rawSchemas ?? []).map(toSemanticRecord),
       degraded: { falkor: falkorDown, chroma: chromaDown },
     };
+  }
+
+  async maintainAnchors(
+    userId: string,
+    sessionId: string,
+    nowMs: number,
+  ): Promise<MaintainReport | null> {
+    try {
+      const result = await this.factStore.maintain(userId, { sessionId, nowMs });
+      return result?.report ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async purgeUser(userId: string): Promise<boolean> {
     try {
       const [falkorOk, chromaOk] = await Promise.all([
-        this.anchorAdapter.purgeUser(userId),
+        this.factStore.purgeAll(userId),
         this.vectorAdapter.purgeUser(userId),
       ]);
       return falkorOk && chromaOk;
@@ -104,7 +159,7 @@ export class MemoryService {
 
   async healthCheck(): Promise<{ falkor: boolean; chroma: boolean }> {
     const [falkorResult, chromaResult] = await Promise.all([
-      this.anchorAdapter.getAnchors('__healthcheck__').catch(() => null),
+      this.factStore.exportAll('__healthcheck__').catch(() => null),
       this.vectorAdapter.loadSchemas('__healthcheck__').catch(() => null),
     ]);
     return {
@@ -112,45 +167,37 @@ export class MemoryService {
       chroma: chromaResult !== null,
     };
   }
+
+  private async isFalkorDown(userId: string): Promise<boolean> {
+    try {
+      const state = await this.factStore.loadState(userId);
+      return state === null;
+    } catch {
+      return true;
+    }
+  }
 }
 
-const DEFAULT_EMOTION: EmotionSignal = {
-  valence: 0,
-  arousal: 0,
-  expressionStrength: 0,
-  inferenceReliability: 0,
-};
-
-const DEFAULT_METRICS: EmotionalMetrics = { etv: 0, eiv: 0 };
-
-function toAnchorRecord(row: AnchorRow): AnchorRecord {
-  const p = row.payload as Record<string, unknown> | null;
-
-  const rawEmotion = p?.emotion as Record<string, unknown> | undefined;
-  const emotion: EmotionSignal = rawEmotion
-    ? {
-        valence: typeof rawEmotion.valence === 'number' ? rawEmotion.valence : 0,
-        arousal: typeof rawEmotion.arousal === 'number' ? rawEmotion.arousal : 0,
-        expressionStrength: typeof rawEmotion.expressionStrength === 'number' ? rawEmotion.expressionStrength : 0,
-        inferenceReliability: typeof rawEmotion.inferenceReliability === 'number' ? rawEmotion.inferenceReliability : 0,
-      }
-    : { ...DEFAULT_EMOTION };
-
-  const rawMetrics = p?.metrics as Record<string, unknown> | undefined;
-  const metrics: EmotionalMetrics = rawMetrics
-    ? {
-        etv: typeof rawMetrics.etv === 'number' ? rawMetrics.etv : 0,
-        eiv: typeof rawMetrics.eiv === 'number' ? rawMetrics.eiv : 0,
-        ...(typeof rawMetrics.band === 'string' ? { band: rawMetrics.band as EmotionalMetrics['band'] } : {}),
-      }
-    : { ...DEFAULT_METRICS };
-
+function factAnchorToRecord(
+  fa: FactAnchor,
+  band: string,
+): AnchorRecord {
+  const vec = fa.emotionVecAtCreation;
   return {
-    anchorId: row.anchorId,
-    contentSummary: typeof p?.contentSummary === 'string' ? p.contentSummary : '',
-    timestamp: typeof p?.timestamp === 'number' ? p.timestamp : 0,
-    emotion,
-    metrics,
+    anchorId: fa.anchorId,
+    contentSummary: anchorSummaryLabel(fa.summary.template, fa.summary.slot),
+    timestamp: fa.createdAt,
+    emotion: {
+      valence: vec[0] ?? 0,
+      arousal: vec[1] ?? 0,
+      expressionStrength: vec[2] ?? 0,
+      inferenceReliability: vec[3] ?? 0,
+    },
+    metrics: {
+      etv: fa.salience * 100,
+      eiv: fa.extractionConfidence * 100,
+      band: band as EmotionalMetrics['band'],
+    },
   };
 }
 

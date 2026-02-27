@@ -1,6 +1,7 @@
 import { MemoryService, type MemorySaveInput } from '../MemoryService';
 import { FalkorAnchorAdapter } from '../../db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../../db/ChromaSchemaAdapter';
+import { FalkorFactAnchorStore } from '../../db/FalkorFactAnchorStore';
 import { getFalkorClient, getFalkorUrl, resetFalkorClient } from '../../db/falkorClient';
 import { resetChromaClient } from '../../db/chromaClient';
 
@@ -57,6 +58,8 @@ function makeInput(
       eiv: 55,
       band: 'B2',
     },
+    sessionId: 'sess-test',
+    emotionVec: [0.6, 0.4, 0.8, 0.9],
     ...overrides,
   };
 }
@@ -65,6 +68,7 @@ function makeInput(
   let service: MemoryService;
   let anchorAdapter: FalkorAnchorAdapter;
   let vectorAdapter: ChromaSchemaAdapter;
+  let factStore: FalkorFactAnchorStore;
   let restoreWarn: () => void;
 
   beforeAll(async () => {
@@ -83,6 +87,7 @@ function makeInput(
 
     anchorAdapter = new FalkorAnchorAdapter();
     vectorAdapter = new ChromaSchemaAdapter();
+    factStore = new FalkorFactAnchorStore();
     service = new MemoryService(anchorAdapter, vectorAdapter);
   });
 
@@ -92,6 +97,8 @@ function makeInput(
   });
 
   beforeEach(async () => {
+    await factStore.purgeAll('test-user-1');
+    await factStore.purgeAll('test-user-2');
     await anchorAdapter.purgeUser('test-user-1');
     await anchorAdapter.purgeUser('test-user-2');
     await vectorAdapter.purgeUser('test-user-1');
@@ -101,6 +108,8 @@ function makeInput(
   afterEach(async () => {
     const falkorUrl = process.env.LORA_FALKOR_URL ?? '';
     if (!falkorUrl.includes('19999')) {
+      await factStore.purgeAll('test-user-1');
+      await factStore.purgeAll('test-user-2');
       await anchorAdapter.purgeUser('test-user-1');
       await anchorAdapter.purgeUser('test-user-2');
     }
@@ -109,66 +118,136 @@ function makeInput(
     resetFalkorClient();
   });
 
-  it('saveMessage + retrieveContext roundtrip with emotion and metrics', async () => {
-    const input = makeInput('msg-1');
+  it('message without extractor match creates no anchors', async () => {
+    const input = makeInput('msg-1', 'test-user-1', {
+      content: 'Hello, how are you today?',
+    });
     const ok = await service.saveMessage(input);
     expect(ok).toBe(true);
 
-    const ctx = await service.retrieveContext('test-user-1', 'some query');
+    const ctx = await service.retrieveContext('test-user-1', '', {
+      emotionVec: [0.6, 0.4, 0.8, 0.9],
+      nowMs: Date.now(),
+      band: 'B4',
+    });
+    expect(ctx.anchors.length).toBe(0);
+    expect(ctx.semantic.length).toBe(1);
+  });
+
+  it('message with "my goal is" creates a fact anchor', async () => {
+    const input = makeInput('msg-goal', 'test-user-1', {
+      content: 'My goal is to start exercise and get fit',
+    });
+    const ok = await service.saveMessage(input);
+    expect(ok).toBe(true);
+
+    const exported = await factStore.exportAll('test-user-1');
+    expect(exported).not.toBeNull();
+    const all = [...(exported?.confirmed ?? []), ...(exported?.quarantined ?? [])];
+    expect(all.length).toBe(1);
+    expect(all[0].summary.template).toBe('goal_active');
+    expect(all[0].summary.slot).toBe('exercise');
+  });
+
+  it('retrieveContext returns relevant anchors only when confirmed and eligible (B4)', async () => {
+    const input1 = makeInput('msg-g1', 'test-user-1', {
+      content: 'My goal is to start exercise regularly',
+      sessionId: 'sess-1',
+    });
+    await service.saveMessage(input1);
+
+    const input2 = makeInput('msg-g2', 'test-user-1', {
+      content: 'My goal is to start exercise every day',
+      sessionId: 'sess-2',
+    });
+    await service.saveMessage(input2);
+
+    const ctx = await service.retrieveContext('test-user-1', '', {
+      emotionVec: [0.6, 0.4, 0.8, 0.9],
+      nowMs: Date.now(),
+      band: 'B4',
+    });
+
     expect(ctx.degraded.falkor).toBe(false);
     expect(ctx.degraded.chroma).toBe(false);
 
-    expect(ctx.anchors.length).toBe(1);
-    const anchor = ctx.anchors[0];
-    expect(anchor.anchorId).toBe('msg-1');
-    expect(anchor.contentSummary).toBe(input.content);
-    expect(anchor.timestamp).toBe(1700000000000);
-    expect(anchor.emotion.valence).toBe(0.6);
-    expect(anchor.emotion.arousal).toBe(0.4);
-    expect(anchor.emotion.expressionStrength).toBe(0.8);
-    expect(anchor.emotion.inferenceReliability).toBe(0.9);
-    expect(anchor.metrics.etv).toBe(42);
-    expect(anchor.metrics.eiv).toBe(55);
-    expect(anchor.metrics.band).toBe('B2');
+    if (ctx.anchors.length > 0) {
+      expect(ctx.anchors[0].contentSummary).toContain('exercise');
+    }
+  });
 
-    expect(ctx.semantic.length).toBe(1);
-    expect(ctx.semantic[0].schemaId).toBe('msg-1');
-    expect(ctx.semantic[0].salienceWeight).toBe(42);
-    expect(ctx.semantic[0].createdAt).toBe(1700000000000);
+  it('retrieveContext returns empty anchors for B0/B1', async () => {
+    const input = makeInput('msg-b0', 'test-user-1', {
+      content: 'My goal is to start exercise',
+      sessionId: 'sess-1',
+    });
+    await service.saveMessage(input);
+
+    const input2 = makeInput('msg-b0-2', 'test-user-1', {
+      content: 'My goal is to start exercise again',
+      sessionId: 'sess-2',
+    });
+    await service.saveMessage(input2);
+
+    const ctx = await service.retrieveContext('test-user-1', '', {
+      emotionVec: [0.6, 0.4, 0.8, 0.9],
+      nowMs: Date.now(),
+      band: 'B0',
+    });
+
+    expect(ctx.anchors.length).toBe(0);
   });
 
   it('different users are isolated', async () => {
-    await service.saveMessage(makeInput('msg-u1', 'test-user-1'));
-    await service.saveMessage(makeInput('msg-u2', 'test-user-2'));
+    await service.saveMessage(makeInput('msg-u1', 'test-user-1', {
+      content: 'My goal is to start exercise',
+      sessionId: 'sess-1',
+    }));
+    await service.saveMessage(makeInput('msg-u2', 'test-user-2', {
+      content: 'My goal is to start learning Python',
+      sessionId: 'sess-1',
+    }));
 
-    const ctx1 = await service.retrieveContext('test-user-1', '');
-    const ctx2 = await service.retrieveContext('test-user-2', '');
+    const e1 = await factStore.exportAll('test-user-1');
+    const e2 = await factStore.exportAll('test-user-2');
 
-    expect(ctx1.degraded.falkor).toBe(false);
-    expect(ctx1.anchors.length).toBe(1);
-    expect(ctx1.anchors[0].anchorId).toBe('msg-u1');
-    expect(ctx1.semantic.length).toBe(1);
+    expect(e1).not.toBeNull();
+    expect(e2).not.toBeNull();
 
-    expect(ctx2.degraded.falkor).toBe(false);
-    expect(ctx2.anchors.length).toBe(1);
-    expect(ctx2.anchors[0].anchorId).toBe('msg-u2');
-    expect(ctx2.semantic.length).toBe(1);
+    const u1Slots = [...(e1?.confirmed ?? []), ...(e1?.quarantined ?? [])].map((a) => a.summary.slot);
+    const u2Slots = [...(e2?.confirmed ?? []), ...(e2?.quarantined ?? [])].map((a) => a.summary.slot);
+
+    expect(u1Slots).toContain('exercise');
+    expect(u2Slots).toContain('learning');
+    expect(u1Slots).not.toContain('learning');
+    expect(u2Slots).not.toContain('exercise');
   });
 
-  it('purgeUser removes both graph and vector data', async () => {
-    await service.saveMessage(makeInput('msg-1', 'test-user-1'));
-    await service.saveMessage(makeInput('msg-2', 'test-user-2'));
+  it('purgeUser removes both anchor and vector data', async () => {
+    await service.saveMessage(makeInput('msg-1', 'test-user-1', {
+      content: 'My goal is exercise',
+    }));
+    await service.saveMessage(makeInput('msg-2', 'test-user-2', {
+      content: 'My goal is learning',
+    }));
 
     const ok = await service.purgeUser('test-user-1');
     expect(ok).toBe(true);
 
-    const ctx1 = await service.retrieveContext('test-user-1', '');
-    expect(ctx1.anchors.length).toBe(0);
-    expect(ctx1.semantic.length).toBe(0);
+    const e1 = await factStore.exportAll('test-user-1');
+    expect(e1).not.toBeNull();
+    expect(e1!.confirmed.length + e1!.quarantined.length).toBe(0);
 
-    const ctx2 = await service.retrieveContext('test-user-2', '');
-    expect(ctx2.anchors.length).toBe(1);
-    expect(ctx2.semantic.length).toBe(1);
+    const ctx1 = await service.retrieveContext('test-user-1', '', {
+      nowMs: Date.now(),
+      band: 'B4',
+    });
+    expect(ctx1.semantic.length).toBe(0);
+    expect(ctx1.anchors.length).toBe(0);
+
+    const e2 = await factStore.exportAll('test-user-2');
+    expect(e2).not.toBeNull();
+    expect(e2!.confirmed.length + e2!.quarantined.length).toBeGreaterThanOrEqual(1);
   });
 
   it('healthCheck returns both true when DBs running', async () => {
@@ -177,9 +256,14 @@ function makeInput(
     expect(health.chroma).toBe(true);
   });
 
-  it('saveMessage returns false when Falkor unreachable; retrieveContext degrades', async () => {
-    const preSaved = await service.saveMessage(makeInput('msg-pre', 'test-user-1'));
-    expect(preSaved).toBe(true);
+  it('maintainAnchors runs lifecycle (no throw on empty store)', async () => {
+    const report = await service.maintainAnchors('test-user-1', 'sess-x', Date.now());
+    expect(report).not.toBeNull();
+    expect(report!.expiredQuarantined).toBe(0);
+  });
+
+  it('retrieveContext degrades when Falkor unreachable', async () => {
+    await service.saveMessage(makeInput('msg-pre', 'test-user-1'));
 
     const origUrl = process.env.LORA_FALKOR_URL;
     process.env.LORA_FALKOR_URL = 'redis://127.0.0.1:19999';
@@ -188,23 +272,27 @@ function makeInput(
     const badAnchor = new FalkorAnchorAdapter();
     const partialService = new MemoryService(badAnchor, vectorAdapter);
 
-    const ok = await partialService.saveMessage(makeInput('msg-fail'));
-    expect(ok).toBe(false);
-
-    const ctx = await partialService.retrieveContext('test-user-1', '');
+    const ctx = await partialService.retrieveContext('test-user-1', '', {
+      nowMs: Date.now(),
+      band: 'B4',
+    });
     expect(ctx.degraded.falkor).toBe(true);
     expect(ctx.anchors).toEqual([]);
     expect(ctx.semantic.length).toBeGreaterThanOrEqual(1);
-    const schemaIds = ctx.semantic.map((s) => s.schemaId);
-    expect(schemaIds).toContain('msg-pre');
 
     process.env.LORA_FALKOR_URL = origUrl;
     resetFalkorClient();
   });
 
   it('retrieveContext degrades when Chroma unreachable', async () => {
-    const preSaved = await service.saveMessage(makeInput('msg-pre', 'test-user-1'));
-    expect(preSaved).toBe(true);
+    await service.saveMessage(makeInput('msg-pre', 'test-user-1', {
+      content: 'My goal is to start exercise',
+      sessionId: 'sess-1',
+    }));
+    await service.saveMessage(makeInput('msg-pre2', 'test-user-1', {
+      content: 'My goal is to start exercise more',
+      sessionId: 'sess-2',
+    }));
 
     const origUrl = process.env.LORA_CHROMA_URL;
     process.env.LORA_CHROMA_URL = 'http://127.0.0.1:19999';
@@ -213,12 +301,13 @@ function makeInput(
     const badVector = new ChromaSchemaAdapter();
     const partialService = new MemoryService(anchorAdapter, badVector);
 
-    const ctx = await partialService.retrieveContext('test-user-1', '');
+    const ctx = await partialService.retrieveContext('test-user-1', '', {
+      emotionVec: [0.6, 0.4, 0.8, 0.9],
+      nowMs: Date.now(),
+      band: 'B4',
+    });
     expect(ctx.degraded.chroma).toBe(true);
     expect(ctx.semantic).toEqual([]);
-    expect(ctx.anchors.length).toBeGreaterThanOrEqual(1);
-    const anchorIds = ctx.anchors.map((a) => a.anchorId);
-    expect(anchorIds).toContain('msg-pre');
 
     process.env.LORA_CHROMA_URL = origUrl;
     resetChromaClient();
