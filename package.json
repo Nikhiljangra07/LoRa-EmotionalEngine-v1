@@ -49,7 +49,8 @@
     "chroma:logs": "docker compose -f docker-compose.chroma.yml logs -f",
     "falkor:start": "docker compose -f docker-compose.falkor.yml up -d",
     "falkor:stop": "docker compose -f docker-compose.falkor.yml down",
-    "falkor:logs": "docker compose -f docker-compose.falkor.yml logs -f"
+    "falkor:logs": "docker compose -f docker-compose.falkor.yml logs -f",
+    "demo:fact-anchors": "ts-node scripts/demo-fact-anchors.ts"
   },
   "dependencies": {
     "chromadb": "^3.3.1",
