@@ -105,3 +105,51 @@ export function makeMemoryConsolidateLog(params: {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Memory Service (dual DB pipeline) logs
+// ---------------------------------------------------------------------------
+
+export function makeMemoryServiceRetrieveLog(params: {
+  userId: string;
+  sessionId?: string;
+  messageId?: string;
+  tsMs: number;
+  anchorCount: number;
+  semanticCount: number;
+  degraded: { falkor: boolean; chroma: boolean };
+  band?: string;
+}): MemoryLogEvent {
+  return {
+    tag: 'memoryService:retrieve',
+    payload: {
+      userId: params.userId,
+      sessionId: params.sessionId ?? null,
+      messageId: params.messageId ?? null,
+      tsMs: params.tsMs,
+      anchorCount: params.anchorCount,
+      semanticCount: params.semanticCount,
+      degraded: params.degraded,
+      band: params.band ?? null,
+    },
+  };
+}
+
+export function makeMemoryServiceSaveLog(params: {
+  userId: string;
+  sessionId?: string;
+  messageId?: string;
+  tsMs: number;
+  ok: boolean;
+}): MemoryLogEvent {
+  return {
+    tag: 'memoryService:save',
+    payload: {
+      userId: params.userId,
+      sessionId: params.sessionId ?? null,
+      messageId: params.messageId ?? null,
+      tsMs: params.tsMs,
+      ok: params.ok,
+    },
+  };
+}
