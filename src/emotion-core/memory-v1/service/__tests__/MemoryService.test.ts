@@ -199,55 +199,103 @@ function makeInput(
   });
 
   it('different users are isolated', async () => {
-    await service.saveMessage(makeInput('msg-u1', 'test-user-1', {
+    // User 1: two extractions in different sessions → reinforceCount 2
+    await service.saveMessage(makeInput('msg-u1a', 'test-user-1', {
       content: 'My goal is to start exercise',
       sessionId: 'sess-1',
     }));
-    await service.saveMessage(makeInput('msg-u2', 'test-user-2', {
-      content: 'My goal is to start learning Python',
+    await service.saveMessage(makeInput('msg-u1b', 'test-user-1', {
+      content: 'My goal is exercise every day',
+      sessionId: 'sess-2',
+    }));
+    await service.maintainAnchors('test-user-1', 'sess-2', 1700000020000);
+
+    // User 2: same reinforcement flow
+    await service.saveMessage(makeInput('msg-u2a', 'test-user-2', {
+      content: 'My goal is to learn Python',
       sessionId: 'sess-1',
     }));
+    await service.saveMessage(makeInput('msg-u2b', 'test-user-2', {
+      content: 'My goal is to learn more',
+      sessionId: 'sess-2',
+    }));
+    await service.maintainAnchors('test-user-2', 'sess-2', 1700000020000);
 
-    const e1 = await factStore.exportAll('test-user-1');
-    const e2 = await factStore.exportAll('test-user-2');
+    const ctx1 = await service.retrieveContext('test-user-1', '', {
+      emotionVec: [0.6, 0.4, 0.8, 0.9],
+      nowMs: 1700000030000,
+      band: 'B4',
+    });
+    const ctx2 = await service.retrieveContext('test-user-2', '', {
+      emotionVec: [0.6, 0.4, 0.8, 0.9],
+      nowMs: 1700000030000,
+      band: 'B4',
+    });
 
-    expect(e1).not.toBeNull();
-    expect(e2).not.toBeNull();
+    expect(ctx1.anchors.length).toBeGreaterThanOrEqual(1);
+    expect(ctx2.anchors.length).toBeGreaterThanOrEqual(1);
 
-    const u1Slots = [...(e1?.confirmed ?? []), ...(e1?.quarantined ?? [])].map((a) => a.summary.slot);
-    const u2Slots = [...(e2?.confirmed ?? []), ...(e2?.quarantined ?? [])].map((a) => a.summary.slot);
+    const u1Summaries = ctx1.anchors.map((a) => a.contentSummary);
+    const u2Summaries = ctx2.anchors.map((a) => a.contentSummary);
 
-    expect(u1Slots).toContain('exercise');
-    expect(u2Slots).toContain('learning');
-    expect(u1Slots).not.toContain('learning');
-    expect(u2Slots).not.toContain('exercise');
+    expect(u1Summaries.some((s) => s.includes('exercise'))).toBe(true);
+    expect(u2Summaries.some((s) => s.includes('learning'))).toBe(true);
+    expect(u1Summaries.some((s) => s.includes('learning'))).toBe(false);
+    expect(u2Summaries.some((s) => s.includes('exercise'))).toBe(false);
   });
 
   it('purgeUser removes both anchor and vector data', async () => {
-    await service.saveMessage(makeInput('msg-1', 'test-user-1', {
-      content: 'My goal is exercise',
+    // User 1: reinforce to get reinforceCount >= 2
+    await service.saveMessage(makeInput('msg-p1a', 'test-user-1', {
+      content: 'My goal is to start exercise',
+      sessionId: 'sess-1',
     }));
-    await service.saveMessage(makeInput('msg-2', 'test-user-2', {
-      content: 'My goal is learning',
+    await service.saveMessage(makeInput('msg-p1b', 'test-user-1', {
+      content: 'My goal is exercise every day',
+      sessionId: 'sess-2',
     }));
+    await service.maintainAnchors('test-user-1', 'sess-2', 1700000020000);
 
+    // User 2: same reinforcement flow
+    await service.saveMessage(makeInput('msg-p2a', 'test-user-2', {
+      content: 'My goal is to learn Python',
+      sessionId: 'sess-1',
+    }));
+    await service.saveMessage(makeInput('msg-p2b', 'test-user-2', {
+      content: 'My goal is to learn more',
+      sessionId: 'sess-2',
+    }));
+    await service.maintainAnchors('test-user-2', 'sess-2', 1700000020000);
+
+    // Verify both have promoted (confirmed, reinforceCount >= 2) anchors
+    const e1Pre = await factStore.exportAll('test-user-1');
+    expect(e1Pre).not.toBeNull();
+    expect(e1Pre!.confirmed.length).toBeGreaterThanOrEqual(1);
+
+    const e2Pre = await factStore.exportAll('test-user-2');
+    expect(e2Pre).not.toBeNull();
+    expect(e2Pre!.confirmed.length).toBeGreaterThanOrEqual(1);
+
+    // Purge user 1
     const ok = await service.purgeUser('test-user-1');
     expect(ok).toBe(true);
 
-    const e1 = await factStore.exportAll('test-user-1');
-    expect(e1).not.toBeNull();
-    expect(e1!.confirmed.length + e1!.quarantined.length).toBe(0);
+    // User 1 data gone
+    const e1Post = await factStore.exportAll('test-user-1');
+    expect(e1Post).not.toBeNull();
+    expect(e1Post!.confirmed.length + e1Post!.quarantined.length).toBe(0);
 
     const ctx1 = await service.retrieveContext('test-user-1', '', {
-      nowMs: Date.now(),
+      nowMs: 1700000030000,
       band: 'B4',
     });
     expect(ctx1.semantic.length).toBe(0);
     expect(ctx1.anchors.length).toBe(0);
 
-    const e2 = await factStore.exportAll('test-user-2');
-    expect(e2).not.toBeNull();
-    expect(e2!.confirmed.length + e2!.quarantined.length).toBeGreaterThanOrEqual(1);
+    // User 2 data intact
+    const e2Post = await factStore.exportAll('test-user-2');
+    expect(e2Post).not.toBeNull();
+    expect(e2Post!.confirmed.length).toBeGreaterThanOrEqual(1);
   });
 
   it('healthCheck returns both true when DBs running', async () => {
