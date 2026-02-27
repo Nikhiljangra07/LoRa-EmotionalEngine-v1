@@ -26,9 +26,12 @@ async function assertFalkorReachable(): Promise<void> {
   });
 
   afterEach(async () => {
-    if (!adapter) return;
-    await adapter.purgeUser('test-user-1');
-    await adapter.purgeUser('test-user-2');
+    const url = process.env.LORA_FALKOR_URL ?? '';
+    if (!url.includes('19999') && adapter) {
+      await adapter.purgeUser('test-user-1');
+      await adapter.purgeUser('test-user-2');
+    }
+    resetFalkorClient();
   });
 
   it('upsert then getAnchors returns stored payload', async () => {
