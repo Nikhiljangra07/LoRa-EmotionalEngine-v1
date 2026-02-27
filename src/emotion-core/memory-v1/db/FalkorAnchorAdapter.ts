@@ -1,4 +1,4 @@
-import { graphQuery, getFalkorClient } from './falkorClient';
+import { graphQuery } from './falkorClient';
 
 const GRAPH_NAME = 'lora_anchors';
 

@@ -10,17 +10,24 @@ export function getFalkorUrl(): string {
 
 /**
  * Singleton ioredis client for FalkorDB. Reads LORA_FALKOR_URL (default redis://localhost:6379).
+ * Retries disabled and short connectTimeout to avoid hangs when DB is unreachable.
  */
 export function getFalkorClient(): Redis {
   if (!cachedClient) {
     const url = getFalkorUrl();
-    cachedClient = new Redis(url);
+    cachedClient = new Redis(url, {
+      retryStrategy: () => null,
+      maxRetriesPerRequest: 0,
+      enableOfflineQueue: false,
+      connectTimeout: 1000,
+    });
   }
   return cachedClient;
 }
 
 /**
  * For tests only: reset the singleton so the next getFalkorClient() uses current env.
+ * Disconnects the client and clears the singleton.
  */
 export function resetFalkorClient(): void {
   if (cachedClient) {
