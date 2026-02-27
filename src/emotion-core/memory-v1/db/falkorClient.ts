@@ -11,11 +11,11 @@ export function getFalkorUrl(): string {
 function createClient(): Redis {
   const url = getFalkorUrl();
   return new Redis(url, {
-    lazyConnect: false,
+    lazyConnect: true,
     enableOfflineQueue: true,
     retryStrategy: () => null,
     maxRetriesPerRequest: 0,
-    connectTimeout: 1000,
+    connectTimeout: 3000,
   });
 }
 
@@ -74,6 +74,12 @@ function bindParams(query: string, params?: Record<string, unknown>): string {
   return out;
 }
 
+async function ensureConnected(c: Redis): Promise<void> {
+  if (c.status === 'wait') {
+    await c.connect();
+  }
+}
+
 /**
  * Run a Cypher query on a FalkorDB graph. Uses GRAPH.QUERY.
  * Params: only userId and anchorId (strings) are bound safely; no unsafe interpolation.
@@ -83,8 +89,9 @@ export async function graphQuery(
   query: string,
   params?: Record<string, unknown>,
 ): Promise<unknown> {
-  const client = getFalkorClient();
+  const c = getFalkorClient();
+  await ensureConnected(c);
   const bound = bindParams(query, params);
-  const result = await client.call('GRAPH.QUERY', graph, bound);
+  const result = await c.call('GRAPH.QUERY', graph, bound);
   return result;
 }
