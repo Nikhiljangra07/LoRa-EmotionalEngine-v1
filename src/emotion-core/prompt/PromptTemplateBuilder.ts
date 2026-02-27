@@ -13,6 +13,20 @@ import { DecisionLogger } from '../logging/DecisionLogger';
 import type { AnchorRecord, EmotionBand } from '../memory-v1/service/memoryTypes';
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
 
+export type ChatTurn = {
+  role: 'user' | 'assistant';
+  text: string;
+  ts: number;
+};
+
+export const STM_MAX_TURNS = 8;
+export const STM_MAX_TEXT_LENGTH = 500;
+
+export function truncateTurnText(text: string): string {
+  if (text.length <= STM_MAX_TEXT_LENGTH) return text;
+  return text.slice(0, STM_MAX_TEXT_LENGTH - 1) + '\u2026';
+}
+
 export type IntensityLevel = 'low' | 'medium' | 'high';
 
 export function classifyIntensity(eiv: number): IntensityLevel {
@@ -79,6 +93,7 @@ export class PromptTemplateBuilder {
       degraded?: { falkor: boolean; chroma: boolean };
       band?: EmotionBand;
       eiv?: number;
+      sessionHistory?: ChatTurn[];
       messageId?: string;
       userId?: string;
     }
@@ -185,6 +200,7 @@ export class PromptTemplateBuilder {
     const bandBehaviorBlock = this.getBandBehaviorBlock(band, etv, eiv);
     const anchorInfluenceBlock = this.getAnchorInfluenceBlock(anchorsUsed, band);
     const degradedModeBlock = this.getDegradedModeBlock(options?.degraded);
+    const sessionContextBlock = this.getSessionContextBlock(options?.sessionHistory);
 
     const prompt = `
 You are LoRa, an emotionally aware AI companion.
@@ -215,7 +231,7 @@ GLOBAL CONSTRAINTS
 - Never claim to recall or reference having been told something
 - Never use possessive framing about the relationship
 - Never use dependency or manipulation language
-${constraintOverlay}${memoryContextBlock}${anchorContextBlock}`.trim();
+${constraintOverlay}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}`.trim();
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][PromptTemplate]', {
@@ -771,6 +787,30 @@ Degraded Mode: Partial
 - Do not rely on long-term personalization.
 - Keep response general. Avoid contextual alignment.
 - Keep tone stable. Slightly shorter response length.`;
+  }
+
+  /* ============================================================
+   * Session Transcript Memory (STM) — in-session context only
+   * ============================================================
+   */
+  static getSessionContextBlock(history?: ChatTurn[]): string {
+    if (!history || history.length === 0) return '';
+
+    const turns = history.slice(-STM_MAX_TURNS);
+
+    const lines: string[] = [
+      '',
+      '',
+      'SESSION CONTEXT (this chat only)',
+      '--------------------------------',
+    ];
+
+    for (const turn of turns) {
+      const label = turn.role === 'user' ? 'User' : 'LoRa';
+      lines.push(`${label}: ${turn.text}`);
+    }
+
+    return lines.join('\n');
   }
 
   static containsForbiddenPhrases(prompt: string): string[] {

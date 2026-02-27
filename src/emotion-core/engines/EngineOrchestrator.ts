@@ -111,6 +111,7 @@ export class EngineOrchestrator {
       anchorsUsed: number;
       schemasUsed: number;
       degraded: { falkor: boolean; chroma: boolean };
+      stmTurns?: number;
       behaviorMode?: {
         band: string;
         intensityLevel: 'low' | 'medium' | 'high';
@@ -193,7 +194,8 @@ export class EngineOrchestrator {
       ambiguityDetected?: boolean;
     } = {},
     userFeedback?: 'positive' | 'neutral' | 'negative',
-    signalPacket?: SignalPacket
+    signalPacket?: SignalPacket,
+    sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
   ) {
     const executionToken = Symbol('LLM_EXECUTION');
     if (this.activeExecution) {
@@ -869,6 +871,7 @@ export class EngineOrchestrator {
         : {}),
       band: currentBand,
       eiv: currentEiv,
+      ...(sessionHistory && sessionHistory.length > 0 ? { sessionHistory } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -1112,6 +1115,7 @@ export class EngineOrchestrator {
         anchorsUsed: memServiceAnchors.length,
         schemasUsed: memServiceSemanticCount,
         degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+        stmTurns: sessionHistory?.length ?? 0,
         behaviorMode: {
           band: currentBand,
           intensityLevel: classifyIntensity(currentEiv),
