@@ -35,6 +35,12 @@ export interface ApiChatResponse {
     anchorsUsed: number;
     schemasUsed: number;
     degraded: { falkor: boolean; chroma: boolean };
+    behaviorMode?: {
+      band: string;
+      intensityLevel: 'low' | 'medium' | 'high';
+      anchorIntegration: boolean;
+      degradedMode: boolean;
+    };
   };
 }
 
@@ -139,9 +145,9 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
     const engine = getEngine(userId, sessionId);
 
     if (endSession) {
-      const nowMs = typeof timestamp === 'number' ? timestamp : Date.now();
-      await memoryService.maintainAnchors(userId, sessionId, nowMs);
       engine.endSession();
+      const key = `${userId}::${sessionId}`;
+      sessions.delete(key);
       res.status(200).json({
         reply: '',
         debug: emptyDebug(),
@@ -170,6 +176,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
           anchorsUsed: debug.anchorsUsed ?? 0,
           schemasUsed: debug.schemasUsed ?? 0,
           degraded: debug.degraded ?? { falkor: false, chroma: false },
+          ...(debug.behaviorMode ? { behaviorMode: debug.behaviorMode } : {}),
         },
       });
     } catch (err) {

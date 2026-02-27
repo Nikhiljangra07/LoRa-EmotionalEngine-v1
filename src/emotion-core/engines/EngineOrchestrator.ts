@@ -828,7 +828,17 @@ export class EngineOrchestrator {
           console.log('[LoRa::MemoryServiceRetrieve]', JSON.stringify(log));
         }
       } catch {
-        // MemoryService must never block response generation
+        memServiceDegraded = { falkor: true, chroma: true };
+        this.falkorDegraded = true;
+        this.chromaDegraded = true;
+        if (!this.degradedLogged.dual) {
+          this.degradedLogged.dual = true;
+          if (decisionLogEnabled) {
+            console.log('[LoRa::MemoryServiceError]', JSON.stringify({
+              userId: this.userId, sessionId: this.currentSessionId, tsMs: Date.now(),
+            }));
+          }
+        }
       }
     }
 

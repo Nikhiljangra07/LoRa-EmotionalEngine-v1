@@ -5,7 +5,7 @@ import type { MemoryService } from '../../emotion-core/memory-v1/service/MemoryS
 
 const MOCK_REPLY = 'mock-llm-reply';
 
-function createMockMemoryService(): MemoryService {
+function createMockMemoryService(): MemoryService & { maintainAnchors: jest.Mock; saveMessage: jest.Mock; retrieveContext: jest.Mock } {
   return {
     saveMessage: jest.fn().mockResolvedValue(true),
     retrieveContext: jest.fn().mockResolvedValue({
@@ -16,7 +16,7 @@ function createMockMemoryService(): MemoryService {
     maintainAnchors: jest.fn().mockResolvedValue(null),
     purgeUser: jest.fn().mockResolvedValue(true),
     healthCheck: jest.fn().mockResolvedValue({ falkor: true, chroma: true }),
-  } as unknown as MemoryService;
+  } as unknown as MemoryService & { maintainAnchors: jest.Mock; saveMessage: jest.Mock; retrieveContext: jest.Mock };
 }
 
 function postApiChat(
@@ -60,6 +60,7 @@ function postApiChat(
 describe('POST /api/chat — smoke (mock LLM, no real DB)', () => {
   let server: http.Server | null = null;
   let port = 0;
+  let mockMemoryService: MemoryService & { maintainAnchors: jest.Mock; saveMessage: jest.Mock; retrieveContext: jest.Mock };
 
   beforeAll((done) => {
     const app = express();
@@ -72,7 +73,7 @@ describe('POST /api/chat — smoke (mock LLM, no real DB)', () => {
     const mockResponder = () => ({
       generateResponse: async () => MOCK_REPLY,
     });
-    const mockMemoryService = createMockMemoryService();
+    mockMemoryService = createMockMemoryService();
 
     registerChatRoute(app, {
       responderFactory: mockResponder,
@@ -119,5 +120,88 @@ describe('POST /api/chat — smoke (mock LLM, no real DB)', () => {
     expect(degraded).toHaveProperty('chroma');
     expect(typeof degraded.falkor).toBe('boolean');
     expect(typeof degraded.chroma).toBe('boolean');
+  });
+
+  test('behaviorMode is present in debug response', async () => {
+    const res = await postApiChat(port, {
+      userId: 'bm-user',
+      sessionId: 'bm-session',
+      messageId: 'msg-bm-1',
+      text: 'testing behavior mode',
+    });
+
+    expect(res.status).toBe(200);
+    const debug = res.body.debug as Record<string, unknown>;
+    expect(debug).toHaveProperty('behaviorMode');
+    const bm = debug.behaviorMode as Record<string, unknown>;
+    expect(bm).toHaveProperty('band');
+    expect(bm).toHaveProperty('intensityLevel');
+    expect(bm).toHaveProperty('anchorIntegration');
+    expect(bm).toHaveProperty('degradedMode');
+    expect(['low', 'medium', 'high']).toContain(bm.intensityLevel);
+    expect(typeof bm.anchorIntegration).toBe('boolean');
+    expect(typeof bm.degradedMode).toBe('boolean');
+  });
+
+  test('endSession evicts engine — next message in same session creates fresh engine', async () => {
+    const userId = 'evict-user';
+    const sessionId = 'evict-session';
+
+    const res1 = await postApiChat(port, {
+      userId,
+      sessionId,
+      messageId: 'msg-e1',
+      text: 'hello',
+    });
+    expect(res1.status).toBe(200);
+
+    const endRes = await postApiChat(port, {
+      userId,
+      sessionId,
+      messageId: 'msg-e2',
+      text: '(end session)',
+      endSession: true,
+    });
+    expect(endRes.status).toBe(200);
+
+    const res2 = await postApiChat(port, {
+      userId,
+      sessionId,
+      messageId: 'msg-e3',
+      text: 'hello again',
+    });
+    expect(res2.status).toBe(200);
+    expect(res2.body.reply).toBe(MOCK_REPLY);
+  });
+
+  test('endSession does not call maintainAnchors from route (engine handles it)', async () => {
+    const userId = 'maintain-user';
+    const sessionId = 'maintain-session';
+    mockMemoryService.maintainAnchors.mockClear();
+
+    await postApiChat(port, {
+      userId,
+      sessionId,
+      messageId: 'msg-m1',
+      text: 'hello',
+    });
+
+    await postApiChat(port, {
+      userId,
+      sessionId,
+      messageId: 'msg-m2',
+      text: '(end)',
+      endSession: true,
+    });
+
+    // maintainAnchors is called exactly by engine.endSession — NOT by route.
+    // The route only calls engine.endSession() and deletes the map entry.
+    // So maintainAnchors should have been called at most once via the engine's
+    // fire-and-forget path (gated by memoryServiceEnabled feature flag).
+    // In test env, memoryServiceEnabled is '0' by default, so the engine
+    // won't call it either — total calls should be 0.
+    // If memoryServiceEnabled were '1', it would be called exactly once by the engine.
+    // The key invariant: the route itself never calls maintainAnchors directly.
+    expect(mockMemoryService.maintainAnchors).not.toHaveBeenCalled();
   });
 });
