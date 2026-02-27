@@ -153,6 +153,7 @@
           (bm.intensityLevel ? '<dt>Intensity</dt><dd>' + bm.intensityLevel + '</dd>' : '') +
           '<dt>Anchor integration</dt><dd>' + (bm.anchorIntegration ? 'yes' : 'no') + '</dd>' +
           '<dt>Degraded mode</dt><dd class="' + (bm.degradedMode ? 'degraded-true' : '') + '">' + (bm.degradedMode ? 'yes' : 'no') + '</dd>' +
+          (d.relational ? '<dt>Relational intent</dt><dd>' + d.relational.intent + ' (' + Number(d.relational.confidence).toFixed(2) + ')</dd>' : '') +
           '</dl>';
       }
 

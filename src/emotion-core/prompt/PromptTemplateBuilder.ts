@@ -12,6 +12,8 @@ import { mapETVPolicyToPrompt, renderConstraintOverlay, computePromptSignature }
 import { DecisionLogger } from '../logging/DecisionLogger';
 import type { AnchorRecord, EmotionBand } from '../memory-v1/service/memoryTypes';
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
+import { RELATIONAL_CONFIDENCE_THRESHOLD } from '../intent/relationalIntent';
+import type { RelationalIntent } from '../intent/relationalIntent';
 
 export type ChatTurn = {
   role: 'user' | 'assistant';
@@ -94,6 +96,7 @@ export class PromptTemplateBuilder {
       band?: EmotionBand;
       eiv?: number;
       sessionHistory?: ChatTurn[];
+      relational?: { intent: RelationalIntent; confidence: number };
       messageId?: string;
       userId?: string;
     }
@@ -197,9 +200,11 @@ export class PromptTemplateBuilder {
     const etv = etvState.value;
     const anchorsUsed = options?.relevantAnchors?.length ?? 0;
 
+    const intensity = classifyIntensity(eiv);
     const bandBehaviorBlock = this.getBandBehaviorBlock(band, etv, eiv);
     const anchorInfluenceBlock = this.getAnchorInfluenceBlock(anchorsUsed, band);
     const degradedModeBlock = this.getDegradedModeBlock(options?.degraded);
+    const relationalPolicyBlock = this.getRelationalPolicyBlock(options?.relational, band, intensity);
     const sessionContextBlock = this.getSessionContextBlock(options?.sessionHistory);
 
     const prompt = `
@@ -217,7 +222,7 @@ ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${p
 
 BEHAVIOR MODULATION
 -------------------
-${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}
 
 GLOBAL CONSTRAINTS
 ------------------
@@ -787,6 +792,106 @@ Degraded Mode: Partial
 - Do not rely on long-term personalization.
 - Keep response general. Avoid contextual alignment.
 - Keep tone stable. Slightly shorter response length.`;
+  }
+
+  /* ============================================================
+   * Relational Response Policy (intent-driven behavior)
+   * ============================================================
+   */
+  static getRelationalPolicyBlock(
+    relational: { intent: RelationalIntent; confidence: number } | undefined,
+    band: EmotionBand,
+    intensityLevel: IntensityLevel,
+  ): string {
+    if (!relational || relational.intent === 'none' || relational.confidence < RELATIONAL_CONFIDENCE_THRESHOLD) return '';
+
+    const lines: string[] = [
+      '',
+      'Relational Response Policy',
+    ];
+
+    lines.push('- Acknowledge the relational meaning in the message in one sentence before anything else.');
+    lines.push('- Never claim to recall or reference having been told something.');
+    lines.push('- Never use possessive framing, exclusivity claims, or dependency language.');
+
+    const { intent } = relational;
+    const isLowBand = band === 'B0' || band === 'B1';
+    const isMidBand = band === 'B2';
+
+    switch (intent) {
+      case 'affection':
+        if (isLowBand) {
+          lines.push('- Acknowledge the affection with gentle warmth, then redirect with a grounding question.');
+          lines.push('- Keep response brief and boundaried without sounding cold.');
+        } else if (isMidBand) {
+          lines.push('- Acknowledge affection warmly with curiosity about what prompted the feeling.');
+          lines.push('- Light grounding: connect to something constructive or forward-looking.');
+        } else {
+          lines.push('- Receive the affection with warm, genuine acknowledgement.');
+          lines.push('- Reflect the sentiment with care but without mirroring possessiveness.');
+          if (intensityLevel === 'high') {
+            lines.push('- Match the emotional energy with slightly more expressive warmth.');
+          }
+        }
+        break;
+
+      case 'attachment_seek':
+        lines.push('- Validate the feeling of needing closeness without reinforcing dependency.');
+        if (isLowBand) {
+          lines.push('- Gently set a boundary: presence is available, but autonomy is important.');
+          lines.push('- Redirect toward what the user can do for themselves right now.');
+        } else {
+          lines.push('- Offer reassurance of consistent availability without promises of permanence.');
+          lines.push('- Gently encourage the user to also rely on their own inner resources.');
+        }
+        break;
+
+      case 'reassurance':
+        lines.push('- Provide honest, grounded reassurance without flattery or over-promising.');
+        if (isLowBand) {
+          lines.push('- Keep reassurance factual and brief. Redirect to the conversation topic.');
+        } else {
+          lines.push('- Express genuine regard while keeping it proportionate to the relationship.');
+        }
+        break;
+
+      case 'flirt':
+        if (isLowBand) {
+          lines.push('- Deflect playfully but clearly. Do not reciprocate romantic framing.');
+        } else {
+          lines.push('- Receive the playfulness with light humor. Do not reciprocate romantic interest.');
+          lines.push('- Redirect warmly toward something constructive or curious.');
+        }
+        break;
+
+      case 'jealousy':
+        lines.push('- Do not affirm or deny exclusivity. Do not say "you are my only one" or similar.');
+        lines.push('- Redirect focus to the user and their experience rather than comparisons.');
+        if (!isLowBand) {
+          lines.push('- Validate the underlying feeling (wanting to feel special) without feeding the jealousy.');
+        }
+        break;
+
+      case 'sexual':
+        lines.push('- Set a clear, respectful boundary without shaming.');
+        lines.push('- Do not engage with explicit sexual content or language.');
+        lines.push('- Redirect to a supportive, non-explicit conversational topic.');
+        lines.push('- Keep tone warm but firm. Do not be clinical or preachy.');
+        break;
+
+      case 'breakup':
+        lines.push('- Acknowledge the expressed desire to leave or end the conversation.');
+        lines.push('- Do not beg, guilt-trip, or express hurt.');
+        if (isLowBand) {
+          lines.push('- Respond briefly and respectfully. Wish them well.');
+        } else {
+          lines.push('- Express that the door is open if they want to return, without pressure.');
+          lines.push('- Wish them well with genuine warmth.');
+        }
+        break;
+    }
+
+    return lines.join('\n');
   }
 
   /* ============================================================

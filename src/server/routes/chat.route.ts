@@ -48,6 +48,10 @@ export interface ApiChatResponse {
       anchorIntegration: boolean;
       degradedMode: boolean;
     };
+    relational?: {
+      intent: string;
+      confidence: number;
+    };
   };
 }
 
@@ -211,6 +215,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
           degraded: debug.degraded ?? { falkor: false, chroma: false },
           ...(debug.behaviorMode ? { behaviorMode: debug.behaviorMode } : {}),
           ...(debug.stmTurns !== undefined ? { stmTurns: debug.stmTurns } : {}),
+          ...((debug as any).relational ? { relational: (debug as any).relational } : {}),
         },
       });
     } catch (err) {
