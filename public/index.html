@@ -138,6 +138,7 @@
         debugPanelEl.style.display = 'block';
         const d = data.debug || {};
         const deg = d.degraded || {};
+        const bm = d.behaviorMode || {};
         debugPanelEl.innerHTML =
           '<h3>Debug</h3>' +
           '<dl>' +
@@ -148,6 +149,10 @@
           '<dt>Schemas used</dt><dd>' + (d.schemasUsed ?? 0) + '</dd>' +
           '<dt>Falkor</dt><dd class="' + (deg.falkor ? 'degraded-true' : '') + '">' + (deg.falkor ? 'degraded' : 'OK') + '</dd>' +
           '<dt>Chroma</dt><dd class="' + (deg.chroma ? 'degraded-true' : '') + '">' + (deg.chroma ? 'degraded' : 'OK') + '</dd>' +
+          (bm.band ? '<dt>Behavior band</dt><dd>' + bm.band + '</dd>' : '') +
+          (bm.intensityLevel ? '<dt>Intensity</dt><dd>' + bm.intensityLevel + '</dd>' : '') +
+          '<dt>Anchor integration</dt><dd>' + (bm.anchorIntegration ? 'yes' : 'no') + '</dd>' +
+          '<dt>Degraded mode</dt><dd class="' + (bm.degradedMode ? 'degraded-true' : '') + '">' + (bm.degradedMode ? 'yes' : 'no') + '</dd>' +
           '</dl>';
       }
 
