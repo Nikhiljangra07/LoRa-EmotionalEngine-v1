@@ -22,9 +22,8 @@ export class FalkorAnchorAdapter {
         { userId, anchorId, payloadJson },
       );
       return true;
-    } catch (err) {
-      console.error('[FalkorAnchorAdapter ERROR]', err);
-      throw err;
+    } catch {
+      return false;
     }
   }
 
@@ -51,9 +50,8 @@ export class FalkorAnchorAdapter {
       }
       out.sort((a, b) => (a.anchorId < b.anchorId ? -1 : a.anchorId > b.anchorId ? 1 : 0));
       return out;
-    } catch (err) {
-      console.error('[FalkorAnchorAdapter ERROR]', err);
-      throw err;
+    } catch {
+      return null;
     }
   }
 
@@ -65,9 +63,8 @@ export class FalkorAnchorAdapter {
         { userId },
       );
       return true;
-    } catch (err) {
-      console.error('[FalkorAnchorAdapter ERROR]', err);
-      throw err;
+    } catch {
+      return false;
     }
   }
 }
