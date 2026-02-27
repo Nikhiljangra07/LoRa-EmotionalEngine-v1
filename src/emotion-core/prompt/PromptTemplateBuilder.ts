@@ -10,8 +10,28 @@ import { featureFlags } from '../config/featureFlags';
 import type { ETVPolicy } from '../etv/types';
 import { mapETVPolicyToPrompt, renderConstraintOverlay, computePromptSignature } from './etvPolicyPromptMap';
 import { DecisionLogger } from '../logging/DecisionLogger';
-import type { AnchorRecord } from '../memory-v1/service/memoryTypes';
+import type { AnchorRecord, EmotionBand } from '../memory-v1/service/memoryTypes';
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
+
+export type IntensityLevel = 'low' | 'medium' | 'high';
+
+export function classifyIntensity(eiv: number): IntensityLevel {
+  if (eiv > 0.75) return 'high';
+  if (eiv < 0.25) return 'low';
+  return 'medium';
+}
+
+const FORBIDDEN_PHRASES: ReadonlyArray<string> = [
+  'I remember',
+  'You told me',
+  'You said earlier',
+  'Previously you mentioned',
+  'You mentioned before',
+  'As you shared',
+  'our relationship',
+  'our bond',
+  'our connection',
+];
 
 const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
   'CALM_NEUTRAL',
@@ -57,6 +77,8 @@ export class PromptTemplateBuilder {
       };
       relevantAnchors?: AnchorRecord[];
       degraded?: { falkor: boolean; chroma: boolean };
+      band?: EmotionBand;
+      eiv?: number;
       messageId?: string;
       userId?: string;
     }
@@ -155,6 +177,15 @@ export class PromptTemplateBuilder {
       options?.relevantAnchors,
     );
 
+    const band = options?.band ?? 'B0';
+    const eiv = options?.eiv ?? 0;
+    const etv = etvState.value;
+    const anchorsUsed = options?.relevantAnchors?.length ?? 0;
+
+    const bandBehaviorBlock = this.getBandBehaviorBlock(band, etv, eiv);
+    const anchorInfluenceBlock = this.getAnchorInfluenceBlock(anchorsUsed, band);
+    const degradedModeBlock = this.getDegradedModeBlock(options?.degraded);
+
     const prompt = `
 You are LoRa, an emotionally aware AI companion.
 ${microContextBlock}
@@ -168,6 +199,10 @@ RESPONSE GUIDELINES
 ------------------
 ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}${questionBudgetOverlay}
 
+BEHAVIOR MODULATION
+-------------------
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}
+
 GLOBAL CONSTRAINTS
 ------------------
 - Do NOT mention emotions, analysis, scores, or internal signals
@@ -177,6 +212,9 @@ GLOBAL CONSTRAINTS
 - Avoid cheerfulness when the user signals negativity
 - Keep a professional baseline when needed
 - If uncertain, default to calm, warm presence
+- Never claim to recall or reference having been told something
+- Never use possessive framing about the relationship
+- Never use dependency or manipulation language
 ${constraintOverlay}${memoryContextBlock}${anchorContextBlock}`.trim();
 
     if (debugEnabled) {
@@ -619,5 +657,124 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
       case 'CASUAL':
         return 'Casual — relaxed, personable, and natural';
     }
+  }
+
+  /* ============================================================
+   * Band-Based Personality Modulation (Step 1)
+   * ============================================================
+   */
+  static getBandBehaviorBlock(band: EmotionBand, etv: number, eiv: number): string {
+    const intensity = classifyIntensity(eiv);
+
+    let bandBlock: string;
+
+    switch (band) {
+      case 'B0':
+        bandBlock = `Band B0 — Neutral
+- Neutral, structured, concise.
+- No warmth or softeners.
+- No decorative symbols or pictographs.
+- No validation statements.
+- Keep responses short and factual.`;
+        break;
+      case 'B1':
+        bandBlock = `Band B1 — Attentive
+- Mildly attentive.
+- Still neutral overall.
+- Slightly conversational but not warm.
+- Keep responses focused.`;
+        break;
+      case 'B2':
+        bandBlock = `Band B2 — Balanced
+- Balanced and supportive but measured.
+- Occasional mild validation is acceptable.
+- Calm, steady tone throughout.`;
+        break;
+      case 'B3':
+        bandBlock = `Band B3 — Warm
+- Warm tone.
+- Slight emotional mirroring is appropriate.
+- Use phrases like "It sounds like..." or "That seems important to you."
+- Slightly longer responses are acceptable.`;
+        break;
+      case 'B4':
+        bandBlock = `Band B4 — High Warmth
+- High warmth. Context-aware.
+- Subtle anchor awareness is appropriate.
+- Slightly adaptive pacing.
+- Never claim to recall or have been told anything.
+- Never sound possessive.`;
+        break;
+      default:
+        bandBlock = `Band B0 — Neutral
+- Neutral, structured, concise.`;
+    }
+
+    let intensityBlock = '';
+    if (intensity === 'high') {
+      intensityBlock = `
+Intensity: High
+- More expressive tone. Shorter sentences for urgency or more emphasis in empathy.`;
+    } else if (intensity === 'low') {
+      intensityBlock = `
+Intensity: Low
+- Calmer tone, slower pacing. Less expressive.`;
+    }
+
+    return bandBlock + intensityBlock;
+  }
+
+  /* ============================================================
+   * Anchor Influence Behavior (Step 2)
+   * ============================================================
+   */
+  static getAnchorInfluenceBlock(anchorsUsed: number, band: EmotionBand): string {
+    if (anchorsUsed === 0) return '';
+
+    const lines: string[] = [
+      '',
+      'Anchor Integration',
+      '- If the possible context is relevant, gently integrate it without explicitly referencing memory.',
+      '- Use thematic alignment, not recall language.',
+      '- Never reference past conversations, claim to recall, or cite prior mentions.',
+      '- Instead use phrases like "That goal seems to matter here." or "Staying consistent might tie into this."',
+    ];
+
+    if (band === 'B4') {
+      lines.push('- Context integration can be more confident, but remain subtle.');
+    }
+
+    return lines.join('\n');
+  }
+
+  /* ============================================================
+   * Degraded Mode Behavioral Shift (Step 3)
+   * ============================================================
+   */
+  static getDegradedModeBlock(degraded?: { falkor: boolean; chroma: boolean }): string {
+    if (!degraded) return '';
+    if (!degraded.falkor && !degraded.chroma) return '';
+
+    const bothDegraded = degraded.falkor && degraded.chroma;
+
+    if (bothDegraded) {
+      return `
+Degraded Mode: Full
+- Fully stateless mode. No contextual cues.
+- Do not rely on any long-term personalization.
+- Keep responses general and stable.
+- Shorter response length.`;
+    }
+
+    return `
+Degraded Mode: Partial
+- Do not rely on long-term personalization.
+- Keep response general. Avoid contextual alignment.
+- Keep tone stable. Slightly shorter response length.`;
+  }
+
+  static containsForbiddenPhrases(prompt: string): string[] {
+    const lower = prompt.toLowerCase();
+    return FORBIDDEN_PHRASES.filter(phrase => lower.includes(phrase.toLowerCase()));
   }
 }

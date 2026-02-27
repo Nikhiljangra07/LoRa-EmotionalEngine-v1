@@ -9,7 +9,7 @@ import {
 } from '../processors/EIVComponentAssembler';
 import { EmotionalState } from '../types/analysis.types';
 import type { SignalPacket } from '../types/SignalPacket.types';
-import { PromptTemplateBuilder } from '../prompt/PromptTemplateBuilder';
+import { PromptTemplateBuilder, classifyIntensity } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
 import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
@@ -111,6 +111,12 @@ export class EngineOrchestrator {
       anchorsUsed: number;
       schemasUsed: number;
       degraded: { falkor: boolean; chroma: boolean };
+      behaviorMode?: {
+        band: string;
+        intensityLevel: 'low' | 'medium' | 'high';
+        anchorIntegration: boolean;
+        degradedMode: boolean;
+      };
     };
   };
 
@@ -827,6 +833,9 @@ export class EngineOrchestrator {
     }
 
     // 6. Build prompt (PURE)
+    const currentBand = (this.lastEtvPolicy?.band ?? 'B0') as import('../memory-v1/service/memoryTypes').EmotionBand;
+    const currentEiv = eivResult.value;
+
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -848,6 +857,8 @@ export class EngineOrchestrator {
       ...(memServiceDegraded.falkor || memServiceDegraded.chroma
         ? { degraded: memServiceDegraded }
         : {}),
+      band: currentBand,
+      eiv: currentEiv,
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -1091,6 +1102,12 @@ export class EngineOrchestrator {
         anchorsUsed: memServiceAnchors.length,
         schemasUsed: memServiceSemanticCount,
         degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+        behaviorMode: {
+          band: currentBand,
+          intensityLevel: classifyIntensity(currentEiv),
+          anchorIntegration: memServiceAnchors.length > 0,
+          degradedMode: memServiceDegraded.falkor || memServiceDegraded.chroma,
+        },
       },
     };
 
