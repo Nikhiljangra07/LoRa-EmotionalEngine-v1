@@ -62,7 +62,8 @@ type LLMConfig = {
 
 type LLMResponder = {
   generateResponse(
-    prompt: string,
+    systemPrompt: string,
+    userMessage: string,
     options?: { signal?: AbortSignal; requestId?: string }
   ): Promise<string>;
 };
@@ -1048,12 +1049,14 @@ export class EngineOrchestrator {
       }
     }
 
-    const llmInput = userMessage
-      ? `${prompt}\n\nUSER MESSAGE:\n${userMessage}`
-      : prompt;
+    const systemPrompt = prompt;
+    const rawUserMessage = userMessage ?? '';
 
     if (debugEnabled) {
-      console.log('[LoRa::Audit][Prompt]', llmInput);
+      console.log('[LoRa::Audit][Prompt] role separation', {
+        systemPromptLength: systemPrompt.length,
+        userMessageLength: rawUserMessage.length,
+      });
     }
 
     const decision = {
@@ -1091,7 +1094,8 @@ export class EngineOrchestrator {
 
     // 6. Generate LLM response (FAIL-SAFE, single owner)
     const llmOutput = await this.generateLLMResponse(
-      llmInput,
+      systemPrompt,
+      rawUserMessage,
       decision,
       fallbackContext
     );
@@ -1285,6 +1289,8 @@ export class EngineOrchestrator {
         ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
         ...(featureFlags.personaEnforcerEnabled ? { personaEnforcer: { triggered: false, kind: 'none' as const } } : {}),
         ...(responseShapeContract ? { responseShapeContract: { enabled: true, contractId: responseShapeContract.contractId } } : {}),
+        systemPromptLength: systemPrompt.length,
+        userMessageLength: rawUserMessage.length,
       },
     };
 
@@ -1671,7 +1677,8 @@ export class EngineOrchestrator {
   }
 
   private async generateLLMResponse(
-    prompt: string,
+    systemPrompt: string,
+    userMessage: string,
     decision: {
       eiv: { confidence: number };
       promptProfile: { guidanceMode: PromptProfile['guidanceMode'] };
@@ -1776,10 +1783,14 @@ export class EngineOrchestrator {
             timeoutMs: llmTimeoutMs,
           });
         }
-        const response = await this.getResponder().generateResponse(prompt, {
-          signal: controller.signal,
-          requestId,
-        });
+        const response = await this.getResponder().generateResponse(
+          systemPrompt,
+          userMessage,
+          {
+            signal: controller.signal,
+            requestId,
+          }
+        );
         clearTimeout(timer);
         return response;
       } catch (err) {

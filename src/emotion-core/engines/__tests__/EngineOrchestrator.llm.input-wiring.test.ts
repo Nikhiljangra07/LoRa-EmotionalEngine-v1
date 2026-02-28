@@ -14,13 +14,15 @@ describe("EngineOrchestrator LLM input wiring", () => {
       confidence: 0.5,
     };
 
-    let capturedPrompt = "";
+    let capturedSystemPrompt = "";
+    let capturedUserMessage = "";
     const engine = new EngineOrchestrator(
       0.5,
       {},
       () => ({
-        generateResponse: async (prompt: string) => {
-          capturedPrompt = prompt;
+        generateResponse: async (systemPrompt: string, userMessage: string) => {
+          capturedSystemPrompt = systemPrompt;
+          capturedUserMessage = userMessage;
           return "ok";
         },
       })
@@ -35,6 +37,8 @@ describe("EngineOrchestrator LLM input wiring", () => {
       signalPacket
     );
 
-    expect(capturedPrompt).toContain(message);
+    expect(capturedUserMessage).toBe(message);
+    expect(capturedSystemPrompt).not.toContain(message);
+    expect(capturedSystemPrompt.length).toBeGreaterThan(0);
   });
 });

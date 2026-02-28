@@ -38,10 +38,12 @@ export const runChatCLI = () => {
   if (debugEnabled && process.env.LORA_DEBUG_WIRING) {
     const originalGenerate = OpenAIResponder.prototype.generateResponse;
     OpenAIResponder.prototype.generateResponse = async function (
-      prompt: string
+      systemPrompt: string,
+      userMessage: string,
+      opts?: { signal?: AbortSignal; requestId?: string }
     ): Promise<string> {
-      lastPrompt = prompt;
-      return originalGenerate.call(this, prompt);
+      lastPrompt = systemPrompt;
+      return originalGenerate.call(this, systemPrompt, userMessage, opts);
     };
 
     const originalLog = DecisionLogger.logMessageDecision;

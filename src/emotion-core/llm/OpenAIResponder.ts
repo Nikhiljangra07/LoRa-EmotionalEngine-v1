@@ -39,17 +39,33 @@ export class OpenAIResponder {
   /**
    * Generate a response from LoRa
    * --------------------------------
+   * - System prompt: all behavioral/structural blocks (identity, context, calibration, constraints).
+   * - User message: raw user input only.
    * - Uses GPT-4o (primary emotional model)
    * - Hard caps output tokens (cost safety)
    * - Controlled temperature (no rambling)
    * - Returns clean text only (no chain-of-thought)
    */
   async generateResponse(
-    prompt: string,
+    systemPrompt: string,
+    userMessage: string,
     options?: { signal?: AbortSignal; requestId?: string }
   ): Promise<string> {
     const startTime = Date.now();
     const requestId = options?.requestId ?? 'unknown';
+
+    const messages: Array<{ role: 'system' | 'user'; content: string }> = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ];
+
+    if (debugEnabled) {
+      console.log('[LoRa::Debug][OpenAIResponder] role separation', {
+        requestId,
+        systemPromptLength: systemPrompt.length,
+        userMessageLength: userMessage.length,
+      });
+    }
 
     const res = await this.client.responses.create(
       {
@@ -61,8 +77,7 @@ export class OpenAIResponder {
         // Emotional but restrained
         temperature: 0.6,
 
-        // Single-turn, no memory bleed
-        input: prompt,
+        input: messages,
       },
       // Pass AbortSignal so timeout actually cancels the HTTP request
       options?.signal ? { signal: options.signal } : {}
