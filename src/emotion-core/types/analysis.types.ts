@@ -30,6 +30,14 @@ export type EmotionalArousal =
  * - `dominant` is REQUIRED but may be coarse or rule-based
  * - `confidence` is INTERNAL ONLY (never exposed to LLM)
  */
+export type EkmanDominant =
+  | 'JOY'
+  | 'ANGER'
+  | 'FEAR'
+  | 'SADNESS'
+  | 'SURPRISE'
+  | 'DISGUST';
+
 export interface EmotionalState {
   dominant:
     | 'JOY'
@@ -47,6 +55,18 @@ export interface EmotionalState {
    * INTERNAL USE ONLY
    */
   confidence: number;
+
+  /**
+   * Ekman family classification from appraisal-lab family engine.
+   * Optional — only set when appraisal bridge is active and confidence >= threshold.
+   */
+  ekmanDominant?: EkmanDominant;
+
+  /**
+   * Confidence of the Ekman family classification (0–1).
+   * INTERNAL USE ONLY — never exposed in prompt as a numeric value.
+   */
+  ekmanConfidence?: number;
 }
 
 /**

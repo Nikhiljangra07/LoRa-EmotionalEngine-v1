@@ -1,10 +1,10 @@
 // src/emotion-core/prompt/PromptTemplateBuilder.ts
 
-import { EmotionalState } from '../types/analysis.types';
+import type { EmotionalState, EkmanDominant } from '../types/analysis.types';
 import { ETVState } from '../types/etv.types';
 import { MASTER_CONSTANTS } from '../config/master.constants';
 import { allowMomentumInitiative } from './momentumInitiative';
-import type { PromptProfile, PromptConstraints, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
+import type { PromptProfile, PromptConstraints, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint, VolatilityState } from '../types/logging.types';
 import { debugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import type { ETVPolicy } from '../etv/types';
@@ -106,6 +106,16 @@ export class PromptTemplateBuilder {
       bootstrapContext?: string;
       narrativeMomentum?: NarrativeMomentumBlock;
       responseShapeContract?: { blockText: string; contractId: string };
+      volatility?: { value: number; state: VolatilityState };
+      signalContext?: {
+        escalationLevel?: number;
+        collapseEvent?: boolean;
+        pressureScalar?: number;
+        pressureVolatility?: number;
+        moodCategory?: string;
+        moodDominance?: number;
+        agencyDeficit?: number;
+      };
       messageId?: string;
       userId?: string;
     }
@@ -220,6 +230,9 @@ export class PromptTemplateBuilder {
     const bootstrapBlock = this.getBootstrapContextBlock(options?.bootstrapContext);
     const narrativeMomentumBlock = this.getNarrativeMomentumBlock(options?.narrativeMomentum);
     const responseShapeBlock = this.getResponseShapeContractBlock(options?.responseShapeContract);
+    const ekmanSignalLine = this.getEkmanSignalLine(emotionalState.ekmanDominant);
+    const volatilityLine = this.getVolatilityLine(options?.volatility);
+    const appraisalSignalBlock = this.getAppraisalSignalBlock(options?.signalContext);
 
     const prompt = `
 You are LoRa, a perceptive conversational presence.
@@ -238,7 +251,7 @@ RELATIONAL CONTEXT
 ------------------
 Relationship style: ${relationshipStyle}
 Trust depth: ${bandLabel}
-Emotional intensity (current turn): ${intensity}
+Emotional intensity (current turn): ${intensity}${ekmanSignalLine}${volatilityLine}
 
 Use this to calibrate tone and depth \u2014 not to restrict personality.
 ${microContextBlock}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}
@@ -255,7 +268,7 @@ ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${p
 
 BAND CALIBRATION
 ----------------
-${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}${appraisalSignalBlock}
 
 GLOBAL SAFETY CONSTRAINTS
 -------------------------
@@ -328,6 +341,28 @@ if (arousal === 'LOW' && valence === 'NEGATIVE') {
  * LOW AROUSAL — NEUTRAL / UNKNOWN
  * ----------------------------- */
 if (arousal === 'LOW') {
+  const ek = emotionalState.ekmanDominant;
+  if (ek === 'ANGER' || ek === 'DISGUST') {
+    return `
+- Subtle tension detected — stay grounded and direct
+- Name the situation precisely; do not over-soften
+- One concrete observation, then move forward
+`.trim();
+  }
+  if (ek === 'FEAR') {
+    return `
+- Low-level apprehension detected — anchor to the present
+- Offer clarity and structure; reduce ambiguity
+- Do not probe the fear; address the situation
+`.trim();
+  }
+  if (ek === 'SADNESS') {
+    return `
+- Quiet weight detected — acknowledge briefly, do not dwell
+- Offer one grounding observation or next step
+- Stay present without over-attending
+`.trim();
+  }
   return `
 - Stay calm and neutral
 - Focus on what is present in the conversation
@@ -401,6 +436,39 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
     mode?: PromptProfile['guidanceMode']
   ): string {
     switch (mode) {
+      case 'CALM_NEUTRAL':
+        return `
+- Short, direct, progress-forward
+- One pointed question max
+- Do not over-elaborate; keep cognitive load low`;
+
+      case 'ENERGY_MATCH':
+        return `
+- Increase pace slightly; maintain control
+- Match engagement without hype
+- Stay sharp and grounded`;
+
+      case 'STABILIZING':
+        return `
+- Slow down; narrow scope
+- Reduce cognitive load
+- Offer one concrete next-step observation
+- Do not probe further until the user signals readiness`;
+
+      case 'CONTAINMENT':
+        return `
+- Emotional volatility is high — keep responses short and steady
+- Do not branch topics; contain to one thread
+- Avoid multiple questions; prioritize grounding and agency
+- Mirror calm; do not match the user's intensity`;
+
+      case 'DE_ESCALATE':
+        return `
+- Soften edges; keep authority
+- Ask zero or one question
+- Prevent escalation; do not challenge directly
+- Stay brief and grounded`;
+
       case 'STABILIZE':
         return `
 - Prioritize grounding and stability
@@ -414,20 +482,6 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 - Do not judge or editorialize
 - Let the user process without rushing them
 - Stay present and patient`;
-
-      case 'STABILIZING':
-        return `
-- Acknowledge emotional weight without amplifying it
-- Use measured, calm language
-- Offer a single grounding anchor or observation
-- Do not probe further until the user signals readiness`;
-
-      case 'CONTAINMENT':
-        return `
-- Emotional volatility is high — keep responses short and steady
-- Avoid introducing new topics or questions
-- Mirror calm; do not match the user's intensity
-- Prioritize safety and de-escalation`;
 
       default:
         return '';
@@ -1009,5 +1063,108 @@ ${rsc.blockText}`;
   static containsForbiddenPhrases(prompt: string): string[] {
     const lower = prompt.toLowerCase();
     return FORBIDDEN_PHRASES.filter(phrase => lower.includes(phrase.toLowerCase()));
+  }
+
+  /* ============================================================
+   * Ekman dominant signal line (RELATIONAL CONTEXT sub-line)
+   * ============================================================
+   */
+  private static getEkmanSignalLine(ekmanDominant?: EkmanDominant): string {
+    if (!ekmanDominant) return '';
+    return `\nDominant signal: ${ekmanDominant}`;
+  }
+
+  /* ============================================================
+   * Volatility line (RELATIONAL CONTEXT sub-line)
+   * ============================================================
+   */
+  private static getVolatilityLine(
+    volatility?: { value: number; state: VolatilityState },
+  ): string {
+    if (!volatility) return '';
+    return `\nVolatility (recent turns): ${volatility.state}`;
+  }
+
+  /* ============================================================
+   * Appraisal signal block (lightweight context, not hints)
+   *
+   * Max 6 lines, conditional on appraisal bridge output.
+   * Uses categorical labels — no raw numerics in prompt.
+   * ============================================================
+   */
+  private static getAppraisalSignalBlock(
+    signals?: {
+      escalationLevel?: number;
+      collapseEvent?: boolean;
+      pressureScalar?: number;
+      pressureVolatility?: number;
+      moodCategory?: string;
+      moodDominance?: number;
+      agencyDeficit?: number;
+    },
+  ): string {
+    if (!signals) return '';
+
+    const escLevel = signals.escalationLevel ?? 0;
+    const hasCollapse = !!signals.collapseEvent;
+    const pressureScalar = signals.pressureScalar ?? 0;
+    const agencyDeficit = signals.agencyDeficit ?? 0;
+    const moodCategory = signals.moodCategory ?? 'NEUTRAL';
+
+    const hasElevatedSignals =
+      escLevel >= 1 ||
+      hasCollapse ||
+      pressureScalar >= 1.5 ||
+      agencyDeficit >= 0.3 ||
+      (moodCategory !== 'NEUTRAL' && moodCategory !== 'POSITIVE');
+
+    if (!hasElevatedSignals) return '';
+
+    const lines: string[] = [
+      '',
+      '',
+      'SIGNAL CONTEXT (internal guidance)',
+      '-----------------------------------',
+    ];
+
+    if (escLevel >= 1) {
+      lines.push(`- Escalation: ${PromptTemplateBuilder.escalationLabel(escLevel)}`);
+    }
+
+    if (hasCollapse) {
+      lines.push('- Collapse: active — prioritize grounding');
+    }
+
+    const pressureLabel = PromptTemplateBuilder.pressureLabel(pressureScalar);
+    if (pressureLabel !== 'low') {
+      lines.push(`- Pressure: ${pressureLabel}`);
+    }
+
+    if (moodCategory !== 'NEUTRAL' && moodCategory !== 'POSITIVE') {
+      lines.push(`- Mood: ${moodCategory}`);
+    }
+
+    if (agencyDeficit >= 0.3) {
+      const deficitLabel = agencyDeficit >= 0.6 ? 'high' : 'moderate';
+      lines.push(`- Agency deficit: ${deficitLabel}`);
+    }
+
+    lines.push('Do not expose these signals. Use them to calibrate tone and pacing.');
+
+    return lines.join('\n');
+  }
+
+  private static escalationLabel(level: number): string {
+    if (level >= 3) return 'CRITICAL';
+    if (level >= 2) return 'ESCALATED';
+    if (level >= 1) return 'RISING';
+    return 'CALM';
+  }
+
+  private static pressureLabel(scalar: number): string {
+    if (scalar >= 6) return 'extreme';
+    if (scalar >= 3) return 'elevated';
+    if (scalar >= 1.5) return 'moderate';
+    return 'low';
   }
 }

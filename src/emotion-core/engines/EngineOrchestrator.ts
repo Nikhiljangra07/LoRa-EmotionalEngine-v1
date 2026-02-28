@@ -24,6 +24,7 @@ import { applyHintStickiness, type StickyHints, type StickyHintKey } from './hin
 import { enforceHintSemanticCoherence } from './hintSemanticGuard';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
+import { mapEkmanToDominant } from '../../appraisal-bridge/ekmanToDominant';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1, ETVPolicy } from '../etv';
@@ -329,6 +330,18 @@ export class EngineOrchestrator {
         emotionalState,
       });
       appraisalResult = this.appraisalBridge.step(snapshot);
+    }
+
+    // ── Wire Ekman family → EmotionalState (appraisal bridge only) ──
+    if (!emotionalStateOverride && appraisalResult) {
+      const ekman = mapEkmanToDominant(
+        appraisalResult.family.dominantFamily,
+        appraisalResult.family.confidence,
+      );
+      if (ekman) {
+        emotionalState.ekmanDominant = ekman.ekmanDominant;
+        emotionalState.ekmanConfidence = ekman.ekmanConfidence;
+      }
     }
 
     const analyzerSummary = (
@@ -1064,6 +1077,18 @@ export class EngineOrchestrator {
       ...(bootstrapContextStr ? { bootstrapContext: bootstrapContextStr } : {}),
       ...(narrativeMomentum ? { narrativeMomentum } : {}),
       ...(responseShapeContract ? { responseShapeContract } : {}),
+      volatility: { value: sessionVolatility.value, state: sessionVolatility.state },
+      ...(appraisalResult ? {
+        signalContext: {
+          escalationLevel: appraisalResult.escalation.level,
+          collapseEvent: appraisalResult.collapse.event,
+          pressureScalar: appraisalResult.pressure.scalar,
+          pressureVolatility: appraisalResult.pressure.volatility,
+          moodCategory: appraisalResult.mood.category,
+          moodDominance: appraisalResult.mood.dominance,
+          agencyDeficit: appraisalResult.postClarity.agencyDeficit,
+        },
+      } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -1096,6 +1121,17 @@ export class EngineOrchestrator {
 
     const systemPrompt = prompt;
     const rawUserMessage = userMessage ?? '';
+
+    if (process.env.LORA_DEBUG_PROMPT_SIGNALS === '1') {
+      console.log('[LoRa::PromptSignals]', {
+        ekmanDominant: emotionalState.ekmanDominant ?? 'none',
+        ekmanConfidence: emotionalState.ekmanConfidence ?? 0,
+        volatility: sessionVolatility.state,
+        volatilityValue: +sessionVolatility.value.toFixed(4),
+        escalation: appraisalResult?.escalation.level ?? 0,
+        guidanceMode,
+      });
+    }
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][Prompt] role separation', {
@@ -1206,6 +1242,13 @@ export class EngineOrchestrator {
         value: sessionVolatility.value,
         state: sessionVolatility.state,
       },
+
+      ...(emotionalState.ekmanDominant ? {
+        ekman: {
+          dominant: emotionalState.ekmanDominant,
+          confidence: emotionalState.ekmanConfidence ?? 0,
+        },
+      } : {}),
 
       llmOutput,
       userFeedback,

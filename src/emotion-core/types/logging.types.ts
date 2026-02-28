@@ -88,6 +88,11 @@ export interface MessageDecisionLog {
     state: VolatilityState;
   };
 
+  ekman?: {
+    dominant: string;
+    confidence: number;
+  };
+
   llmOutput?: string;
   userReaction?: 'positive' | 'neutral' | 'negative';
 }

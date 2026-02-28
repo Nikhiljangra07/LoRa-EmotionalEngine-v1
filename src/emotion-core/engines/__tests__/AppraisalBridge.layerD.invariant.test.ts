@@ -87,32 +87,7 @@ describe('Layer D non-consumption invariant', () => {
     }
   });
 
-  test('prompt output is identical with bridge ON vs OFF for the same input', async () => {
-    // ── Run 1: bridge OFF ───────────────────────────────────────────
-    delete process.env.LORA_APPRAISAL_BRIDGE;
-    jest.resetModules();
-    jest.doMock('../../../debug/sessionTrace', () => ({
-      writeSessionTrace: jest.fn(),
-    }));
-
-    let EO = require('../EngineOrchestrator').EngineOrchestrator;
-    let IP = require('../../processors/InputProcessor').InputProcessor;
-
-    let engine = new EO(0.5, {}, () => ({
-      generateResponse: async () => 'ok',
-    }));
-
-    let parsed = IP.process('I feel stressed and overwhelmed');
-    const resultOff = await engine.processMessage(
-      parsed.analyzerOutputs,
-      undefined,
-      false,
-      {},
-      undefined,
-      parsed.signalPacket,
-    );
-
-    // ── Run 2: bridge ON ────────────────────────────────────────────
+  test('prompt reflects Ekman signal when bridge is ON (SADNESS mock)', async () => {
     process.env.LORA_APPRAISAL_BRIDGE = '1';
     jest.resetModules();
     jest.doMock('../../../appraisal-bridge/AppraisalBridgeRunner', () => ({
@@ -125,14 +100,14 @@ describe('Layer D non-consumption invariant', () => {
       writeSessionTrace: jest.fn(),
     }));
 
-    EO = require('../EngineOrchestrator').EngineOrchestrator;
-    IP = require('../../processors/InputProcessor').InputProcessor;
+    const EO = require('../EngineOrchestrator').EngineOrchestrator;
+    const IP = require('../../processors/InputProcessor').InputProcessor;
 
-    engine = new EO(0.5, {}, () => ({
+    const engine = new EO(0.5, {}, () => ({
       generateResponse: async () => 'ok',
     }));
 
-    parsed = IP.process('I feel stressed and overwhelmed');
+    const parsed = IP.process('I feel stressed and overwhelmed');
     const resultOn = await engine.processMessage(
       parsed.analyzerOutputs,
       undefined,
@@ -142,6 +117,8 @@ describe('Layer D non-consumption invariant', () => {
       parsed.signalPacket,
     );
 
-    expect(resultOn.prompt).toBe(resultOff.prompt);
+    expect(resultOn.prompt).toContain('Dominant signal: SADNESS');
+    expect(resultOn.prompt).toContain('RESPONSE PRINCIPLES');
+    expect(resultOn.prompt).toContain('GLOBAL SAFETY CONSTRAINTS');
   });
 });
