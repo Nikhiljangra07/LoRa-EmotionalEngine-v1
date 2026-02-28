@@ -4,8 +4,8 @@
  *
  * 20-turn scripted conversation designed to oscillate through emotional
  * peaks and troughs. Runs twice: A (Appraisal Lab ON), B (Appraisal Lab OFF).
- * Compares navigation behavior: guidance transitions, escalation tracking,
- * pacing changes, scope narrowing, and intensity reduction.
+ * Each run executes in a separate Node process for guaranteed clean
+ * feature-flag isolation (bridge ON vs OFF).
  *
  * Requires: ANTHROPIC_API_KEY in environment or .env.local.
  *
@@ -14,15 +14,94 @@
 
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { spawn } from 'child_process';
+
 dotenv.config({ path: path.resolve(__dirname, '../../../.env.local') });
 
-import { runConversation } from './ab-appraisal-harness';
 import type { TurnResult, RunResult } from './ab-appraisal-harness';
 import { getWaveScript } from './waveScripts';
 
 const scriptVersion = process.env.LORA_WAVE_SCRIPT ?? 'v1';
 const isCompassDemo = process.env.LORA_COMPASS_DEMO === '1';
 const WAVE_SCRIPT = getWaveScript(scriptVersion);
+
+// ---------------------------------------------------------------------------
+// Spawn-based run: fresh process per A/B, env set before module load
+// ---------------------------------------------------------------------------
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const CHILD_SCRIPT = path.join(__dirname, 'runner-child.ts');
+
+interface ChildOutput {
+  runLabel: 'A' | 'B';
+  turns: TurnResult[];
+}
+
+function spawnRun(runLabel: 'A' | 'B', scriptVer: string): Promise<RunResult> {
+  return new Promise((resolve, reject) => {
+    const env = {
+      ...process.env,
+      LORA_RUN_LABEL: runLabel,
+      LORA_WAVE_SCRIPT: scriptVer,
+      LORA_DECISION_LOG: '0',
+    };
+
+    const child = spawn('npx', ['ts-node', CHILD_SCRIPT], {
+      env,
+      cwd: PROJECT_ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const chunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+
+    child.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+    child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+
+    child.on('error', (err) => reject(err));
+    child.on('close', (code) => {
+      const stdout = Buffer.concat(chunks).toString('utf8').trim();
+      const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+
+      if (code !== 0) {
+        reject(new Error(`[Harness] Child ${runLabel} exited ${code}${stderr ? `: ${stderr}` : ''}`));
+        return;
+      }
+
+      if (stderr) {
+        reject(new Error(`[Harness] Child ${runLabel} wrote to stderr: ${stderr}`));
+        return;
+      }
+
+      let parsed: ChildOutput;
+      try {
+        parsed = JSON.parse(stdout) as ChildOutput;
+      } catch {
+        reject(
+          new Error(
+            `[Harness] Child ${runLabel} produced invalid JSON. Expected single JSON object with runLabel and turns. Got:\n${stdout.slice(0, 500)}${stdout.length > 500 ? '...' : ''}`,
+          ),
+        );
+        return;
+      }
+
+      if (!parsed || typeof parsed.runLabel !== 'string' || !Array.isArray(parsed.turns)) {
+        reject(
+          new Error(
+            `[Harness] Child ${runLabel} output missing runLabel or turns. Got: ${JSON.stringify(Object.keys(parsed ?? {}))}`,
+          ),
+        );
+        return;
+      }
+
+      if (parsed.runLabel !== runLabel) {
+        reject(new Error(`[Harness] Child output runLabel "${parsed.runLabel}" does not match requested "${runLabel}"`));
+        return;
+      }
+
+      resolve({ label: `${runLabel} (Appraisal ${runLabel === 'A' ? 'ON' : 'OFF'})`, turns: parsed.turns });
+    });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Escalation label mapping (numeric level → categorical)
@@ -716,13 +795,13 @@ async function main() {
 
   console.log(`[Wave Harness] Script: ${scriptVersion.toUpperCase()} (${WAVE_SCRIPT.length} turns)`);
 
-  console.log('[Wave Harness] Starting Run B (Appraisal Lab OFF)...');
-  const runB = await runConversation('B (Appraisal OFF)', false, WAVE_SCRIPT);
-  console.log('[Wave Harness] Run B complete.\n');
-
   console.log('[Wave Harness] Starting Run A (Appraisal Lab ON)...');
-  const runA = await runConversation('A (Appraisal ON)', true, WAVE_SCRIPT);
+  const runA = await spawnRun('A', scriptVersion);
   console.log('[Wave Harness] Run A complete.\n');
+
+  console.log('[Wave Harness] Starting Run B (Appraisal Lab OFF)...');
+  const runB = await spawnRun('B', scriptVersion);
+  console.log('[Wave Harness] Run B complete.\n');
 
   enforceBridgeOffCleanliness(runB.turns);
 
@@ -795,5 +874,13 @@ if (require.main === module) {
   });
 }
 
-export { WAVE_SCRIPT, computeWaveDiffs, buildWaveReportJSON, computeEarlyNavigation, enforceBridgeOffCleanliness, scriptVersion };
+export {
+  WAVE_SCRIPT,
+  computeWaveDiffs,
+  buildWaveReportJSON,
+  computeEarlyNavigation,
+  enforceBridgeOffCleanliness,
+  scriptVersion,
+  spawnRun,
+};
 export type { WaveTurnDiff, WaveReport, EarlyNavigation };
