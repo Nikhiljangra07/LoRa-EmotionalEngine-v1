@@ -5,10 +5,13 @@ export {};
  *
  * Verifies that when Appraisal Bridge is OFF:
  *   - maskedPressure never appears in decision log
+ *   - maskedPressurePersistent never appears in decision log
  *   - volatilityTrend never appears in decision log
  *   - escalationTrend never appears in decision log
  *   - ekmanInfluenceApplied never appears in decision log
  *   - gradientEscalation never appears in decision log
+ *   - maskedPressureHistory remains empty (no LPI/persistence computation)
+ *   - prompt never contains DETECTED/PERSISTENT signal lines
  *
  * And that when Appraisal Bridge is ON:
  *   - At least some of these new signals appear after sufficient turns
@@ -183,6 +186,41 @@ describe('Structural Differentiation — Bridge OFF guarantees', () => {
       expect(log.volatilityTrend).toBeUndefined();
       expect(log.gradientEscalation).toBeUndefined();
       expect(log.ekmanInfluenceApplied).toBeUndefined();
+    }
+
+    expect(engine.getDebugMaskedPressureHistoryLength()).toBe(0);
+  });
+
+  test('bridge OFF: 6 turns with minimizing messages — history stays empty, no lpi/maskedPressurePersistent in logs', async () => {
+    clearFlags();
+    const stepFn = jest.fn().mockReturnValue(MOCK_NEUTRAL);
+    const { EngineOrchestrator, InputProcessor } = loadModules(stepFn);
+
+    const engine = new EngineOrchestrator(0.5, {}, () => ({
+      generateResponse: async () => 'ok',
+    }));
+
+    const messages = [
+      "It's fine. Whatever.",
+      "Doesn't matter. Just tired.",
+      "I guess it's okay.",
+      "Forget it. Never mind.",
+      "It's fine. I don't care.",
+      "Whatever. Not a big deal.",
+    ];
+    await runSequence(engine, InputProcessor, messages);
+
+    expect(engine.getDebugMaskedPressureHistoryLength()).toBe(0);
+
+    for (const log of loggedDecisions) {
+      expect(log).not.toHaveProperty('lpi');
+      expect(log).not.toHaveProperty('maskedPressurePersistent');
+    }
+
+    for (const log of loggedDecisions) {
+      const logStr = JSON.stringify(log);
+      expect(logStr).not.toMatch(/"maskedPressure"/);
+      expect(logStr).not.toMatch(/"maskedPressurePersistent"/);
     }
   });
 

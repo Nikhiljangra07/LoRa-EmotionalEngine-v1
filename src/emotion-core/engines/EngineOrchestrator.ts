@@ -364,9 +364,11 @@ export class EngineOrchestrator {
     }
 
     // ── LPI + Volatility Direction + Gradient Escalation (appraisal bridge) ──
+    // Bridge OFF: do not compute or update any appraisal-derived state.
     let lpiResult: LPIResult | undefined;
     let volatilityTrend: VolatilityTrend | undefined;
     let gradientEscalation: GradientEscalationResult | undefined;
+    let maskedPressurePersistent = false;
 
     if (this.appraisalBridge && appraisalResult) {
       this.recentVolatilities.push(sessionVolatility.value);
@@ -400,14 +402,14 @@ export class EngineOrchestrator {
           volatilityTrend ?? 'STABLE',
         );
       }
-    }
 
-    // Masked pressure persistence: ring buffer (max 4) for 2-of-4 gate
-    this.maskedPressureHistory.push(lpiResult?.maskedPressure ?? false);
-    while (this.maskedPressureHistory.length > 4) {
-      this.maskedPressureHistory.shift();
+      // Masked pressure persistence: ring buffer (max 4) for 2-of-4 gate — only when bridge ON
+      this.maskedPressureHistory.push(lpiResult?.maskedPressure ?? false);
+      while (this.maskedPressureHistory.length > 4) {
+        this.maskedPressureHistory.shift();
+      }
+      maskedPressurePersistent = isMaskedPressurePersistent(this.maskedPressureHistory);
     }
-    const maskedPressurePersistent = isMaskedPressurePersistent(this.maskedPressureHistory);
 
     const analyzerSummary = (
       signalPacket?.metadata as
@@ -1423,10 +1425,14 @@ export class EngineOrchestrator {
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
       ...(dwellResult.dwellActive ? { guidanceDwellActive: true as const, guidanceDwellMode: dwellResult.dwellMode } : {}),
-      ...(lpiResult ? { lpi: { raw: lpiResult.raw, smoothed: lpiResult.smoothed, maskedPressure: lpiResult.maskedPressure } } : {}),
-      ...(maskedPressurePersistent ? { maskedPressurePersistent: true } : {}),
-      ...(volatilityTrend ? { volatilityTrend } : {}),
-      ...(gradientEscalation ? { gradientEscalation: { state: gradientEscalation.state, numericLevel: gradientEscalation.numericLevel, trend: gradientEscalation.trend } } : {}),
+      ...(this.appraisalBridge && appraisalResult && lpiResult
+        ? { lpi: { raw: lpiResult.raw, smoothed: lpiResult.smoothed, maskedPressure: lpiResult.maskedPressure } }
+        : {}),
+      ...(this.appraisalBridge && appraisalResult && maskedPressurePersistent ? { maskedPressurePersistent: true } : {}),
+      ...(this.appraisalBridge && appraisalResult && volatilityTrend ? { volatilityTrend } : {}),
+      ...(this.appraisalBridge && appraisalResult && gradientEscalation
+        ? { gradientEscalation: { state: gradientEscalation.state, numericLevel: gradientEscalation.numericLevel, trend: gradientEscalation.trend } }
+        : {}),
       ...(ekmanWeightResult?.applied ? { ekmanInfluenceApplied: true } : {}),
     };
     DecisionLogger.logMessageDecision(
@@ -1908,6 +1914,11 @@ export class EngineOrchestrator {
   // ---------------------------------------------------
   getState() {
     return { ...this.etvState };
+  }
+
+  /** Debug/test only: masked pressure history length. Bridge OFF must keep this 0. */
+  getDebugMaskedPressureHistoryLength(): number {
+    return this.maskedPressureHistory.length;
   }
 
   private getResponder(): LLMResponder {
