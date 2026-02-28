@@ -12,7 +12,7 @@
   "scripts": {
     "test": "jest",
     "chat": "ts-node src/emotion-core/debug/chat-cli.ts",
-    "dev": "NODE_ENV=development ts-node src/server/adapter.ts",
+    "dev": "LORA_DEBUG_EIV=1 NODE_ENV=development ts-node src/server/adapter.ts",
     "dev:test": "ts-node src/index.ts",
     "check:contracts": "npm test",
     "check:smoke": "bash scripts/smoke.sh",
