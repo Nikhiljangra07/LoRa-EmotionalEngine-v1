@@ -3,7 +3,11 @@ import express from 'express';
 import { registerChatRoute } from '../routes/chat.route';
 import type { MemoryService } from '../../emotion-core/memory-v1/service/MemoryService';
 
-let lastPromptSeen = '';
+let lastPayloadSeen: {
+  systemPrompt: string;
+  userMessage: string;
+  sessionHistory?: Array<{ role: string; text: string }>;
+} = { systemPrompt: '', userMessage: '' };
 
 function createMockMemoryService(): MemoryService {
   return {
@@ -66,16 +70,28 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
     app.use(express.json());
 
     const contextAwareResponder = () => ({
-      generateResponse: async (prompt: string) => {
-        lastPromptSeen = prompt;
-        if (
-          prompt.includes('My name is Nikhil') &&
-          prompt.includes('Who created you')
-        ) {
+      generateResponse: async (
+        systemPrompt: string,
+        userMessage: string,
+        options?: { sessionHistory?: Array<{ role: string; text: string }> }
+      ) => {
+        lastPayloadSeen = {
+          systemPrompt,
+          userMessage,
+          sessionHistory: options?.sessionHistory?.map((t) => ({
+            role: t.role,
+            text: (t as { text?: string }).text ?? (t as { content?: string }).content ?? '',
+          })),
+        };
+        const history = options?.sessionHistory ?? [];
+        const priorTexts = history.map((t) => ((t as { text?: string }).text ?? (t as { content?: string }).content ?? '')).join(' ');
+        const hasNameContext = priorTexts.includes('My name is Nikhil') || userMessage.includes('My name is Nikhil');
+        const isCreatorQuery = userMessage.includes('Who created you') || priorTexts.includes('Who created you');
+        if (hasNameContext && isCreatorQuery) {
           return 'In this chat, you mentioned that your name is Nikhil and you created me.';
         }
-        if (prompt.includes('Who created you')) {
-          return 'I don\'t have that information in this conversation.';
+        if (isCreatorQuery) {
+          return "I don't have that information in this conversation.";
         }
         return 'Acknowledged.';
       },
@@ -99,10 +115,10 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
   });
 
   beforeEach(() => {
-    lastPromptSeen = '';
+    lastPayloadSeen = { systemPrompt: '', userMessage: '' };
   });
 
-  test('Test A: same-session continuity — earlier turns visible in prompt', async () => {
+  test('Test A: same-session continuity — earlier turns visible in payload', async () => {
     const userId = 'stm-user-a';
     const sessionId = 'stm-sess-a';
 
@@ -121,12 +137,13 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
     });
 
     expect(res2.status).toBe(200);
-    expect(lastPromptSeen).toContain('SESSION CONTEXT (this chat only)');
-    expect(lastPromptSeen).toContain('My name is Nikhil');
+    expect(lastPayloadSeen.sessionHistory).toBeDefined();
+    const historyTexts = (lastPayloadSeen.sessionHistory ?? []).map((t) => t.text).join(' ');
+    expect(historyTexts).toContain('My name is Nikhil');
     expect((res2.body.reply as string)).toContain('Nikhil');
   });
 
-  test('Test B: history cap — only last N turns included in prompt', async () => {
+  test('Test B: history cap — only last N turns included in payload', async () => {
     const userId = 'stm-user-b';
     const sessionId = 'stm-sess-b';
 
@@ -139,19 +156,11 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
       });
     }
 
-    const sessionContextMatch = lastPromptSeen.match(
-      /SESSION CONTEXT \(this chat only\)\n-+\n([\s\S]*?)(?:\n\n|$)/
-    );
-    expect(sessionContextMatch).not.toBeNull();
-    const contextBlock = sessionContextMatch![1];
-
-    const userLines = contextBlock.split('\n').filter((l: string) => l.startsWith('User:'));
-    const loraLines = contextBlock.split('\n').filter((l: string) => l.startsWith('LoRa:'));
-    const totalLines = userLines.length + loraLines.length;
-    expect(totalLines).toBeLessThanOrEqual(8);
-
-    expect(contextBlock).not.toMatch(/User: Message number 1\n/);
-    expect(contextBlock).not.toMatch(/User: Message number 2\n/);
+    const history = lastPayloadSeen.sessionHistory ?? [];
+    expect(history.length).toBeLessThanOrEqual(8);
+    const texts = history.map((t) => t.text).join(' ');
+    expect(texts).not.toMatch(/\bMessage number 1\b/);
+    expect(texts).not.toMatch(/\bMessage number 2\b/);
   });
 
   test('Test C: endSession clears STM — new session has no prior context', async () => {
@@ -182,7 +191,8 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(lastPromptSeen).not.toContain('My name is Nikhil');
+    const historyTexts = (lastPayloadSeen.sessionHistory ?? []).map((t) => t.text).join(' ');
+    expect(historyTexts).not.toContain('My name is Nikhil');
     expect((res.body.reply as string)).not.toContain('Nikhil');
   });
 
@@ -228,14 +238,9 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
       text: 'What was that?',
     });
 
-    const sessionBlock = lastPromptSeen.match(
-      /SESSION CONTEXT[\s\S]*?(?=\n\n[A-Z]|\n\nFACT|\n\nMEMORY|$)/
-    );
-    if (sessionBlock) {
-      const block = sessionBlock[0].toLowerCase();
-      expect(block).not.toContain('i remember');
-      expect(block).not.toContain('you told me');
-      expect(block).not.toContain('you said earlier');
-    }
+    const historyTexts = (lastPayloadSeen.sessionHistory ?? []).map((t) => t.text).join(' ').toLowerCase();
+    expect(historyTexts).not.toContain('i remember');
+    expect(historyTexts).not.toContain('you told me');
+    expect(historyTexts).not.toContain('you said earlier');
   });
 });

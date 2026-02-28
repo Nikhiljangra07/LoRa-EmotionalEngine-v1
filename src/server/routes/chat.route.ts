@@ -20,7 +20,13 @@ const DEFAULT_ETV = 0.5;
 
 /** Optional injection for tests (mock LLM + memory so no real DB). */
 export interface ChatRouteOptions {
-  responderFactory?: () => { generateResponse(prompt: string): Promise<string> };
+  responderFactory?: () => {
+    generateResponse(
+      systemPrompt: string,
+      userMessage: string,
+      options?: { signal?: AbortSignal; requestId?: string; sessionHistory?: Array<{ role: string; text: string; ts?: number }> }
+    ): Promise<string>;
+  };
   memoryService?: MemoryService;
 }
 

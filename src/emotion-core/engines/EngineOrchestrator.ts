@@ -65,7 +65,11 @@ type LLMResponder = {
   generateResponse(
     systemPrompt: string,
     userMessage: string,
-    options?: { signal?: AbortSignal; requestId?: string }
+    options?: {
+      signal?: AbortSignal;
+      requestId?: string;
+      sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
+    }
   ): Promise<string>;
 };
 
@@ -1104,7 +1108,8 @@ export class EngineOrchestrator {
       systemPrompt,
       rawUserMessage,
       decision,
-      fallbackContext
+      fallbackContext,
+      sessionHistory,
     );
 
     // ── Bootstrap Memory: record assistant reply summary ──
@@ -1708,7 +1713,8 @@ export class EngineOrchestrator {
         safetyTriggered: boolean;
         ambiguityDetected: boolean;
       };
-    }
+    },
+    sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
   ): Promise<string> {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
@@ -1796,6 +1802,7 @@ export class EngineOrchestrator {
           {
             signal: controller.signal,
             requestId,
+            ...(sessionHistory && sessionHistory.length > 0 ? { sessionHistory } : {}),
           }
         );
         clearTimeout(timer);

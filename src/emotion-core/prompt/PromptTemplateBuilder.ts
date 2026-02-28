@@ -98,6 +98,8 @@ export class PromptTemplateBuilder {
       band?: EmotionBand;
       eiv?: number;
       sessionHistory?: ChatTurn[];
+      /** When true, omit session context from prompt (caller passes history as API messages). */
+      excludeSessionContextFromPrompt?: boolean;
       relational?: { intent: RelationalIntent; confidence: number };
       bootstrapContext?: string;
       narrativeMomentum?: NarrativeMomentumBlock;
@@ -210,7 +212,9 @@ export class PromptTemplateBuilder {
     const anchorInfluenceBlock = this.getAnchorInfluenceBlock(anchorsUsed, band);
     const degradedModeBlock = this.getDegradedModeBlock(options?.degraded);
     const relationalPolicyBlock = this.getRelationalPolicyBlock(options?.relational, band, intensity);
-    const sessionContextBlock = this.getSessionContextBlock(options?.sessionHistory);
+    const sessionContextBlock = options?.excludeSessionContextFromPrompt
+      ? ''
+      : this.getSessionContextBlock(options?.sessionHistory);
     const bootstrapBlock = this.getBootstrapContextBlock(options?.bootstrapContext);
     const narrativeMomentumBlock = this.getNarrativeMomentumBlock(options?.narrativeMomentum);
     const responseShapeBlock = this.getResponseShapeContractBlock(options?.responseShapeContract);

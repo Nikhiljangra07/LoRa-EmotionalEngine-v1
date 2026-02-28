@@ -8,6 +8,8 @@ import { getLLMHealth } from './llmTelemetry';
 import { debugEnabled } from '../emotion-core/debug/debugGate';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
+import type { ChatTurn } from '../emotion-core/prompt/PromptTemplateBuilder';
+import { STM_MAX_TURNS, truncateTurnText } from '../emotion-core/prompt/PromptTemplateBuilder';
 
 const app = express();
 const port = 3000;
@@ -42,6 +44,16 @@ try {
 // The session is ephemeral — lost on process restart, no persistence.
 const sessionManager = new SessionManager();
 const DEFAULT_SESSION_ID = 'default-http-session';
+const legacyChatHistory = new Map<string, ChatTurn[]>();
+
+function getLegacyHistory(sessionId: string): ChatTurn[] {
+  let h = legacyChatHistory.get(sessionId);
+  if (!h) {
+    h = [];
+    legacyChatHistory.set(sessionId, h);
+  }
+  return h;
+}
 
 // ── Health: LLM readiness (read-only, no side-effects) ───────────────
 app.get('/health/llm', (_req, res) => {
@@ -58,6 +70,16 @@ app.post('/chat', async (req, res) => {
 
   try {
     const engine = sessionManager.getEngine(DEFAULT_SESSION_ID);
+    const history = getLegacyHistory(DEFAULT_SESSION_ID);
+
+    const userTurn: ChatTurn = {
+      role: 'user',
+      text: truncateTurnText(message),
+      ts: Date.now(),
+    };
+    history.push(userTurn);
+    const historyForPrompt = history.slice(-STM_MAX_TURNS);
+
     const { analyzerOutputs, signalPacket } =
       InputProcessor.process(message);
 
@@ -67,8 +89,21 @@ app.post('/chat', async (req, res) => {
       false,
       {},
       undefined,
-      signalPacket
+      signalPacket,
+      historyForPrompt,
     );
+
+    const assistantText = result.llmOutput ?? '';
+    if (assistantText) {
+      history.push({
+        role: 'assistant',
+        text: truncateTurnText(assistantText),
+        ts: Date.now(),
+      });
+    }
+    if (history.length > STM_MAX_TURNS * 2) {
+      history.splice(0, history.length - STM_MAX_TURNS);
+    }
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][Adapter]', {
