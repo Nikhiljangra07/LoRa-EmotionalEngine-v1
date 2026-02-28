@@ -1,6 +1,5 @@
 import http from 'http';
 import express from 'express';
-import { registerChatRoute } from '../routes/chat.route';
 import type { MemoryService } from '../../emotion-core/memory-v1/service/MemoryService';
 
 let lastPayloadSeen: {
@@ -65,11 +64,18 @@ function postApiChat(
 describe('POST /api/chat — Session Transcript Memory (STM)', () => {
   let server: http.Server | null = null;
   let port = 0;
+  const origPersona = process.env.LORA_PERSONA_ENFORCER;
+  const origRelational = process.env.LORA_RELATIONAL_ROUTER;
 
   beforeAll((done) => {
+    delete process.env.LORA_PERSONA_ENFORCER;
+    delete process.env.LORA_RELATIONAL_ROUTER;
+    jest.resetModules();
+
     const app = express();
     app.use(express.json());
 
+    const { registerChatRoute } = require('../routes/chat.route') as typeof import('../routes/chat.route');
     const contextAwareResponder = () => ({
       generateResponse: async (
         systemPrompt: string,
@@ -112,6 +118,10 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
   });
 
   afterAll((done) => {
+    if (origPersona === undefined) delete process.env.LORA_PERSONA_ENFORCER;
+    else process.env.LORA_PERSONA_ENFORCER = origPersona;
+    if (origRelational === undefined) delete process.env.LORA_RELATIONAL_ROUTER;
+    else process.env.LORA_RELATIONAL_ROUTER = origRelational;
     if (server) server.close(done);
     else done();
   });
