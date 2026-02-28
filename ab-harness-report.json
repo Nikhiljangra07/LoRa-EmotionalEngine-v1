@@ -1,0 +1,390 @@
+{
+  "runA": {
+    "label": "A (Appraisal ON)",
+    "turns": [
+      {
+        "turn": 1,
+        "userMessage": "I'm behind and I'm wasting time.",
+        "assistantResponse": "Being behind and wasting time are usually two separate problems wearing the same face.\n\nThe question is which one is actually driving this — a real gap in progress, or a loop of distraction that's making the gap feel bigger?\n\nWhat's the one thing you're most behind on right now?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 2,
+        "userMessage": "Stop asking questions. Just tell me what to do.",
+        "assistantResponse": "Pick the single most overdue thing, work on it for 25 minutes, and don't touch anything else until that block is done.\n\nThat's it — everything else is noise until you have one thing moving.",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 3,
+        "userMessage": "I'm done with this. It's not fair.",
+        "assistantResponse": "Something shifted — you went from needing direction to hitting a wall.\n\n\"Not fair\" usually means an expectation got broken, either by someone else or by how things were supposed to go.\n\nWhat specifically stopped being fair?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 4,
+        "userMessage": "Nothing works. I'm useless.",
+        "assistantResponse": "You've gone from being behind on work, to frustrated with the process, to now writing yourself off entirely — that's a significant escalation in a short span.\n\nBeing stuck on a task and being useless are not the same thing, even when the feeling makes them seem identical.\n\nWhat's the specific thing that just didn't work?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 5,
+        "userMessage": "Actually I'm furious. Everyone else gets it easy.",
+        "assistantResponse": "The target shifted — this isn't about the work anymore, it's about the gap between your effort and what others seem to require.\n\nThat comparison is doing a lot of damage right now, and it's probably not accurate — most people's \"easy\" isn't visible from the outside.\n\nWho specifically are you measuring yourself against?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 6,
+        "userMessage": "Don't give me therapy. Give me a plan.",
+        "assistantResponse": "Start the 25-minute block you haven't started yet — same instruction as before, still the right one.\n\nThe fury is real, but it won't move the work. The block will.\n\nWhat's the one task you're going to open in the next 60 seconds?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 7,
+        "userMessage": "No. You're not listening.",
+        "assistantResponse": "You've said the plan isn't the problem — so something else is blocking this.\n\nIs it that you don't believe the plan will work, or that you can't get yourself to start it?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 8,
+        "userMessage": "Whatever. I don't care anymore.",
+        "assistantResponse": "\"I don't care\" after this much frustration usually means the effort of caring has become exhausting, not that you've actually stopped.\n\nWhat happened right before you sat down today?",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 9,
+        "userMessage": "Fine. What's the first step then?",
+        "assistantResponse": "Open the one task you're most behind on — just open it, nothing else yet.",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 10,
+        "userMessage": "Make it small. One step.",
+        "assistantResponse": "Open the file or tab for that task — just that, nothing else.",
+        "guidanceMode": "unknown",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      }
+    ]
+  },
+  "runB": {
+    "label": "B (Appraisal OFF)",
+    "turns": [
+      {
+        "turn": 1,
+        "userMessage": "I'm behind and I'm wasting time.",
+        "assistantResponse": "Being behind and wasting time are two separate problems that often get treated as one.\n\nThe wasting time part usually has a specific source — what's actually pulling your attention away?",
+        "guidanceMode": "CALM_NEUTRAL",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 2,
+        "userMessage": "Stop asking questions. Just tell me what to do.",
+        "assistantResponse": "Pick the single most overdue thing and work on it for 25 minutes — nothing else open, phone face down.\n\nThat's it. The rest of the list doesn't exist until that block is done.",
+        "guidanceMode": "CALM_NEUTRAL",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 3,
+        "userMessage": "I'm done with this. It's not fair.",
+        "assistantResponse": "Something shifted between \"I'm behind\" and \"it's not fair\" — that's not the same frustration.\n\nWhat specifically isn't fair?",
+        "guidanceMode": "STABILIZING",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "MEDIUM",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 4,
+        "userMessage": "Nothing works. I'm useless.",
+        "assistantResponse": "You went from a task problem to a worth problem — that's a significant jump in a short conversation.\n\nThose two things have different causes, and conflating them makes both harder to solve — being behind on work doesn't make you useless, it makes you behind.\n\nWhich one is actually driving this right now — the work, or something underneath it?",
+        "guidanceMode": "STABILIZING",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "MEDIUM",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 5,
+        "userMessage": "Actually I'm furious. Everyone else gets it easy.",
+        "assistantResponse": "You're watching other people move without friction while you're stuck — that comparison is doing real damage right now.\n\nThe fury makes sense as a reaction, but \"everyone else has it easy\" is a story, not a fact — and it's one that makes your situation feel more fixed than it is.\n\nWhat specifically are you watching other people do that looks effortless to you?",
+        "guidanceMode": "STABILIZING",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 6,
+        "userMessage": "Don't give me therapy. Give me a plan.",
+        "assistantResponse": "Start the 25-minute block you skipped earlier — same rule: one task, everything else off.\n\nWhat's the single most overdue thing on your list right now?",
+        "guidanceMode": "CALM_NEUTRAL",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "MEDIUM",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 7,
+        "userMessage": "No. You're not listening.",
+        "assistantResponse": "You're right — you want a plan, not a conversation.\n\nTell me what you're working on and I'll give you the exact next step.",
+        "guidanceMode": "CALM_NEUTRAL",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 8,
+        "userMessage": "Whatever. I don't care anymore.",
+        "assistantResponse": "\"I don't care\" after this much friction usually means the effort cost has exceeded what feels worth it right now.\n\nWhat's the one thing that would actually matter if you got it done today?",
+        "guidanceMode": "CALM_NEUTRAL",
+        "ekmanDominant": null,
+        "ekmanConfidence": null,
+        "volatilityState": "LOW",
+        "escalationLevel": null,
+        "pacingHint": null,
+        "questionBudgetHint": null,
+        "hints": []
+      },
+      {
+        "turn": 9,
+        "userMessage": "Fine. What's the first step then?",
+        "assistantResponse": "Tell me what the task is and I'll give you the exact first move.",
+        "guidanceMode": "STABILIZE",
+        "ekmanDominant": "SURPRISE",
+        "ekmanConfidence": 0.6475257142848877,
+        "volatilityState": "LOW",
+        "escalationLevel": 3,
+        "pacingHint": "SLOW",
+        "questionBudgetHint": "ZERO",
+        "hints": [
+          "pacing:SLOW",
+          "tone:GENTLE",
+          "validationHint:STRONG",
+          "interrupt:FIRM",
+          "qBudget:ZERO"
+        ]
+      },
+      {
+        "turn": 10,
+        "userMessage": "Make it small. One step.",
+        "assistantResponse": "Name the task and I'll break it down to the smallest possible action.",
+        "guidanceMode": "STABILIZE",
+        "ekmanDominant": "SURPRISE",
+        "ekmanConfidence": 0.6475257142848877,
+        "volatilityState": "LOW",
+        "escalationLevel": 3,
+        "pacingHint": "SLOW",
+        "questionBudgetHint": "ZERO",
+        "hints": [
+          "pacing:SLOW",
+          "tone:GENTLE",
+          "validationHint:STRONG",
+          "interrupt:FIRM",
+          "qBudget:ZERO"
+        ]
+      }
+    ]
+  },
+  "diffs": [
+    {
+      "turn": 1,
+      "fieldsChanged": 1,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 2,
+      "fieldsChanged": 1,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 3,
+      "fieldsChanged": 2,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode",
+        "volatilityState"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 4,
+      "fieldsChanged": 2,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode",
+        "volatilityState"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 5,
+      "fieldsChanged": 1,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 6,
+      "fieldsChanged": 2,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode",
+        "volatilityState"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 7,
+      "fieldsChanged": 1,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 8,
+      "fieldsChanged": 1,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 9,
+      "fieldsChanged": 4,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode",
+        "ekmanDominant",
+        "escalationLevel",
+        "hints"
+      ],
+      "signalWithNoOverlay": []
+    },
+    {
+      "turn": 10,
+      "fieldsChanged": 4,
+      "responseChanged": true,
+      "changedFields": [
+        "guidanceMode",
+        "ekmanDominant",
+        "escalationLevel",
+        "hints"
+      ],
+      "signalWithNoOverlay": []
+    }
+  ],
+  "summary": {
+    "responsesChanged": 10,
+    "avgFieldsChanged": 1.9,
+    "wiringGaps": []
+  }
+}
