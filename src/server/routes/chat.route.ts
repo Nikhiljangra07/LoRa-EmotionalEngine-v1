@@ -9,7 +9,11 @@ import { EngineOrchestrator } from '../../emotion-core/engines/EngineOrchestrato
 import { ClaudeResponder } from '../../emotion-core/llm/ClaudeResponder';
 import { InputProcessor } from '../../emotion-core/processors/InputProcessor';
 import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
-import { STM_MAX_TURNS, STM_MAX_TEXT_LENGTH, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
+import { STM_MAX_TURNS, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
+import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../../emotion-core/intent/relationalIntent';
+
+/** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
+export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
 
 interface SessionEntry {
   engine: EngineOrchestrator;
@@ -189,6 +193,28 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
         ts: typeof timestamp === 'number' ? timestamp : Date.now(),
       };
       session.history.push(userTurn);
+
+      // Relational router: when LORA_RELATIONAL_ROUTER=1 and intent detected, return immediately.
+      // No engine call, no navigation overlays, no prompt builder. Reply exactly RELATIONAL_REPLY.
+      if (process.env.LORA_RELATIONAL_ROUTER === '1') {
+        const classification = classifyRelationalIntent(text);
+        if (classification.intent !== 'none' && classification.confidence >= RELATIONAL_CONFIDENCE_THRESHOLD) {
+          session.history.push({
+            role: 'assistant',
+            text: RELATIONAL_REPLY,
+            ts: Date.now(),
+          });
+          const debug = emptyDebug();
+          res.status(200).json({
+            reply: RELATIONAL_REPLY,
+            debug: {
+              ...debug,
+              relational: { intent: classification.intent, confidence: classification.confidence },
+            },
+          });
+          return;
+        }
+      }
 
       const historyForPrompt = session.history.slice(-STM_MAX_TURNS);
 
