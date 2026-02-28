@@ -82,6 +82,7 @@ export interface MessageDecisionLog {
     smoothed: number;
     maskedPressure: boolean;
   };
+  maskedPressurePersistent?: boolean;
   volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
   gradientEscalation?: {
     state: string;

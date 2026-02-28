@@ -116,6 +116,7 @@ export class PromptTemplateBuilder {
         moodDominance?: number;
         agencyDeficit?: number;
         maskedPressure?: boolean;
+        maskedPressurePersistent?: boolean;
         volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
         escalationState?: string;
         escalationTrend?: 'UP' | 'DOWN' | 'FLAT';
@@ -1114,6 +1115,7 @@ ${rsc.blockText}`;
       moodDominance?: number;
       agencyDeficit?: number;
       maskedPressure?: boolean;
+      maskedPressurePersistent?: boolean;
       volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
       escalationState?: string;
       escalationTrend?: 'UP' | 'DOWN' | 'FLAT';
@@ -1128,6 +1130,7 @@ ${rsc.blockText}`;
     const agencyDeficit = signals.agencyDeficit ?? 0;
     const moodCategory = signals.moodCategory ?? 'NEUTRAL';
     const hasMaskedPressure = !!signals.maskedPressure;
+    const maskedPressurePersistent = !!signals.maskedPressurePersistent;
     const escalationTrend = signals.escalationTrend;
     const escalationState = signals.escalationState;
 
@@ -1137,6 +1140,7 @@ ${rsc.blockText}`;
       pressureScalar >= 1.5 ||
       agencyDeficit >= 0.3 ||
       hasMaskedPressure ||
+      maskedPressurePersistent ||
       (escalationState && escalationState !== 'CALM') ||
       (moodCategory !== 'NEUTRAL' && moodCategory !== 'POSITIVE');
 
@@ -1158,7 +1162,9 @@ ${rsc.blockText}`;
       lines.push(`- Escalation: ${PromptTemplateBuilder.escalationLabel(escLevel)}`);
     }
 
-    if (hasMaskedPressure) {
+    if (maskedPressurePersistent) {
+      lines.push('- Masked pressure: PERSISTENT');
+    } else if (hasMaskedPressure) {
       lines.push('- Masked pressure: DETECTED — user may be minimizing distress');
     }
 

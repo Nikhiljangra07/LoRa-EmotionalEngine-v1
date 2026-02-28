@@ -179,6 +179,7 @@ describe('Structural Differentiation — Bridge OFF guarantees', () => {
 
     for (const log of loggedDecisions) {
       expect(log.lpi).toBeUndefined();
+      expect(log.maskedPressurePersistent).toBeUndefined();
       expect(log.volatilityTrend).toBeUndefined();
       expect(log.gradientEscalation).toBeUndefined();
       expect(log.ekmanInfluenceApplied).toBeUndefined();

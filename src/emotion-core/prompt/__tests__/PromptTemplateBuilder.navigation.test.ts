@@ -37,6 +37,30 @@ describe('PromptTemplateBuilder — navigation signals', () => {
     expect(prompt).not.toContain('Masked pressure');
   });
 
+  test('masked pressure PERSISTENT appears when maskedPressurePersistent true', () => {
+    const prompt = PromptTemplateBuilder.build(baseState, etvState, {
+      signalContext: {
+        escalationLevel: 0,
+        maskedPressure: true,
+        maskedPressurePersistent: true,
+      },
+    });
+    expect(prompt).toContain('Masked pressure: PERSISTENT');
+    expect(prompt).not.toContain('Masked pressure: DETECTED');
+  });
+
+  test('masked pressure DETECTED (not PERSISTENT) when only single-turn', () => {
+    const prompt = PromptTemplateBuilder.build(baseState, etvState, {
+      signalContext: {
+        escalationLevel: 0,
+        maskedPressure: true,
+        maskedPressurePersistent: false,
+      },
+    });
+    expect(prompt).toContain('Masked pressure: DETECTED');
+    expect(prompt).not.toContain('Masked pressure: PERSISTENT');
+  });
+
   test('volatility trend RISING appears in RELATIONAL CONTEXT', () => {
     const prompt = PromptTemplateBuilder.build(baseState, etvState, {
       signalContext: {

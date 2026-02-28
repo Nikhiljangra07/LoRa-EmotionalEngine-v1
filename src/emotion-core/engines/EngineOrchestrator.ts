@@ -61,6 +61,7 @@ import { NarrativeStateEngine } from '../narrative/NarrativeStateEngine';
 import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
 import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
+import { isMaskedPressurePersistent } from './maskedPressurePersistence';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -123,6 +124,9 @@ export class EngineOrchestrator {
   private readonly gradientEscalationTracker?: GradientEscalationTracker;
   private recentVolatilities: number[] = [];
   private lastMessageTimestampMs = 0;
+
+  // ── Masked pressure persistence gate: ring buffer (max 4) for 2-of-4 trigger ──
+  private maskedPressureHistory: boolean[] = [];
 
   // ── Idempotent session-close guard (ETV V1) ──
   private sessionOpen = false;
@@ -397,6 +401,13 @@ export class EngineOrchestrator {
         );
       }
     }
+
+    // Masked pressure persistence: ring buffer (max 4) for 2-of-4 gate
+    this.maskedPressureHistory.push(lpiResult?.maskedPressure ?? false);
+    while (this.maskedPressureHistory.length > 4) {
+      this.maskedPressureHistory.shift();
+    }
+    const maskedPressurePersistent = isMaskedPressurePersistent(this.maskedPressureHistory);
 
     const analyzerSummary = (
       signalPacket?.metadata as
@@ -762,6 +773,28 @@ export class EngineOrchestrator {
         questionBudgetHint = 'ZERO';
       }
       // else → undefined (absent)
+    }
+
+    // ── Masked pressure persistence gate (2-of-4 rolling window) ──
+    // Focus + next step — no therapy/grief language. Respects dwell lock.
+    if (
+      featureFlags.appraisalBridgeModeEnabled &&
+      maskedPressurePersistent &&
+      !dwellResult.dwellActive &&
+      this.messageCount >= this.minimumMessagesForAdaptiveControl &&
+      appraisalResult
+    ) {
+      const alreadyStabilizing = guidanceMode === 'STABILIZE' || guidanceMode === 'DE_ESCALATE' || guidanceMode === 'STABILIZING';
+      if (!alreadyStabilizing) {
+        guidanceMode = 'STABILIZING';
+      }
+      const escalationLevel = gradientEscalation?.numericLevel ?? appraisalResult.escalation.level;
+      questionBudgetHint = escalationLevel >= 3 ? 'ZERO' : 'ONE';
+      if (!alreadyStabilizing) {
+        actionHint = 'OFFER_STEPS';
+      } else if (guidanceMode === 'STABILIZING' && actionHint === undefined) {
+        actionHint = 'OFFER_STEPS';
+      }
     }
 
     // ── Volatility direction influence on hints ──
@@ -1185,6 +1218,7 @@ export class EngineOrchestrator {
           moodDominance: appraisalResult.mood.dominance,
           agencyDeficit: appraisalResult.postClarity.agencyDeficit,
           maskedPressure: lpiResult?.maskedPressure,
+          maskedPressurePersistent,
           volatilityTrend,
           escalationState: gradientEscalation?.state,
           escalationTrend: gradientEscalation?.trend,
@@ -1390,6 +1424,7 @@ export class EngineOrchestrator {
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
       ...(dwellResult.dwellActive ? { guidanceDwellActive: true as const, guidanceDwellMode: dwellResult.dwellMode } : {}),
       ...(lpiResult ? { lpi: { raw: lpiResult.raw, smoothed: lpiResult.smoothed, maskedPressure: lpiResult.maskedPressure } } : {}),
+      ...(maskedPressurePersistent ? { maskedPressurePersistent: true } : {}),
       ...(volatilityTrend ? { volatilityTrend } : {}),
       ...(gradientEscalation ? { gradientEscalation: { state: gradientEscalation.state, numericLevel: gradientEscalation.numericLevel, trend: gradientEscalation.trend } } : {}),
       ...(ekmanWeightResult?.applied ? { ekmanInfluenceApplied: true } : {}),
