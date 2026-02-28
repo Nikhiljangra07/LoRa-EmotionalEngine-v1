@@ -24,7 +24,7 @@ jest.mock('../../logging/DecisionLogger', () => ({
 
 import { DecisionLogger } from '../../logging/DecisionLogger';
 
-const mutableFlags = featureFlags as Record<string, boolean>;
+const mutableFlags = featureFlags as Record<string, boolean | number>;
 
 function makeEmotionalState(
   arousal: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW',
@@ -455,7 +455,7 @@ describe('PromptTemplateBuilder — ETV Policy integration', () => {
 });
 
 describe('Prompt "no companionship" enforcement', () => {
-  const mFlags = featureFlags as Record<string, boolean>;
+  const mFlags = featureFlags as Record<string, boolean | number>;
 
   beforeEach(() => {
     mFlags.etvPolicyPromptEnabled = true;
