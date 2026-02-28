@@ -14,6 +14,7 @@ import type { AnchorRecord, EmotionBand } from '../memory-v1/service/memoryTypes
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
 import { RELATIONAL_CONFIDENCE_THRESHOLD } from '../intent/relationalIntent';
 import type { RelationalIntent } from '../intent/relationalIntent';
+import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 
 export type ChatTurn = {
   role: 'user' | 'assistant';
@@ -98,6 +99,7 @@ export class PromptTemplateBuilder {
       sessionHistory?: ChatTurn[];
       relational?: { intent: RelationalIntent; confidence: number };
       bootstrapContext?: string;
+      narrativeMomentum?: NarrativeMomentumBlock;
       messageId?: string;
       userId?: string;
     }
@@ -208,6 +210,7 @@ export class PromptTemplateBuilder {
     const relationalPolicyBlock = this.getRelationalPolicyBlock(options?.relational, band, intensity);
     const sessionContextBlock = this.getSessionContextBlock(options?.sessionHistory);
     const bootstrapBlock = this.getBootstrapContextBlock(options?.bootstrapContext);
+    const narrativeMomentumBlock = this.getNarrativeMomentumBlock(options?.narrativeMomentum);
 
     const prompt = `
 You are LoRa, an emotionally intelligent AI companion designed by NeuraSoul.
@@ -242,7 +245,7 @@ ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${p
 
 BAND CALIBRATION
 ----------------
-${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}
 
 GLOBAL SAFETY CONSTRAINTS
 -------------------------
@@ -896,6 +899,26 @@ Degraded Mode: Partial
     if (!bootstrapContext || bootstrapContext.trim().length === 0) return '';
 
     return `\n\nBOOTSTRAP CONTEXT (early personalization)\n-----------------------------------------\n${bootstrapContext.trim()}`;
+  }
+
+  /* ============================================================
+   * Narrative Momentum (NSE) — conversational direction guidance
+   * ============================================================
+   */
+  static getNarrativeMomentumBlock(momentum?: NarrativeMomentumBlock): string {
+    if (!momentum) return '';
+
+    const theme = momentum.dominantTheme ?? 'not yet identified';
+    return `
+
+NARRATIVE MOMENTUM
+------------------
+Dominant theme: ${theme}
+Emotional trajectory: ${momentum.emotionalTrajectory}
+Conversation phase: ${momentum.currentPhase}
+Suggested strategy: ${momentum.suggestedStrategy}
+
+This is internal guidance. Do not expose these labels to the user.`;
   }
 
   /* ============================================================

@@ -47,6 +47,8 @@ import type { BootstrapMemory } from '../memory-v1/bootstrap/bootstrapMemory';
 import { buildBootstrapContext } from '../memory-v1/bootstrap/bootstrapContext';
 import { runPersonaEnforcer } from '../persona/personaEnforcer';
 import type { PersonaEnforcerDebug } from '../persona/personaEnforcer';
+import { NarrativeStateEngine } from '../narrative/NarrativeStateEngine';
+import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -168,6 +170,9 @@ export class EngineOrchestrator {
   private chromaDegraded = false;
   private falkorDegraded = false;
   private degradedLogged = { chroma: false, falkor: false, dual: false };
+
+  // ── Narrative State Engine (gated by narrativeStateEngineEnabled) ──
+  private narrativeEngine?: NarrativeStateEngine;
 
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
@@ -956,6 +961,16 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── Narrative State Engine: advance per-message (feature-flagged) ──
+    let narrativeMomentum: NarrativeMomentumBlock | undefined;
+    if (featureFlags.narrativeStateEngineEnabled) {
+      if (!this.narrativeEngine) {
+        this.narrativeEngine = new NarrativeStateEngine();
+      }
+      this.narrativeEngine.advance({ userText: userMessage, eiv: eivResult.value });
+      narrativeMomentum = this.narrativeEngine.toMomentumBlock();
+    }
+
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -982,6 +997,7 @@ export class EngineOrchestrator {
       ...(sessionHistory && sessionHistory.length > 0 ? { sessionHistory } : {}),
       ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
       ...(bootstrapContextStr ? { bootstrapContext: bootstrapContextStr } : {}),
+      ...(narrativeMomentum ? { narrativeMomentum } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -1458,6 +1474,7 @@ export class EngineOrchestrator {
     this.chromaDegraded = false;
     this.falkorDegraded = false;
     this.degradedLogged = { chroma: false, falkor: false, dual: false };
+    this.narrativeEngine?.reset();
 
     return { newETV };
   }
