@@ -25,6 +25,14 @@ import { enforceHintSemanticCoherence } from './hintSemanticGuard';
 import { mapLayerASnapshot } from '../../appraisal-bridge/mapLayerASnapshot';
 import type { AppraisalResult } from '../../appraisal-bridge/types';
 import { mapEkmanToDominant } from '../../appraisal-bridge/ekmanToDominant';
+import { LatentPressureTracker } from '../../appraisal-bridge/latentPressureIndex';
+import type { LPIResult } from '../../appraisal-bridge/latentPressureIndex';
+import { VolatilityDirectionTracker } from '../../appraisal-bridge/volatilityDirection';
+import type { VolatilityTrend } from '../../appraisal-bridge/volatilityDirection';
+import { computeEkmanWeighting } from '../../appraisal-bridge/ekmanWeighting';
+import type { EkmanWeightResult } from '../../appraisal-bridge/ekmanWeighting';
+import { GradientEscalationTracker } from '../../appraisal-bridge/gradientEscalation';
+import type { GradientEscalationResult, GradientEscalationState } from '../../appraisal-bridge/gradientEscalation';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1, ETVPolicy } from '../etv';
@@ -110,6 +118,10 @@ export class EngineOrchestrator {
   private readonly responderFactory: () => LLMResponder;
 
   private readonly appraisalBridge?: AppraisalBridgeRunner;
+  private readonly lpiTracker?: LatentPressureTracker;
+  private readonly volatilityDirectionTracker?: VolatilityDirectionTracker;
+  private readonly gradientEscalationTracker?: GradientEscalationTracker;
+  private recentVolatilities: number[] = [];
   private lastMessageTimestampMs = 0;
 
   // ── Idempotent session-close guard (ETV V1) ──
@@ -205,6 +217,9 @@ export class EngineOrchestrator {
     this.interpreter = new EmotionalStateInterpreter();
     if (featureFlags.appraisalBridgeEnabled) {
       this.appraisalBridge = new AppraisalBridgeRunner();
+      this.lpiTracker = new LatentPressureTracker();
+      this.volatilityDirectionTracker = new VolatilityDirectionTracker();
+      this.gradientEscalationTracker = new GradientEscalationTracker();
     }
     if (featureFlags.memoryServiceEnabled && options.memoryService) {
       this.memoryService = options.memoryService;
@@ -344,6 +359,45 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── LPI + Volatility Direction + Gradient Escalation (appraisal bridge) ──
+    let lpiResult: LPIResult | undefined;
+    let volatilityTrend: VolatilityTrend | undefined;
+    let gradientEscalation: GradientEscalationResult | undefined;
+
+    if (this.appraisalBridge && appraisalResult) {
+      this.recentVolatilities.push(sessionVolatility.value);
+      if (this.recentVolatilities.length > 10) {
+        this.recentVolatilities = this.recentVolatilities.slice(-10);
+      }
+
+      if (this.lpiTracker) {
+        const messageText = signalPacket?.messageText ?? '';
+        lpiResult = this.lpiTracker.step(
+          {
+            messageText,
+            valenceScore: analyzerOutputs.valence.score,
+            valenceConfidence: analyzerOutputs.valence.confidence,
+            arousalScore: analyzerOutputs.arousal.score,
+            recentVolatilities: this.recentVolatilities,
+          },
+          appraisalResult.escalation.level,
+        );
+      }
+
+      if (this.volatilityDirectionTracker) {
+        const vdResult = this.volatilityDirectionTracker.step(sessionVolatility.value);
+        volatilityTrend = vdResult.trend;
+      }
+
+      if (this.gradientEscalationTracker) {
+        gradientEscalation = this.gradientEscalationTracker.step(
+          appraisalResult.escalation.level,
+          lpiResult?.smoothed ?? 0,
+          volatilityTrend ?? 'STABLE',
+        );
+      }
+    }
+
     const analyzerSummary = (
       signalPacket?.metadata as
         | {
@@ -451,6 +505,9 @@ export class EngineOrchestrator {
       } else if (appraisalResult.postClarity.active) {
         guidanceMode = 'SUPPORTIVE_REFLECTION';
         appraisalOverride = 'POST_CLARITY_OVERRIDE';
+      } else if (lpiResult?.maskedPressure && gradientEscalation && gradientEscalation.numericLevel < 3) {
+        guidanceMode = 'STABILIZING';
+        appraisalOverride = 'MASKED_PRESSURE_OVERRIDE';
       }
 
       if (appraisalOverride && cooldownEnabled) {
@@ -705,6 +762,46 @@ export class EngineOrchestrator {
         questionBudgetHint = 'ZERO';
       }
       // else → undefined (absent)
+    }
+
+    // ── Volatility direction influence on hints ──
+    if (volatilityTrend === 'RISING' && (emotionalState.arousal === 'MEDIUM' || emotionalState.arousal === 'HIGH')) {
+      if (!validationIntensity || validationIntensity === 'MEDIUM') {
+        validationIntensity = 'HIGH';
+      }
+      if (!questionBudgetHint) {
+        questionBudgetHint = 'ONE';
+      } else if (questionBudgetHint === 'ONE') {
+        questionBudgetHint = 'ZERO';
+      }
+    }
+
+    if (volatilityTrend === 'FALLING' && !appraisalOverride && !dwellResult.dwellActive) {
+      if (guidanceMode === 'STABILIZE') {
+        guidanceMode = 'STABILIZING';
+      } else if (guidanceMode === 'STABILIZING') {
+        guidanceMode = 'CALM_NEUTRAL';
+      }
+    }
+
+    // ── Ekman weighting influence on hints ──
+    let ekmanWeightResult: EkmanWeightResult | undefined;
+    if (this.appraisalBridge && emotionalState.ekmanDominant) {
+      ekmanWeightResult = computeEkmanWeighting(
+        emotionalState.ekmanDominant,
+        emotionalState.ekmanConfidence,
+        { pacingHint, validationIntensity, interruptHint, questionBudgetHint },
+      );
+      if (ekmanWeightResult.applied) {
+        const m = ekmanWeightResult.modifiers;
+        if (m.pacingHint) pacingHint = m.pacingHint;
+        if (m.validationIntensity) validationIntensity = m.validationIntensity;
+        if (m.interruptHint) interruptHint = m.interruptHint;
+        if (m.questionBudgetHint) questionBudgetHint = m.questionBudgetHint;
+        if (m.preferEnergyMatch && guidanceMode === 'CALM_NEUTRAL') {
+          guidanceMode = 'ENERGY_MATCH';
+        }
+      }
     }
 
     const userMessage = signalPacket?.messageText ?? '';
@@ -1080,13 +1177,18 @@ export class EngineOrchestrator {
       volatility: { value: sessionVolatility.value, state: sessionVolatility.state },
       ...(appraisalResult ? {
         signalContext: {
-          escalationLevel: appraisalResult.escalation.level,
+          escalationLevel: gradientEscalation?.numericLevel ?? appraisalResult.escalation.level,
           collapseEvent: appraisalResult.collapse.event,
           pressureScalar: appraisalResult.pressure.scalar,
           pressureVolatility: appraisalResult.pressure.volatility,
           moodCategory: appraisalResult.mood.category,
           moodDominance: appraisalResult.mood.dominance,
           agencyDeficit: appraisalResult.postClarity.agencyDeficit,
+          maskedPressure: lpiResult?.maskedPressure,
+          volatilityTrend,
+          escalationState: gradientEscalation?.state,
+          escalationTrend: gradientEscalation?.trend,
+          ekmanInfluenceApplied: ekmanWeightResult?.applied,
         },
       } : {}),
       userId: this.userId,
@@ -1128,7 +1230,13 @@ export class EngineOrchestrator {
         ekmanConfidence: emotionalState.ekmanConfidence ?? 0,
         volatility: sessionVolatility.state,
         volatilityValue: +sessionVolatility.value.toFixed(4),
+        volatilityTrend: volatilityTrend ?? 'none',
         escalation: appraisalResult?.escalation.level ?? 0,
+        gradientEscalation: gradientEscalation?.state ?? 'none',
+        escalationTrend: gradientEscalation?.trend ?? 'none',
+        lpi: lpiResult ? +lpiResult.smoothed.toFixed(4) : 0,
+        maskedPressure: lpiResult?.maskedPressure ?? false,
+        ekmanInfluence: ekmanWeightResult?.applied ?? false,
         guidanceMode,
       });
     }
@@ -1281,6 +1389,10 @@ export class EngineOrchestrator {
       ...(driftDetectedThisMessage ? { driftDetected: true as const } : {}),
       ...(overrideCooldownActiveThisMessage ? { overrideCooldownActive: true as const } : {}),
       ...(dwellResult.dwellActive ? { guidanceDwellActive: true as const, guidanceDwellMode: dwellResult.dwellMode } : {}),
+      ...(lpiResult ? { lpi: { raw: lpiResult.raw, smoothed: lpiResult.smoothed, maskedPressure: lpiResult.maskedPressure } } : {}),
+      ...(volatilityTrend ? { volatilityTrend } : {}),
+      ...(gradientEscalation ? { gradientEscalation: { state: gradientEscalation.state, numericLevel: gradientEscalation.numericLevel, trend: gradientEscalation.trend } } : {}),
+      ...(ekmanWeightResult?.applied ? { ekmanInfluenceApplied: true } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext

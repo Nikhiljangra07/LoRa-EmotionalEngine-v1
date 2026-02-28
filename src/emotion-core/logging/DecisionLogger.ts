@@ -76,6 +76,19 @@ export interface MessageDecisionLog {
   overrideCooldownActive?: true;
   guidanceDwellActive?: true;
   guidanceDwellMode?: 'STABILIZE' | 'DE_ESCALATE';
+
+  lpi?: {
+    raw: number;
+    smoothed: number;
+    maskedPressure: boolean;
+  };
+  volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
+  gradientEscalation?: {
+    state: string;
+    numericLevel: number;
+    trend: 'UP' | 'DOWN' | 'FLAT';
+  };
+  ekmanInfluenceApplied?: boolean;
 }
 
 export interface SessionLog {

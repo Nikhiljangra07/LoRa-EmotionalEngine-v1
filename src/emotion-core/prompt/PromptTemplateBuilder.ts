@@ -115,6 +115,11 @@ export class PromptTemplateBuilder {
         moodCategory?: string;
         moodDominance?: number;
         agencyDeficit?: number;
+        maskedPressure?: boolean;
+        volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
+        escalationState?: string;
+        escalationTrend?: 'UP' | 'DOWN' | 'FLAT';
+        ekmanInfluenceApplied?: boolean;
       };
       messageId?: string;
       userId?: string;
@@ -251,7 +256,7 @@ RELATIONAL CONTEXT
 ------------------
 Relationship style: ${relationshipStyle}
 Trust depth: ${bandLabel}
-Emotional intensity (current turn): ${intensity}${ekmanSignalLine}${volatilityLine}
+Emotional intensity (current turn): ${intensity}${ekmanSignalLine}${volatilityLine}${this.getVolatilityTrendLine(options?.signalContext?.volatilityTrend)}
 
 Use this to calibrate tone and depth \u2014 not to restrict personality.
 ${microContextBlock}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}
@@ -1085,6 +1090,13 @@ ${rsc.blockText}`;
     return `\nVolatility (recent turns): ${volatility.state}`;
   }
 
+  private static getVolatilityTrendLine(
+    trend?: 'RISING' | 'FALLING' | 'STABLE',
+  ): string {
+    if (!trend || trend === 'STABLE') return '';
+    return `\nVolatility trend: ${trend}`;
+  }
+
   /* ============================================================
    * Appraisal signal block (lightweight context, not hints)
    *
@@ -1101,6 +1113,11 @@ ${rsc.blockText}`;
       moodCategory?: string;
       moodDominance?: number;
       agencyDeficit?: number;
+      maskedPressure?: boolean;
+      volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
+      escalationState?: string;
+      escalationTrend?: 'UP' | 'DOWN' | 'FLAT';
+      ekmanInfluenceApplied?: boolean;
     },
   ): string {
     if (!signals) return '';
@@ -1110,12 +1127,17 @@ ${rsc.blockText}`;
     const pressureScalar = signals.pressureScalar ?? 0;
     const agencyDeficit = signals.agencyDeficit ?? 0;
     const moodCategory = signals.moodCategory ?? 'NEUTRAL';
+    const hasMaskedPressure = !!signals.maskedPressure;
+    const escalationTrend = signals.escalationTrend;
+    const escalationState = signals.escalationState;
 
     const hasElevatedSignals =
       escLevel >= 1 ||
       hasCollapse ||
       pressureScalar >= 1.5 ||
       agencyDeficit >= 0.3 ||
+      hasMaskedPressure ||
+      (escalationState && escalationState !== 'CALM') ||
       (moodCategory !== 'NEUTRAL' && moodCategory !== 'POSITIVE');
 
     if (!hasElevatedSignals) return '';
@@ -1127,8 +1149,17 @@ ${rsc.blockText}`;
       '-----------------------------------',
     ];
 
-    if (escLevel >= 1) {
+    if (escalationState && escalationState !== 'CALM') {
+      lines.push(`- Escalation: ${escalationState}`);
+      if (escalationTrend) {
+        lines.push(`- Escalation trend: ${escalationTrend}`);
+      }
+    } else if (escLevel >= 1) {
       lines.push(`- Escalation: ${PromptTemplateBuilder.escalationLabel(escLevel)}`);
+    }
+
+    if (hasMaskedPressure) {
+      lines.push('- Masked pressure: DETECTED — user may be minimizing distress');
     }
 
     if (hasCollapse) {

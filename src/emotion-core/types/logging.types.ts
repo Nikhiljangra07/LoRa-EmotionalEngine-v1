@@ -93,6 +93,19 @@ export interface MessageDecisionLog {
     confidence: number;
   };
 
+  lpi?: {
+    raw: number;
+    smoothed: number;
+    maskedPressure: boolean;
+  };
+  volatilityTrend?: 'RISING' | 'FALLING' | 'STABLE';
+  gradientEscalation?: {
+    state: string;
+    numericLevel: number;
+    trend: 'UP' | 'DOWN' | 'FLAT';
+  };
+  ekmanInfluenceApplied?: boolean;
+
   llmOutput?: string;
   userReaction?: 'positive' | 'neutral' | 'negative';
 }
