@@ -188,6 +188,8 @@ export class EngineOrchestrator {
   private readonly memoryV1BaseDir = '.lora/memory-v1';
 
   // ── Memory Service — dual DB pipeline (gated by memoryServiceEnabled) ──
+  /** False by default. Forced to false when NODE_ENV === 'test'. */
+  private readonly memoryServiceEnabled: boolean;
   private readonly memoryService?: MemoryService;
   private readonly bootstrapMemory?: BootstrapMemory;
   private chromaDegraded = false;
@@ -223,7 +225,9 @@ export class EngineOrchestrator {
       this.volatilityDirectionTracker = new VolatilityDirectionTracker();
       this.gradientEscalationTracker = new GradientEscalationTracker();
     }
-    if (featureFlags.memoryServiceEnabled && options.memoryService) {
+    this.memoryServiceEnabled =
+      process.env.NODE_ENV === 'test' ? false : featureFlags.memoryServiceEnabled;
+    if (this.memoryServiceEnabled && options.memoryService) {
       this.memoryService = options.memoryService;
     }
     if (featureFlags.bootstrapMemoryEnabled && options.bootstrapMemory) {
@@ -1670,11 +1674,7 @@ export class EngineOrchestrator {
     }
 
     // ── Fact Anchor lifecycle maintenance (fire-and-forget, gated) ──
-    if (
-      featureFlags.memoryServiceEnabled &&
-      featureFlags.factAnchorEnabled &&
-      this.memoryService
-    ) {
+    if (this.memoryServiceEnabled && this.memoryService) {
       const maintainSessionId = sessionId;
       const maintainNowMs = Date.now();
       this.memoryService.maintainAnchors(this.userId, maintainSessionId, maintainNowMs).catch(() => {
