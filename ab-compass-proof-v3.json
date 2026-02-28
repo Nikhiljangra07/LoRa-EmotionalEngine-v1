@@ -1,0 +1,841 @@
+{
+  "turns": [
+    {
+      "turn": 1,
+      "userMessage": "I'm behind again.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 2,
+      "userMessage": "I'm fine.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 3,
+      "userMessage": "Don't worry about it.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 4,
+      "userMessage": "Doesn't matter.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 5,
+      "userMessage": "Forget it.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 6,
+      "userMessage": "Doesn't matter. I said forget it.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 7,
+      "userMessage": "I'm not mad. I'm just tired of this.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 8,
+      "userMessage": "Whatever. Do whatever you want.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 9,
+      "userMessage": "No excuses. Just tell me what to do.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 10,
+      "userMessage": "I can't focus. Nothing's working.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 11,
+      "userMessage": "I'm fine.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 12,
+      "userMessage": "It doesn't matter anymore.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 13,
+      "userMessage": "Fine. One tiny thing. I did it.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 14,
+      "userMessage": "Still feels pointless but I did it.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 15,
+      "userMessage": "Forget what I said earlier. It does matter. I care.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 16,
+      "userMessage": "I just want this to work. One step at a time.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 17,
+      "userMessage": "No excuses. Give me the next one.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 18,
+      "userMessage": "I did that too. Small win.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 19,
+      "userMessage": "One more. Keep it small.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 6,
+      "overlaysInANotB": [
+        "ekmanDominant"
+      ]
+    },
+    {
+      "turn": 20,
+      "userMessage": "Now.",
+      "a": {
+        "maskedPressure": false,
+        "escalationState": "CALM",
+        "escalationTrend": "FLAT",
+        "volatilityTier": "LOW",
+        "volatilityTrend": "STABLE",
+        "ekmanDominant": "SURPRISE",
+        "guidanceMode": "STABILIZE",
+        "pacingHint": "SLOW",
+        "qBudgetHint": "ZERO",
+        "validationIntensity": null,
+        "promptOverlays": [
+          "ekmanDominant",
+          "volatilityTier",
+          "signalContext",
+          "pacingHint",
+          "questionBudget",
+          "toneHint",
+          "validationHint",
+          "interruptHint"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "b": {
+        "maskedPressure": null,
+        "escalationState": null,
+        "escalationTrend": null,
+        "volatilityTier": "LOW",
+        "volatilityTrend": null,
+        "ekmanDominant": null,
+        "guidanceMode": "CALM_NEUTRAL",
+        "pacingHint": null,
+        "qBudgetHint": null,
+        "validationIntensity": null,
+        "promptOverlays": [
+          "volatilityTier"
+        ],
+        "responseSnippet": "I’m here with you. Let’s take this one step at a time."
+      },
+      "fieldsChanged": 10,
+      "overlaysInANotB": [
+        "ekmanDominant",
+        "signalContext",
+        "pacingHint",
+        "questionBudget",
+        "toneHint",
+        "validationHint",
+        "interruptHint"
+      ]
+    }
+  ],
+  "earlyEngagement": {
+    "firstMaskedPressureTurn": null,
+    "firstEscalationOffCalmTurn": null,
+    "firstNonCalmNeutralTurn": null
+  }
+}
