@@ -15,7 +15,7 @@ import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { ClaudeResponder } from '../llm/ClaudeResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
-import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
+import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint, VolatilityState } from '../types/logging.types';
 import { debugEnabled, decisionLogEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
@@ -267,7 +267,7 @@ export class EngineOrchestrator {
       EIVComponentAssembler.assemble(analyzerOutputs);
 
     // 2. Calculate EIV — ONCE per message (single source of truth)
-    const eivResult = EIVScorer.calculate(components);
+    const eivResult = EIVScorer.calculate(components, analyzerOutputs.enhanced);
 
     // 3. Derive emotional state (or use override for test backward compat)
     const interpreted = this.interpreter.interpret(analyzerOutputs, eivResult.value);
@@ -294,6 +294,9 @@ export class EngineOrchestrator {
         this.sessionAVIs.shift();
       }
     }
+
+    // ── Per-message volatility (rolling window = 5) ──
+    const sessionVolatility = EngineOrchestrator.computeSessionVolatility(this.sessionEIVs);
 
     // Ensure lastMessageTimestampMs is always updated (session boundary
     // detection needs this even when the appraisal bridge is disabled).
@@ -349,13 +352,44 @@ export class EngineOrchestrator {
       repetitionDetected: undefined,
     };
 
+    // ── LORA_DEBUG_EIV: enhanced signal diagnostics ──
+    if (process.env.LORA_DEBUG_EIV === '1' && analyzerOutputs.enhanced) {
+      const e = analyzerOutputs.enhanced;
+      console.log('[LoRa::EIV_DEBUG]', {
+        semanticScore: e.semanticScore,
+        arousalScore: e.arousalScore,
+        capsRatio: e.capsWeight,
+        repetitionWeight: e.repetitionWeight,
+        volatility: sessionVolatility.value,
+        eiv: eivResult.value,
+        eivTier: getEIVTier(eivResult.value),
+      });
+    }
+
     // 5. Message-level decision context (pre-LLM)
-    let guidanceMode: PromptProfile['guidanceMode'] =
-      emotionalState.arousal === 'LOW'
-        ? 'CALM_NEUTRAL'
-        : emotionalState.valence === 'NEGATIVE'
-        ? 'VALIDATING'
-        : 'ENERGY_MATCH';
+    // ── Enhanced arousal / valence classification for guidanceMode ──
+    const AROUSAL_TH = MASTER_CONSTANTS.eiv.enhancedArousalThresholds;
+    const VALENCE_TH = MASTER_CONSTANTS.eiv.enhancedValenceThresholds;
+    const enhancedArousalLevel: 'LOW' | 'MEDIUM' | 'HIGH' = analyzerOutputs.enhanced
+      ? (analyzerOutputs.enhanced.arousalScore > AROUSAL_TH.highMinExclusive ? 'HIGH'
+        : analyzerOutputs.enhanced.arousalScore >= AROUSAL_TH.mediumMinInclusive ? 'MEDIUM' : 'LOW')
+      : emotionalState.arousal;
+    const enhancedValence: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL' = analyzerOutputs.enhanced
+      ? (analyzerOutputs.enhanced.semanticScore < VALENCE_TH.negativeMaxExclusive ? 'NEGATIVE'
+        : analyzerOutputs.enhanced.semanticScore > VALENCE_TH.positiveMinExclusive ? 'POSITIVE' : 'NEUTRAL')
+      : emotionalState.valence;
+    const eivTier = getEIVTier(eivResult.value);
+
+    let guidanceMode: PromptProfile['guidanceMode'];
+    if (eivTier === 'high' || eivTier === 'extreme' || enhancedArousalLevel === 'HIGH') {
+      guidanceMode = 'ENERGY_MATCH';
+    } else if (enhancedValence === 'NEGATIVE' && eivTier === 'moderate') {
+      guidanceMode = 'STABILIZING';
+    } else if (sessionVolatility.state === 'HIGH') {
+      guidanceMode = 'CONTAINMENT';
+    } else {
+      guidanceMode = 'CALM_NEUTRAL';
+    }
 
     const momentum = this.interpreter.momentum;
 
@@ -1168,6 +1202,11 @@ export class EngineOrchestrator {
         ambiguityDetected: flags.ambiguityDetected ?? false,
       },
 
+      avi: {
+        value: sessionVolatility.value,
+        state: sessionVolatility.state,
+      },
+
       llmOutput,
       userFeedback,
 
@@ -1921,6 +1960,30 @@ export class EngineOrchestrator {
     }
     // Network errors (no HTTP status) are transient → retryable
     return true;
+  }
+
+  static computeSessionVolatility(
+    eivBuffer: readonly number[],
+    windowSize: number = MASTER_CONSTANTS.eiv.volatility.windowSize,
+  ): { value: number; state: VolatilityState } {
+    if (eivBuffer.length < 2) return { value: 0, state: 'LOW' };
+    const start = Math.max(0, eivBuffer.length - windowSize);
+    const window = eivBuffer.slice(start);
+    if (window.length < 2) return { value: 0, state: 'LOW' };
+
+    let sumAbsDiffs = 0;
+    for (let i = 1; i < window.length; i++) {
+      sumAbsDiffs += Math.abs(window[i] - window[i - 1]);
+    }
+    const volatility = sumAbsDiffs / (window.length - 1);
+
+    const VOL = MASTER_CONSTANTS.eiv.volatility;
+    let state: VolatilityState;
+    if (volatility > VOL.highMinExclusive) state = 'HIGH';
+    else if (volatility >= VOL.mediumMinInclusive) state = 'MEDIUM';
+    else state = 'LOW';
+
+    return { value: volatility, state };
   }
 
   private static fallbackResponse(): string {

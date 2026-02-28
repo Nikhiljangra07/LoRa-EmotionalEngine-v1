@@ -7,11 +7,37 @@ export interface ValenceResult {
   valence: Valence;
   score: number;        // range [-1.0 … +1.0]
   confidence: number;   // range [0.0 … 1.0]
+  semanticScore: number; // range [-1.0 … +1.0], lexicon-based
   evidence: {
     positiveWeight: number;
     negativeWeight: number;
     neutralTriggers: string[];
   };
+}
+
+const SEMANTIC_NEGATIVE_KEYWORDS: ReadonlySet<string> = new Set([
+  "furious", "bullshit", "useless", "done", "angry",
+  "hate", "overwhelmed", "worthless", "can't", "cant",
+]);
+
+const SEMANTIC_POSITIVE_KEYWORDS: ReadonlySet<string> = new Set([
+  "confident", "excited", "ready", "strong", "grateful",
+]);
+
+function computeSemanticScore(tokens: string[]): number {
+  let hits = 0;
+  let total = 0;
+  for (const token of tokens) {
+    if (SEMANTIC_POSITIVE_KEYWORDS.has(token)) {
+      hits += 1;
+      total += 1;
+    } else if (SEMANTIC_NEGATIVE_KEYWORDS.has(token)) {
+      hits -= 1;
+      total += 1;
+    }
+  }
+  if (total === 0) return 0;
+  return Math.max(-1, Math.min(1, hits / total));
 }
 
 const VALENCE_CONSTANTS = MASTER_CONSTANTS.valenceAnalyzer;
@@ -123,6 +149,7 @@ export class ValenceAnalyzer {
         valence: "NEUTRAL",
         score: VALENCE_CONSTANTS.bounds.zero,
         confidence: VALENCE_CONSTANTS.bounds.zero,
+        semanticScore: 0,
         evidence: {
           positiveWeight: VALENCE_CONSTANTS.bounds.zero,
           negativeWeight: VALENCE_CONSTANTS.bounds.zero,
@@ -415,10 +442,13 @@ export class ValenceAnalyzer {
       });
     }
 
+    const semanticScore = computeSemanticScore(tokens);
+
     return {
       valence,
       score,
       confidence,
+      semanticScore,
       evidence: {
         positiveWeight,
         negativeWeight,

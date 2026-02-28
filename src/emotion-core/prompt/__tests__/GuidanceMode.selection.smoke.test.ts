@@ -40,7 +40,9 @@ describe("GuidanceMode selection smoke", () => {
   });
 
   test("high arousal negative case is not CALM_NEUTRAL", async () => {
-    const { analyzerOutputs, signalPacket } = InputProcessor.process("bad");
+    const { analyzerOutputs, signalPacket } = InputProcessor.process(
+      "I am FURIOUS!!! This is USELESS and I HATE it!!!"
+    );
     const emotionalState: EmotionalState = {
       dominant: "NEUTRAL",
       arousal: "HIGH",

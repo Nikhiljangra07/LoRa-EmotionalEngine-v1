@@ -1,5 +1,5 @@
 import type { EIVTier } from '../scorers/eivTiers';
-import type { PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
+import type { PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint, VolatilityState } from '../types/logging.types';
 import { decisionLogEnabled } from '../debug/debugGate';
 
 export interface MessageDecisionLog {
@@ -33,6 +33,8 @@ export interface MessageDecisionLog {
       | 'SUPPORTIVE'
       | 'STABILIZE'
       | 'SUPPORTIVE_REFLECTION'
+      | 'STABILIZING'
+      | 'CONTAINMENT'
       | 'FALLBACK';
   };
 
@@ -41,7 +43,11 @@ export interface MessageDecisionLog {
     ambiguityDetected: boolean;
   };
 
-  // 🔹 NEW — optional, beta-only behavioral signals
+  avi?: {
+    value: number;
+    state: VolatilityState;
+  };
+
   llmOutput?: string;
   userFeedback?: 'positive' | 'neutral' | 'negative';
 

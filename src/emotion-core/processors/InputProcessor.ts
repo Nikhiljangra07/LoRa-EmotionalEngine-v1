@@ -5,7 +5,7 @@ import { ExpressionStrengthScorer } from '../scorers/ExpressionStrengthScorer';
 import { ValenceAnalyzer } from '../analyzers/content/ValenceAnalyzer';
 import { ArousalAnalyzer } from '../analyzers/content/ArousalAnalyzer';
 import { buildExpressionStrengthFeatures } from '../analyzers/content/ExpressionStrengthAnalyzer';
-import type { AnalyzerOutputs } from './EIVComponentAssembler';
+import type { AnalyzerOutputs, EnhancedEIVSignals } from './EIVComponentAssembler';
 import type { SignalPacket } from '../types/SignalPacket.types';
 import { logAnalyzerProbe } from '../debug/AnalyzerProbe';
 import { debugEnabled } from '../debug/debugGate';
@@ -18,6 +18,33 @@ import { debugEnabled } from '../debug/debugGate';
  * - Run analyzers (Layer 1)
  * - Emit AnalyzerOutputs (NO weighting, NO psychology)
  */
+
+const STRONG_EMOTION_KEYWORDS: ReadonlySet<string> = new Set([
+  "furious", "bullshit", "useless", "done", "angry",
+  "hate", "overwhelmed", "worthless", "cant",
+  "confident", "excited", "ready", "strong", "grateful",
+]);
+
+const AROUSAL_SIGNALS = MASTER_CONSTANTS.eiv.enhancedArousalSignals;
+
+function computeEnhancedArousal(
+  capsRatio: number,
+  repetitionDetected: boolean,
+  hasStrongKeyword: boolean,
+  exclamationCount: number,
+): number {
+  let score = 0;
+  if (capsRatio > AROUSAL_SIGNALS.capsRatioThreshold) score += AROUSAL_SIGNALS.capsBoost;
+  if (repetitionDetected) score += AROUSAL_SIGNALS.repetitionBoost;
+  if (hasStrongKeyword) score += AROUSAL_SIGNALS.strongKeywordBoost;
+  if (exclamationCount > AROUSAL_SIGNALS.exclamationThreshold) score += AROUSAL_SIGNALS.exclamationBoost;
+  return Math.min(Math.max(score, 0), 1);
+}
+
+function textHasStrongKeyword(text: string): boolean {
+  const tokens = text.toLowerCase().replace(/[^a-z\s']/g, ' ').split(/\s+/);
+  return tokens.some((t) => STRONG_EMOTION_KEYWORDS.has(t));
+}
 
 export class InputProcessor {
   private static readonly valenceAnalyzer = new ValenceAnalyzer();
@@ -62,6 +89,23 @@ export class InputProcessor {
       });
     }
 
+    const hasStrongKw = textHasStrongKeyword(text);
+    const enhancedArousal = computeEnhancedArousal(
+      esFeatures.capsRatio,
+      esFeatures.expressiveLengtheningCount > 0,
+      hasStrongKw,
+      esFeatures.exclamationCount,
+    );
+    const capsWeight = Math.min(esFeatures.capsRatio, 1);
+    const repetitionWeight = esFeatures.expressiveLengtheningCount > 0 ? 1 : 0;
+
+    const enhanced: EnhancedEIVSignals = {
+      semanticScore: valenceResult.semanticScore,
+      arousalScore: enhancedArousal,
+      repetitionWeight,
+      capsWeight,
+    };
+
     const output: AnalyzerOutputs = {
       expressionStrength: {
         score: esResult.es,
@@ -75,6 +119,7 @@ export class InputProcessor {
         score: arousalResult.arousal,
         confidence: arousalResult.confidence,
       },
+      enhanced,
     };
 
     const analyzerOutputs = Object.freeze(output);

@@ -60,6 +60,8 @@ const ALLOWED_GUIDANCE_MODES: ReadonlySet<string> = new Set([
   'FALLBACK',
   'STABILIZE',
   'SUPPORTIVE_REFLECTION',
+  'STABILIZING',
+  'CONTAINMENT',
 ]);
 
 export class PromptTemplateBuilder {
@@ -412,6 +414,20 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 - Do not judge or editorialize
 - Let the user process without rushing them
 - Stay present and patient`;
+
+      case 'STABILIZING':
+        return `
+- Acknowledge emotional weight without amplifying it
+- Use measured, calm language
+- Offer a single grounding anchor or observation
+- Do not probe further until the user signals readiness`;
+
+      case 'CONTAINMENT':
+        return `
+- Emotional volatility is high — keep responses short and steady
+- Avoid introducing new topics or questions
+- Mirror calm; do not match the user's intensity
+- Prioritize safety and de-escalation`;
 
       default:
         return '';

@@ -837,10 +837,37 @@ const PROMPT_TEMPLATE = {
 // EIV TIERS (audit: tier thresholds)
 const EIV_CONSTANTS = {
   tiers: {
-    minimalMaxExclusive: 0.15, // minimal upper bound
-    lowMaxExclusive: 0.3, // low upper bound
-    moderateMaxExclusive: 0.55, // moderate upper bound
-    highMaxExclusive: 0.8, // high upper bound
+    minimalMaxExclusive: 0.2, // minimal upper bound
+    lowMaxExclusive: 0.4, // low upper bound
+    moderateMaxExclusive: 0.7, // moderate upper bound
+    highMaxExclusive: 1.01, // high upper bound (extreme unreachable with clamped EIV)
+  },
+  enhancedWeights: {
+    semanticScore: 0.4,
+    arousalScore: 0.3,
+    repetitionWeight: 0.2,
+    capsWeight: 0.1,
+  },
+  enhancedArousalThresholds: {
+    highMinExclusive: 0.6,
+    mediumMinInclusive: 0.3,
+  },
+  enhancedValenceThresholds: {
+    negativeMaxExclusive: -0.3,
+    positiveMinExclusive: 0.3,
+  },
+  enhancedArousalSignals: {
+    capsRatioThreshold: 0.4,
+    capsBoost: 0.4,
+    repetitionBoost: 0.3,
+    strongKeywordBoost: 0.4,
+    exclamationThreshold: 1,
+    exclamationBoost: 0.2,
+  },
+  volatility: {
+    windowSize: 5,
+    highMinExclusive: 0.3,
+    mediumMinInclusive: 0.15,
   },
 } as const;
 

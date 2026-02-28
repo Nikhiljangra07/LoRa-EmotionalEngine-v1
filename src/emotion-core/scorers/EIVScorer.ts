@@ -4,12 +4,12 @@ import { composeEIV } from "./EIVComposer";
 import { EIVComponents, EIVResult } from "../types/eiv.types";
 import { getEIVTier } from "./eivTiers";
 import { mapEIVComponentsToInputs } from "./mapEIVComponentsToInputs";
+import type { EnhancedEIVSignals } from "../processors/EIVComponentAssembler";
 
 export class EIVScorer {
-  static calculate(components: EIVComponents): EIVResult {
-    // Intentional v1 mapping; components are not composed directly.
+  static calculate(components: EIVComponents, enhanced?: EnhancedEIVSignals): EIVResult {
     const inputs = mapEIVComponentsToInputs(components);
-    const composition = composeEIV(inputs);
+    const composition = composeEIV(inputs, enhanced);
     const tier = getEIVTier(composition.value);
 
     const breakdown = {

@@ -249,20 +249,19 @@ describe("Freeze invariants", () => {
 
   test("EIV tier thresholds are locked", () => {
     expect(MASTER_CONSTANTS.eiv.tiers).toEqual({
-      minimalMaxExclusive: 0.15,
-      lowMaxExclusive: 0.3,
-      moderateMaxExclusive: 0.55,
-      highMaxExclusive: 0.8,
+      minimalMaxExclusive: 0.2,
+      lowMaxExclusive: 0.4,
+      moderateMaxExclusive: 0.7,
+      highMaxExclusive: 1.01,
     });
 
-    expect(getEIVTier(0.1499)).toBe("minimal");
-    expect(getEIVTier(0.15)).toBe("low");
-    expect(getEIVTier(0.2999)).toBe("low");
-    expect(getEIVTier(0.3)).toBe("moderate");
-    expect(getEIVTier(0.5499)).toBe("moderate");
-    expect(getEIVTier(0.55)).toBe("high");
-    expect(getEIVTier(0.7999)).toBe("high");
-    expect(getEIVTier(0.8)).toBe("extreme");
+    expect(getEIVTier(0.1999)).toBe("minimal");
+    expect(getEIVTier(0.2)).toBe("low");
+    expect(getEIVTier(0.3999)).toBe("low");
+    expect(getEIVTier(0.4)).toBe("moderate");
+    expect(getEIVTier(0.6999)).toBe("moderate");
+    expect(getEIVTier(0.7)).toBe("high");
+    expect(getEIVTier(0.9999)).toBe("high");
   });
 
   test("Execution order is fixed", async () => {
@@ -307,21 +306,21 @@ describe("Freeze invariants", () => {
 
   test("Tier threshold binding has no inline magic numbers", () => {
     expect(MASTER_CONSTANTS.eiv.tiers).toEqual({
-      minimalMaxExclusive: 0.15,
-      lowMaxExclusive: 0.3,
-      moderateMaxExclusive: 0.55,
-      highMaxExclusive: 0.8,
+      minimalMaxExclusive: 0.2,
+      lowMaxExclusive: 0.4,
+      moderateMaxExclusive: 0.7,
+      highMaxExclusive: 1.01,
     });
 
     const scorerSource = readSource("scorers/EIVScorer.ts");
     expect(scorerSource).toContain("getEIVTier");
-    ["0.15", "0.3", "0.55", "0.8"].forEach((literal) => {
+    ["0.2", "0.4", "0.7", "1.01"].forEach((literal) => {
       expect(scorerSource).not.toContain(literal);
     });
 
     const tiersSource = readSource("scorers/eivTiers.ts");
     expect(tiersSource).toContain("MASTER_CONSTANTS.eiv.tiers");
-    ["0.15", "0.3", "0.55", "0.8"].forEach((literal) => {
+    ["0.2", "0.4", "0.7", "1.01"].forEach((literal) => {
       expect(tiersSource).not.toContain(literal);
     });
   });

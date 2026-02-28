@@ -1,4 +1,5 @@
 import { MASTER_CONSTANTS } from "../config/master.constants";
+import type { EnhancedEIVSignals } from "../processors/EIVComponentAssembler";
 
 export type EIVInputs = {
   es: { score: number; confidence: number };
@@ -46,9 +47,29 @@ const computeESGain = (
  * EIV = base(arousal, |valence|) × ES_gain, with confidence weighting.
  *
  * Do NOT replace this with direct aggregation from EIVComponents.
- * Component-aggregation is a separate experimental path deferred to v2.
+ * The legacy path is preserved for callers without enhanced signals.
+ *
+ * When enhanced signals are available (v1.1), uses the recalibrated formula:
+ * EIV = (w_s * |semanticScore|) + (w_a * arousalScore) + (w_r * repetitionWeight) + (w_c * capsWeight)
  */
-export const composeEIV = (inputs: EIVInputs) => {
+const EIV_ENHANCED = MASTER_CONSTANTS.eiv.enhancedWeights;
+
+export const composeEIV = (inputs: EIVInputs, enhanced?: EnhancedEIVSignals) => {
+  if (enhanced) {
+    const raw =
+      EIV_ENHANCED.semanticScore * Math.abs(enhanced.semanticScore) +
+      EIV_ENHANCED.arousalScore * enhanced.arousalScore +
+      EIV_ENHANCED.repetitionWeight * enhanced.repetitionWeight +
+      EIV_ENHANCED.capsWeight * enhanced.capsWeight;
+    const eiv = clamp(raw, CONSTANTS.CLAMP.MIN, CONSTANTS.CLAMP.MAX);
+    return {
+      value: eiv,
+      base: raw,
+      baseConfidence: 1,
+      gain: 1,
+    };
+  }
+
   const { es, valence, arousal } = inputs;
   const { base, baseConf } = confidenceWeightedBase(
     arousal.score,

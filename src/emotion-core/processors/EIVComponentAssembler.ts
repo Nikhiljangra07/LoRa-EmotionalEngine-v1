@@ -7,10 +7,18 @@ import { EIVComponents } from '../types/eiv.types';
  * ----------------
  * Normalized analyzer scores (0–1)
  */
+export interface EnhancedEIVSignals {
+  semanticScore: number;
+  arousalScore: number;
+  repetitionWeight: number;
+  capsWeight: number;
+}
+
 export interface AnalyzerOutputs {
   expressionStrength: { score: number; confidence: number };
   valence: { score: number; confidence: number };
   arousal: { score: number; confidence: number };
+  enhanced?: EnhancedEIVSignals;
 }
 
 export class EIVComponentAssembler {

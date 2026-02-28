@@ -45,6 +45,8 @@ export interface PromptConstraints {
   band: string;
 }
 
+export type VolatilityState = 'LOW' | 'MEDIUM' | 'HIGH';
+
 export interface PromptProfile {
   relationshipStyle: 'PROFESSIONAL' | 'FRIENDLY' | 'CASUAL';
   guidanceMode:
@@ -55,6 +57,8 @@ export interface PromptProfile {
     | 'SUPPORTIVE'
     | 'STABILIZE'
     | 'SUPPORTIVE_REFLECTION'
+    | 'STABILIZING'
+    | 'CONTAINMENT'
     | 'FALLBACK';
   promptConstraints?: PromptConstraints;
 }
@@ -79,7 +83,11 @@ export interface MessageDecisionLog {
     ambiguityDetected: boolean;
   };
 
-  // 🔹 NEW (beta intelligence)
+  avi?: {
+    value: number;
+    state: VolatilityState;
+  };
+
   llmOutput?: string;
   userReaction?: 'positive' | 'neutral' | 'negative';
 }
