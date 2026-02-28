@@ -74,13 +74,13 @@ describe('GuidanceMode compatibility matrix', () => {
     expect(prompt).toMatch(/calm/i);
   });
 
-  test('SUPPORTIVE_REFLECTION mode includes reflective guidance', () => {
+  test('SUPPORTIVE_REFLECTION mode includes observational guidance', () => {
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState, {
       guidanceMode: 'SUPPORTIVE_REFLECTION',
     });
+    expect(prompt).toMatch(/observe/i);
     expect(prompt).toMatch(/reflect/i);
-    expect(prompt).toMatch(/validate/i);
-    expect(prompt).toMatch(/patience/i);
+    expect(prompt).toMatch(/patient/i);
   });
 
   test('legacy modes do NOT include new overlay text', () => {

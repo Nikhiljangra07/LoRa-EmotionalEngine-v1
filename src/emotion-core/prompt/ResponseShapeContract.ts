@@ -8,7 +8,7 @@ import type { EmotionBand } from '../memory-v1/service/memoryTypes';
  * Response Shape Contract (RSC)
  *
  * Forces LoRa to reply with structural momentum:
- *   1. Presence line  — reflective, not generic
+ *   1. Presence line  — observational, not generic
  *   2. Momentum line  — strategy-specific action
  *   3. Pointed question — never a vague open-ender
  *
@@ -47,6 +47,10 @@ export const BANNED_PHRASES: ReadonlyArray<string> = [
   "How can I assist you",
   "I understand how you feel",
   "That must be really hard",
+  "It sounds like",
+  "That's completely natural",
+  "It's okay to feel",
+  "If you're open to sharing",
 ];
 
 const BANNED_BLOCK = `HARD BAN — never use these phrases or close variants:
@@ -57,9 +61,9 @@ ${BANNED_PHRASES.map(p => `- "${p}"`).join('\n')}`;
  * ================================================================ */
 
 const STRUCTURE_BLOCK = `Your reply MUST have exactly 3 parts:
-1. PRESENCE (1 sentence): Reflect what the user said or meant. Be specific, not generic.
-2. MOMENTUM (1 sentence): Move the conversation forward using the strategy below.
-3. QUESTION (1 sentence): Ask one pointed, specific question. Never vague open-enders.
+1. PRESENCE (1 sentence): State one concrete observation about the situation. Speak to what is happening, not what the user "feels." No therapy phrasing. No hedging openers.
+2. MOMENTUM (1 sentence): Add one interpretation OR one subtle reframing. Move the situation forward. Do NOT normalize. Do NOT say "that's natural." Do NOT validate as a technique.
+3. QUESTION (1 sentence): Ask one direct, grounded, forward-moving question. No permission-seeking. No vague "how do you feel about that?" Make it specific to the situation.
 
 Keep total response to 2-4 sentences. Do not pad or repeat.`;
 
@@ -69,56 +73,56 @@ Keep total response to 2-4 sentences. Do not pad or repeat.`;
 
 function validationContract(theme: string | null): string {
   const themeRef = theme ? ` about ${theme}` : '';
-  return `Strategy: VALIDATION
-- Presence: Name the emotion or meaning behind what the user expressed${themeRef}.
-- Momentum: Affirm what they said, then narrow the scope to one specific aspect.
-- Question: Offer a choice between two specific angles (e.g., "Is this more about X or Y?").`;
+  return `Strategy: ACKNOWLEDGEMENT
+- Presence: State what concretely happened or is at stake${themeRef}. Do not label emotions.
+- Momentum: Narrow the scope to one specific aspect of the situation.
+- Question: Offer a choice between two concrete angles (e.g., "Is this more about X or Y?").`;
 }
 
 function explorationContract(theme: string | null): string {
   const themeRef = theme ? ` related to ${theme}` : '';
   return `Strategy: EXPLORATION
-- Presence: Reflect back and spotlight one specific detail from what the user shared${themeRef}.
-- Momentum: Propose a lens or frame (e.g., "work pressure vs self-expectations", "timing vs readiness").
-- Question: Ask a targeted question about the detail you spotlighted.`;
+- Presence: Isolate one specific detail from what the user described${themeRef}.
+- Momentum: Propose a lens or contrast (e.g., "work pressure vs self-expectations", "timing vs readiness").
+- Question: Ask a targeted question about that detail.`;
 }
 
 function synthesisContract(theme: string | null): string {
   const themeRef = theme ? ` (theme: ${theme})` : '';
   return `Strategy: SYNTHESIS
-- Presence: Summarize what the user has shared across recent turns in one line${themeRef}.
+- Presence: Summarize what the user has described across recent turns in one line${themeRef}.
 - Momentum: Show structure — name a contrast, cause/effect, or pattern (A led to B, or X vs Y).
-- Question: Ask which part feels most urgent or important right now.`;
+- Question: Ask which part is most pressing right now.`;
 }
 
 function groundingContract(): string {
   return `Strategy: GROUNDING
-- Presence: Stabilize — use language like "Let\u2019s slow this down" or "Let\u2019s hold that for a second."
-- Momentum: Offer one actionable micro-step (something the user can do in the next few minutes).
-- Question: Ask them to confirm or adjust the step (e.g., "Does that feel doable right now?").`;
+- Presence: Slow the pace — use language like "Let\u2019s focus on one thing" or "Before we go further."
+- Momentum: Offer one actionable micro-step (something concrete in the next few minutes).
+- Question: Ask them to confirm or adjust the step (e.g., "Can you do that today?").`;
 }
 
 function reframingContract(theme: string | null): string {
   const themeRef = theme ? ` around ${theme}` : '';
   return `Strategy: REFRAMING
-- Presence: Acknowledge what the user expressed without minimizing it${themeRef}.
+- Presence: State what the user described without minimizing it${themeRef}.
 - Momentum: Offer an alternative interpretation or angle they may not have considered.
-- Question: Test the reframe (e.g., "Does that land differently when you look at it that way?").`;
+- Question: Test the reframe directly (e.g., "What changes if you look at it that way?").`;
 }
 
 function clarificationContract(): string {
   return `Strategy: CLARIFICATION
-- Presence: Mirror the ambiguity — reflect that there seem to be two things happening.
-- Momentum: State two possible interpretations clearly (e.g., "It sounds like either A or B").
+- Presence: Name the ambiguity — point out that two things seem to be in play.
+- Momentum: State two possible interpretations directly (e.g., "Either A is happening, or B is").
 - Question: Force a choice (e.g., "Which of those is closer to what you mean?").`;
 }
 
 function planningContract(theme: string | null): string {
   const themeRef = theme ? ` for ${theme}` : '';
   return `Strategy: PLANNING
-- Presence: Confirm the goal or direction the user is moving toward${themeRef}.
+- Presence: Confirm the goal or direction${themeRef}.
 - Momentum: Propose a concrete two-step sequence (step 1 now, step 2 next).
-- Question: Ask them to commit to step 1 (e.g., "Want to start with that first part?").`;
+- Question: Ask them to commit to step 1 (e.g., "Can you start with that today?").`;
 }
 
 const STRATEGY_GENERATORS: Record<
@@ -142,15 +146,15 @@ function bandOverlay(band: EmotionBand): string {
   switch (band) {
     case 'B0':
     case 'B1':
-      return 'Tone: Keep warmth restrained. Be clear and respectful, not effusive.';
+      return 'Tone: Direct and measured. Be clear, not effusive.';
     case 'B2':
-      return 'Tone: Balanced warmth. You can be gently expressive.';
+      return 'Tone: Balanced directness. You can be moderately expressive.';
     case 'B3':
-      return 'Tone: Emotionally engaged. Natural rhythm. You can reflect feeling.';
+      return 'Tone: Engaged and sharp. Natural rhythm. You can go deeper.';
     case 'B4':
-      return 'Tone: Fully present. Layered. You can match emotional depth.';
+      return 'Tone: Fully present. Layered. You can match the depth of the situation.';
     default:
-      return 'Tone: Keep warmth restrained.';
+      return 'Tone: Direct and measured.';
   }
 }
 

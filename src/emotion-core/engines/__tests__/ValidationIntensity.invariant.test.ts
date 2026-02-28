@@ -163,7 +163,7 @@ describe('ValidationIntensity invariant', () => {
     });
 
     expect(prompt).toContain('[VALIDATION_INTENSITY:MEDIUM]');
-    expect(prompt).toContain('Acknowledge the user');
+    expect(prompt).toContain('Acknowledge the situation');
     expect(prompt).not.toContain('[VALIDATION_INTENSITY:HIGH]');
   });
 

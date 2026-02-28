@@ -89,35 +89,38 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
   });
 
   describe('Band calibration block injection', () => {
-    it('B0 + low EIV — all bands present, trust depth shows Early Stage', () => {
+    it('B0 + low EIV — only active band present, trust depth shows Early Stage', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B0',
         eiv: 0.1,
       });
       expect(prompt).toContain('Band B0');
       expect(prompt).toContain('Calm and respectful');
-      expect(prompt).toContain('Gentle warmth allowed');
+      expect(prompt).not.toContain('Band B1');
+      expect(prompt).not.toContain('Band B2');
       expect(prompt).toContain('Trust depth: B0');
       expect(prompt).toContain('Emotional intensity (current turn): low');
     });
 
-    it('B1 — trust depth shows Emerging Trust', () => {
+    it('B1 — trust depth shows Emerging Trust, only B1 band injected', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B1',
         eiv: 0.5,
       });
       expect(prompt).toContain('Band B1');
       expect(prompt).toContain('Slightly more expressive');
+      expect(prompt).not.toContain('Band B0');
       expect(prompt).toContain('Trust depth: B1');
     });
 
-    it('B2 — shows Stable trust depth', () => {
+    it('B2 — shows Stable trust depth, only B2 band injected', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B2',
         eiv: 0.5,
       });
       expect(prompt).toContain('Band B2');
-      expect(prompt).toContain('Balanced warmth and structure');
+      expect(prompt).toContain('Balanced directness and structure');
+      expect(prompt).not.toContain('Band B3');
     });
 
     it('B3 with medium EIV + anchors — Strong Trust, anchor integration', () => {
@@ -127,7 +130,7 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
         relevantAnchors: [makeAnchor()],
       });
       expect(prompt).toContain('Band B3');
-      expect(prompt).toContain('Emotionally engaged');
+      expect(prompt).toContain('Engaged and direct');
       expect(prompt).toContain('Anchor Integration');
       expect(prompt).not.toContain('Context integration can be more confident');
     });

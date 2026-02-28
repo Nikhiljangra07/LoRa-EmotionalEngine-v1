@@ -72,12 +72,9 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
 
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
 
-    expect(prompt).toMatch(/calm/i);
-    expect(prompt).toMatch(/warm/i);
+    expect(prompt).toMatch(/grounded/i);
 
-    // Your test comment says "must include moderation" but the matcher was inverted.
-    // If you truly require moderation guidance, this should be a positive assertion.
-    expect(prompt).toMatch(/don't overdo|do not overdo|avoid overdoing|keep it natural|moderate/i);
+    expect(prompt).toMatch(/over-perform|don't overdo|do not overdo|lose focus/i);
 
     expectNoNumericLeak(prompt);
   });
@@ -143,7 +140,7 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
 
     expect(prompt).toMatch(/you are/i);
-    expect(prompt).toMatch(/emotionally intelligent/i);
+    expect(prompt).toMatch(/perceptive conversational presence/i);
     expect(prompt).toMatch(/do not/i); // must include constraints
 
     expectNoNumericLeak(prompt);

@@ -54,21 +54,21 @@ describe('buildResponseShapeContract', () => {
   });
 
   describe('strategy-specific contracts', () => {
-    it('validation contract contains naming emotion + choice between angles', () => {
+    it('validation contract contains situation observation + choice between angles', () => {
       const result = buildResponseShapeContract(makeInput({
         narrative: { phase: 'opening', strategy: 'validation', theme: null, trajectory: 'stable' },
       }));
-      expect(result.blockText).toContain('Strategy: VALIDATION');
-      expect(result.blockText).toContain('Name the emotion');
+      expect(result.blockText).toContain('Strategy: ACKNOWLEDGEMENT');
+      expect(result.blockText).toContain('concretely happened');
       expect(result.blockText).toContain('choice between two');
     });
 
-    it('exploration contract contains spotlighting + lens/frame', () => {
+    it('exploration contract contains isolating detail + lens/contrast', () => {
       const result = buildResponseShapeContract(makeInput({
         narrative: { phase: 'probing', strategy: 'exploration', theme: 'work', trajectory: 'stable' },
       }));
       expect(result.blockText).toContain('Strategy: EXPLORATION');
-      expect(result.blockText).toContain('spotlight');
+      expect(result.blockText).toContain('Isolate');
       expect(result.blockText).toContain('lens');
     });
 
@@ -81,12 +81,12 @@ describe('buildResponseShapeContract', () => {
       expect(result.blockText).toContain('structure');
     });
 
-    it('grounding contract contains stabilize + micro-step', () => {
+    it('grounding contract contains slowing pace + micro-step', () => {
       const result = buildResponseShapeContract(makeInput({
         narrative: { phase: 'clarifying', strategy: 'grounding', theme: null, trajectory: 'rising' },
       }));
       expect(result.blockText).toContain('Strategy: GROUNDING');
-      expect(result.blockText).toContain('Stabilize');
+      expect(result.blockText).toContain('Slow the pace');
       expect(result.blockText).toContain('micro-step');
     });
 
@@ -105,6 +105,14 @@ describe('buildResponseShapeContract', () => {
       expect(result.blockText).toContain('Strategy: CLARIFICATION');
       expect(result.blockText).toContain('two possible interpretations');
       expect(result.blockText).toContain('Force a choice');
+    });
+
+    it('validation contract is now labeled ACKNOWLEDGEMENT', () => {
+      const result = buildResponseShapeContract(makeInput({
+        narrative: { phase: 'opening', strategy: 'validation', theme: null, trajectory: 'stable' },
+      }));
+      expect(result.blockText).not.toContain('Strategy: VALIDATION');
+      expect(result.blockText).toContain('Strategy: ACKNOWLEDGEMENT');
     });
 
     it('planning contract contains two-step sequence + commit', () => {
@@ -145,12 +153,12 @@ describe('buildResponseShapeContract', () => {
   });
 
   describe('band calibration', () => {
-    it('B0 gets restrained warmth', () => {
+    it('B0 gets direct and measured tone', () => {
       const result = buildResponseShapeContract(makeInput({ band: 'B0' }));
-      expect(result.blockText).toContain('restrained');
+      expect(result.blockText).toContain('Direct and measured');
     });
 
-    it('B4 gets full emotional depth', () => {
+    it('B4 gets fully present tone', () => {
       const result = buildResponseShapeContract(makeInput({ band: 'B4' }));
       expect(result.blockText).toContain('Fully present');
     });
@@ -189,11 +197,11 @@ describe('buildResponseShapeContract', () => {
       }
     });
 
-    it('unknown strategy falls back to validation', () => {
+    it('unknown strategy falls back to acknowledgement', () => {
       const result = buildResponseShapeContract(makeInput({
         narrative: { phase: 'opening', strategy: 'unknown_strategy' as any, theme: null, trajectory: 'stable' },
       }));
-      expect(result.blockText).toContain('Strategy: VALIDATION');
+      expect(result.blockText).toContain('Strategy: ACKNOWLEDGEMENT');
     });
   });
 });
