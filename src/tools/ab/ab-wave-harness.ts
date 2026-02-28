@@ -18,9 +18,10 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env.local') });
 
 import { runConversation } from './ab-appraisal-harness';
 import type { TurnResult, RunResult } from './ab-appraisal-harness';
-import { getWaveScript, WAVE_SCRIPT_V1, WAVE_SCRIPT_V2 } from './waveScripts';
+import { getWaveScript } from './waveScripts';
 
 const scriptVersion = process.env.LORA_WAVE_SCRIPT ?? 'v1';
+const isCompassDemo = process.env.LORA_COMPASS_DEMO === '1';
 const WAVE_SCRIPT = getWaveScript(scriptVersion);
 
 // ---------------------------------------------------------------------------
@@ -69,6 +70,30 @@ interface WaveTurnDiff {
   pacingChangedFromPrevB: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Bridge-OFF invariant: B must NOT have appraisal-only signals
+// ---------------------------------------------------------------------------
+function enforceBridgeOffCleanliness(bTurns: TurnResult[]): void {
+  const violations: string[] = [];
+  for (let i = 0; i < bTurns.length; i++) {
+    const t = bTurns[i];
+    if (t.maskedPressure === true) violations.push(`turn ${t.turn}: maskedPressure must be absent`);
+    const escState = t.escalationState;
+    if (escState !== null && escState !== undefined && escState !== '') violations.push(`turn ${t.turn}: escalationState must be absent`);
+    const escTrend = t.escalationTrend;
+    if (escTrend !== null && escTrend !== undefined && escTrend !== '') violations.push(`turn ${t.turn}: escalationTrend must be absent`);
+    const volTrend = t.volatilityTrend;
+    if (volTrend !== null && volTrend !== undefined && volTrend !== '') violations.push(`turn ${t.turn}: volatilityTrend must be absent`);
+    if (t.ekmanInfluenceApplied === true) violations.push(`turn ${t.turn}: ekmanInfluenceApplied must be false/absent`);
+    if (t.prompt.includes('SIGNAL CONTEXT')) violations.push(`turn ${t.turn}: signalContext block must be absent`);
+  }
+  if (violations.length > 0) {
+    throw new Error(
+      `[Harness] Bridge-OFF invariant violated:\n${violations.join('\n')}`,
+    );
+  }
+}
+
 function computeWaveDiffs(a: RunResult, b: RunResult): WaveTurnDiff[] {
   const diffs: WaveTurnDiff[] = [];
   for (let i = 0; i < a.turns.length; i++) {
@@ -81,9 +106,15 @@ function computeWaveDiffs(a: RunResult, b: RunResult): WaveTurnDiff[] {
     if (ta.guidanceMode !== tb.guidanceMode) changedFields.push('guidanceMode');
     if (ta.ekmanDominant !== tb.ekmanDominant) changedFields.push('ekmanDominant');
     if (ta.volatilityState !== tb.volatilityState) changedFields.push('volatilityState');
+    if (ta.volatilityTrend !== tb.volatilityTrend) changedFields.push('volatilityTrend');
     if (ta.escalationLevel !== tb.escalationLevel) changedFields.push('escalationLevel');
+    if (ta.escalationState !== tb.escalationState) changedFields.push('escalationState');
+    if (ta.escalationTrend !== tb.escalationTrend) changedFields.push('escalationTrend');
     if (ta.pacingHint !== tb.pacingHint) changedFields.push('pacingHint');
     if (ta.questionBudgetHint !== tb.questionBudgetHint) changedFields.push('questionBudgetHint');
+    if (ta.validationIntensity !== tb.validationIntensity) changedFields.push('validationIntensity');
+    if (ta.maskedPressure !== tb.maskedPressure) changedFields.push('maskedPressure');
+    if (ta.ekmanInfluenceApplied !== tb.ekmanInfluenceApplied) changedFields.push('ekmanInfluenceApplied');
 
     const aHints = ta.hints.join(',');
     const bHints = tb.hints.join(',');
@@ -454,6 +485,225 @@ function buildWaveReportJSON(a: RunResult, b: RunResult, diffs: WaveTurnDiff[]):
 }
 
 // ---------------------------------------------------------------------------
+// Compass Proof Report (MD + JSON)
+// ---------------------------------------------------------------------------
+interface CompassProofTurn {
+  turn: number;
+  userMessage: string;
+  a: {
+    maskedPressure: boolean | null;
+    escalationState: string | null;
+    escalationTrend: string | null;
+    volatilityTier: string;
+    volatilityTrend: string | null;
+    ekmanDominant: string | null;
+    guidanceMode: string;
+    pacingHint: string | null;
+    qBudgetHint: string | null;
+    validationIntensity: string | null;
+    promptOverlays: string[];
+    responseSnippet: string;
+  };
+  b: {
+    maskedPressure: boolean | null;
+    escalationState: string | null;
+    escalationTrend: string | null;
+    volatilityTier: string;
+    volatilityTrend: string | null;
+    ekmanDominant: string | null;
+    guidanceMode: string;
+    pacingHint: string | null;
+    qBudgetHint: string | null;
+    validationIntensity: string | null;
+    promptOverlays: string[];
+    responseSnippet: string;
+  };
+  fieldsChanged: number;
+  overlaysInANotB: string[];
+}
+
+function buildCompassProofJSON(
+  a: RunResult,
+  b: RunResult,
+  diffs: WaveTurnDiff[],
+  earlyEngagement: {
+    firstMaskedPressureTurn: number | null;
+    firstEscalationOffCalmTurn: number | null;
+    firstNonCalmNeutralTurn: number | null;
+  },
+): { turns: CompassProofTurn[]; earlyEngagement: typeof earlyEngagement } {
+  const turns: CompassProofTurn[] = [];
+  for (let i = 0; i < a.turns.length; i++) {
+    const ta = a.turns[i];
+    const tb = b.turns[i];
+    const d = diffs[i];
+
+    const overlaysInANotB = ta.promptOverlays.filter((o) => !tb.promptOverlays.includes(o));
+
+    turns.push({
+      turn: ta.turn,
+      userMessage: ta.userMessage,
+      a: {
+        maskedPressure: ta.maskedPressure,
+        escalationState: ta.escalationState,
+        escalationTrend: ta.escalationTrend,
+        volatilityTier: ta.volatilityState,
+        volatilityTrend: ta.volatilityTrend,
+        ekmanDominant: ta.ekmanDominant,
+        guidanceMode: ta.guidanceMode,
+        pacingHint: ta.pacingHint,
+        qBudgetHint: ta.questionBudgetHint,
+        validationIntensity: ta.validationIntensity,
+        promptOverlays: ta.promptOverlays,
+        responseSnippet: ta.assistantResponse.slice(0, 400),
+      },
+      b: {
+        maskedPressure: tb.maskedPressure,
+        escalationState: tb.escalationState,
+        escalationTrend: tb.escalationTrend,
+        volatilityTier: tb.volatilityState,
+        volatilityTrend: tb.volatilityTrend,
+        ekmanDominant: tb.ekmanDominant,
+        guidanceMode: tb.guidanceMode,
+        pacingHint: tb.pacingHint,
+        qBudgetHint: tb.questionBudgetHint,
+        validationIntensity: tb.validationIntensity,
+        promptOverlays: tb.promptOverlays,
+        responseSnippet: tb.assistantResponse.slice(0, 400),
+      },
+      fieldsChanged: d.fieldsChanged,
+      overlaysInANotB,
+    });
+  }
+  return { turns, earlyEngagement };
+}
+
+function computeEarlyCompassEngagement(a: RunResult): {
+  firstMaskedPressureTurn: number | null;
+  firstEscalationOffCalmTurn: number | null;
+  firstNonCalmNeutralTurn: number | null;
+} {
+  const early = a.turns.slice(0, 8);
+  const firstMasked = early.findIndex((t) => t.maskedPressure === true);
+  const firstEscOffCalm = early.findIndex(
+    (t) =>
+      (t.escalationState != null && t.escalationState !== 'CALM') ||
+      (t.escalationLevel != null && t.escalationLevel > 0),
+  );
+  const firstNonCalm = early.findIndex((t) => t.guidanceMode !== 'CALM_NEUTRAL');
+
+  return {
+    firstMaskedPressureTurn: firstMasked >= 0 ? firstMasked + 1 : null,
+    firstEscalationOffCalmTurn: firstEscOffCalm >= 0 ? firstEscOffCalm + 1 : null,
+    firstNonCalmNeutralTurn: firstNonCalm >= 0 ? firstNonCalm + 1 : null,
+  };
+}
+
+function buildCompassProofMD(
+  proof: { turns: CompassProofTurn[]; earlyEngagement: ReturnType<typeof computeEarlyCompassEngagement> },
+  model: string,
+): string {
+  const { turns, earlyEngagement } = proof;
+  const ts = new Date().toISOString();
+  const lines: string[] = [
+    '# Compass Proof Pack',
+    '',
+    `- **Script version:** ${scriptVersion}`,
+    `- **Model:** ${model}`,
+    `- **Temperature:** 0`,
+    `- **Timestamp:** ${ts}`,
+    '',
+    '---',
+    '',
+    '## 1. Early Compass Engagement (turns 1–8)',
+    '',
+    `- First turn maskedPressure=true: ${earlyEngagement.firstMaskedPressureTurn ?? 'none'}`,
+    `- First turn escalation moved off CALM: ${earlyEngagement.firstEscalationOffCalmTurn ?? 'none'}`,
+    `- First turn guidanceMode ≠ CALM_NEUTRAL: ${earlyEngagement.firstNonCalmNeutralTurn ?? 'none'}`,
+    '',
+    '---',
+    '',
+    '## 2. Key Transitions Table',
+    '',
+    '| Turn | User (trunc 80) | A: maskedPressure | A: escalationState | A: escalationTrend | A: volatilityTier | A: volatilityTrend | A: ekman | A: guidanceMode | A: pacing | A: qBudget | A: validation | B: (same columns) |',
+    '|------|-----------------|-------------------|--------------------|--------------------|------------------|--------------------|----------|----------------|-----------|------------|---------------|-------------------|',
+  ];
+
+  for (const row of turns) {
+    const u = row.userMessage.length > 80 ? row.userMessage.slice(0, 77) + '...' : row.userMessage;
+    const aP = row.a.maskedPressure ?? '';
+    const aE = row.a.escalationState ?? '';
+    const aET = row.a.escalationTrend ?? '';
+    const aV = row.a.volatilityTier ?? '';
+    const aVT = row.a.volatilityTrend ?? '';
+    const aEk = row.a.ekmanDominant ?? '';
+    const aG = row.a.guidanceMode ?? '';
+    const aPac = row.a.pacingHint ?? '';
+    const aQB = row.a.qBudgetHint ?? '';
+    const aVal = row.a.validationIntensity ?? '';
+    const bP = row.b.maskedPressure ?? '';
+    const bE = row.b.escalationState ?? '';
+    const bET = row.b.escalationTrend ?? '';
+    const bV = row.b.volatilityTier ?? '';
+    const bVT = row.b.volatilityTrend ?? '';
+    const bEk = row.b.ekmanDominant ?? '';
+    const bG = row.b.guidanceMode ?? '';
+    const bPac = row.b.pacingHint ?? '';
+    const bQB = row.b.qBudgetHint ?? '';
+    const bVal = row.b.validationIntensity ?? '';
+    lines.push(
+      `| ${row.turn} | ${u.replace(/\|/g, '\\|')} | ${aP} | ${aE} | ${aET} | ${aV} | ${aVT} | ${aEk} | ${aG} | ${aPac} | ${aQB} | ${aVal} | ${bP} | ${bE} | ${bET} | ${bV} | ${bVT} | ${bEk} | ${bG} | ${bPac} | ${bQB} | ${bVal} |`,
+    );
+  }
+
+  const top3Indices = turns
+    .map((r, i) => ({ i, fieldsChanged: r.fieldsChanged }))
+    .sort((x, y) => y.fieldsChanged - x.fieldsChanged)
+    .slice(0, 3)
+    .map((x) => x.i);
+
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+  lines.push('## 3. Why This Is Not A Wrapper');
+  lines.push('');
+  lines.push('### Top 3 most differentiating turns');
+  lines.push('');
+
+  for (const idx of top3Indices) {
+    const row = turns[idx];
+    lines.push(`#### Turn ${row.turn}`);
+    lines.push('');
+    lines.push('**Injected overlays in A but absent in B:**');
+    lines.push(row.overlaysInANotB.length > 0 ? row.overlaysInANotB.map((o) => `- ${o}`).join('\n') : '- (none)');
+    lines.push('');
+    lines.push('**A response (first 400 chars):**');
+    lines.push('```');
+    lines.push(row.a.responseSnippet);
+    lines.push('```');
+    lines.push('');
+    lines.push('**B response (first 400 chars):**');
+    lines.push('```');
+    lines.push(row.b.responseSnippet);
+    lines.push('```');
+    lines.push('');
+    const signals: string[] = [];
+    if (row.a.maskedPressure) signals.push('masked pressure');
+    if (row.a.escalationState) signals.push('escalation gradient');
+    if (row.a.volatilityTrend) signals.push('volatility trend');
+    if (row.a.ekmanDominant) signals.push('ekman weighting');
+    lines.push(`**Attribution:** ${signals.length > 0 ? signals.join(', ') : 'structural differentiation'}`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function getOverlaysInANotB(ta: TurnResult, tb: TurnResult): string[] {
+  return ta.promptOverlays.filter((o) => !tb.promptOverlays.includes(o));
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
@@ -462,17 +712,62 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[Wave Harness] Script: ${scriptVersion.toUpperCase()} (${WAVE_SCRIPT.length} turns)`);
+  const model = 'claude-sonnet-4-6';
 
-  console.log('[Wave Harness] Starting Run A (Appraisal Lab ON)...');
-  const runA = await runConversation('A (Appraisal ON)', true, WAVE_SCRIPT);
-  console.log('[Wave Harness] Run A complete.\n');
+  console.log(`[Wave Harness] Script: ${scriptVersion.toUpperCase()} (${WAVE_SCRIPT.length} turns)`);
 
   console.log('[Wave Harness] Starting Run B (Appraisal Lab OFF)...');
   const runB = await runConversation('B (Appraisal OFF)', false, WAVE_SCRIPT);
   console.log('[Wave Harness] Run B complete.\n');
 
+  console.log('[Wave Harness] Starting Run A (Appraisal Lab ON)...');
+  const runA = await runConversation('A (Appraisal ON)', true, WAVE_SCRIPT);
+  console.log('[Wave Harness] Run A complete.\n');
+
+  enforceBridgeOffCleanliness(runB.turns);
+
   const diffs = computeWaveDiffs(runA, runB);
+  const earlyEngagement = computeEarlyCompassEngagement(runA);
+
+  if (isCompassDemo) {
+    const top3 = diffs
+      .map((d, i) => ({ ...d, turn: i + 1, ta: runA.turns[i], tb: runB.turns[i] }))
+      .sort((x, y) => y.fieldsChanged - x.fieldsChanged)
+      .slice(0, 3);
+
+    const firstNonCalm = earlyEngagement.firstNonCalmNeutralTurn ?? earlyEngagement.firstEscalationOffCalmTurn ?? earlyEngagement.firstMaskedPressureTurn;
+    console.log('\n=== COMPASS DEMO (3 most differentiating turns) ===\n');
+    console.log(`Time-to-compass (first non-calm event): turn ${firstNonCalm ?? 'none'}\n`);
+
+    for (const d of top3) {
+      console.log(`--- Turn ${d.turn} ---`);
+      console.log(`User: "${d.ta.userMessage.slice(0, 60)}${d.ta.userMessage.length > 60 ? '...' : ''}"`);
+      console.log('A signals:', {
+        maskedPressure: d.ta.maskedPressure,
+        escalationState: d.ta.escalationState,
+        volatilityTrend: d.ta.volatilityTrend,
+        ekmanDominant: d.ta.ekmanDominant,
+        guidanceMode: d.ta.guidanceMode,
+        pacingHint: d.ta.pacingHint,
+        qBudgetHint: d.ta.questionBudgetHint,
+      });
+      console.log('A overlays:', d.ta.promptOverlays.join(', ') || '(none)');
+      console.log('B signals:', {
+        maskedPressure: d.tb.maskedPressure,
+        escalationState: d.tb.escalationState,
+        volatilityTrend: d.tb.volatilityTrend,
+        ekmanDominant: d.tb.ekmanDominant,
+        guidanceMode: d.tb.guidanceMode,
+        pacingHint: d.tb.pacingHint,
+        qBudgetHint: d.tb.questionBudgetHint,
+      });
+      console.log('Overlays in A not B:', getOverlaysInANotB(d.ta, d.tb).join(', ') || '(none)');
+      console.log('A response:', d.ta.assistantResponse.slice(0, 400));
+      console.log('B response:', d.tb.assistantResponse.slice(0, 400));
+      console.log('');
+    }
+    return;
+  }
 
   printWaveReport(runA, runB, diffs);
 
@@ -481,6 +776,16 @@ async function main() {
   const outPath = `ab-wave-report-${scriptVersion}.json`;
   fs.writeFileSync(outPath, JSON.stringify(report, null, 2));
   console.log(`[Wave Harness] JSON report written to ${outPath}`);
+
+  const proofData = buildCompassProofJSON(runA, runB, diffs, earlyEngagement);
+  const proofJSONPath = `ab-compass-proof-${scriptVersion}.json`;
+  fs.writeFileSync(proofJSONPath, JSON.stringify(proofData, null, 2));
+  console.log(`[Wave Harness] Compass proof JSON written to ${proofJSONPath}`);
+
+  const proofMD = buildCompassProofMD(proofData, model);
+  const proofMDPath = `ab-compass-proof-${scriptVersion}.md`;
+  fs.writeFileSync(proofMDPath, proofMD);
+  console.log(`[Wave Harness] Compass proof MD written to ${proofMDPath}`);
 }
 
 if (require.main === module) {
@@ -490,5 +795,5 @@ if (require.main === module) {
   });
 }
 
-export { WAVE_SCRIPT, computeWaveDiffs, buildWaveReportJSON, computeEarlyNavigation, scriptVersion };
+export { WAVE_SCRIPT, computeWaveDiffs, buildWaveReportJSON, computeEarlyNavigation, enforceBridgeOffCleanliness, scriptVersion };
 export type { WaveTurnDiff, WaveReport, EarlyNavigation };

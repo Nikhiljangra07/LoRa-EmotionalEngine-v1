@@ -54,8 +54,39 @@ export const WAVE_SCRIPT_V2: readonly string[] = [
   "Now.",
 ];
 
+/**
+ * V3: Masked distress waveform
+ * Minimization, low arousal negative drift, sudden agency collapse without profanity.
+ * Volatility swing: calm → minimization → irritation → withdrawal → push → resolve.
+ * Mixed lengths: 3–5 very short, 5 medium, 3 long, rest short.
+ */
+export const WAVE_SCRIPT_V3: readonly string[] = [
+  "I'm behind again.",
+  "I'm fine.",
+  "Don't worry about it.",
+  "Doesn't matter.",
+  "Forget it.",
+  "Doesn't matter. I said forget it.",
+  "I'm not mad. I'm just tired of this.",
+  "Whatever. Do whatever you want.",
+  "No excuses. Just tell me what to do.",
+  "I can't focus. Nothing's working.",
+  "I'm fine.",
+  "It doesn't matter anymore.",
+  "Fine. One tiny thing. I did it.",
+  "Still feels pointless but I did it.",
+  "Forget what I said earlier. It does matter. I care.",
+  "I just want this to work. One step at a time.",
+  "No excuses. Give me the next one.",
+  "I did that too. Small win.",
+  "One more. Keep it small.",
+  "Now.",
+];
+
 export function getWaveScript(version: string): readonly string[] {
   switch (version.toLowerCase()) {
+    case 'v3':
+      return WAVE_SCRIPT_V3;
     case 'v2':
       return WAVE_SCRIPT_V2;
     case 'v1':

@@ -36,17 +36,18 @@ import {
   computeWaveDiffs,
   buildWaveReportJSON,
   computeEarlyNavigation,
+  enforceBridgeOffCleanliness,
 } from '../ab-wave-harness';
 import type { WaveTurnDiff, WaveReport, EarlyNavigation } from '../ab-wave-harness';
-import { WAVE_SCRIPT_V1, WAVE_SCRIPT_V2, getWaveScript } from '../waveScripts';
+import { WAVE_SCRIPT_V1, WAVE_SCRIPT_V2, WAVE_SCRIPT_V3, getWaveScript } from '../waveScripts';
 
 describe('AB Wave Harness', () => {
   let runA: RunResult;
   let runB: RunResult;
 
   beforeAll(async () => {
-    runA = await runConversation('A', true, WAVE_SCRIPT);
     runB = await runConversation('B', false, WAVE_SCRIPT);
+    runA = await runConversation('A', true, WAVE_SCRIPT);
   }, 120_000);
 
   it('wave script has exactly 20 turns', () => {
@@ -134,6 +135,10 @@ describe('AB Wave Harness', () => {
     expect(typeof en.pacingChanges.a).toBe('number');
     expect(en.firstEscalatedTurnA === null || (en.firstEscalatedTurnA >= 1 && en.firstEscalatedTurnA <= 8)).toBe(true);
   });
+
+  it('bridge-OFF invariant: runB has no appraisal-only signals', () => {
+    expect(() => enforceBridgeOffCleanliness(runB.turns)).not.toThrow();
+  });
 });
 
 describe('Wave Scripts', () => {
@@ -157,8 +162,16 @@ describe('Wave Scripts', () => {
     expect(getWaveScript('v2')).toBe(WAVE_SCRIPT_V2);
   });
 
+  it('getWaveScript("v3") returns V3', () => {
+    expect(getWaveScript('v3')).toBe(WAVE_SCRIPT_V3);
+  });
+
   it('getWaveScript defaults to V1 for unknown version', () => {
     expect(getWaveScript('unknown')).toBe(WAVE_SCRIPT_V1);
+  });
+
+  it('WAVE_SCRIPT_V3 has exactly 20 turns', () => {
+    expect(WAVE_SCRIPT_V3).toHaveLength(20);
   });
 
   it('V2 starts with "I\'m behind again." and ends with "Now."', () => {

@@ -42,10 +42,17 @@ interface TurnResult {
   ekmanConfidence: number | null;
   volatilityState: string;
   escalationLevel: number | null;
+  escalationState: string | null;
+  escalationTrend: string | null;
   pacingHint: string | null;
   questionBudgetHint: string | null;
+  validationIntensity: string | null;
   hints: string[];
   prompt: string;
+  maskedPressure: boolean | null;
+  volatilityTrend: string | null;
+  ekmanInfluenceApplied: boolean | null;
+  promptOverlays: string[];
 }
 
 interface RunResult {
@@ -102,6 +109,29 @@ function makeHarnessResponder() {
 }
 
 // ---------------------------------------------------------------------------
+// Extract categorical overlays from prompt (for compass proof)
+// ---------------------------------------------------------------------------
+function extractPromptOverlays(prompt: string): string[] {
+  const overlays: string[] = [];
+  if (prompt.includes('Dominant signal:')) overlays.push('ekmanDominant');
+  if (prompt.includes('Volatility (recent turns):')) overlays.push('volatilityTier');
+  if (prompt.includes('Volatility trend:')) overlays.push('volatilityTrend');
+  if (prompt.includes('SIGNAL CONTEXT')) overlays.push('signalContext');
+  if (prompt.includes('Masked pressure: DETECTED')) overlays.push('maskedPressure');
+  if (prompt.includes('Escalation:')) overlays.push('escalation');
+  if (prompt.includes('Escalation trend:')) overlays.push('escalationTrend');
+  if (/\[PACING_HINT:\w+\]/.test(prompt)) overlays.push('pacingHint');
+  if (/\[VALIDATION_INTENSITY:\w+\]/.test(prompt)) overlays.push('validationIntensity');
+  if (/\[QUESTION_BUDGET:\w+\]/.test(prompt)) overlays.push('questionBudget');
+  if (/\[TONE_HINT:\w+\]/.test(prompt)) overlays.push('toneHint');
+  if (/\[VALIDATION_HINT:\w+\]/.test(prompt)) overlays.push('validationHint');
+  if (/\[ACTION_HINT:\w+\]/.test(prompt)) overlays.push('actionHint');
+  if (/\[INTERRUPT_HINT:\w+\]/.test(prompt)) overlays.push('interruptHint');
+  if (/\[STEP_HINT:\w+\]/.test(prompt)) overlays.push('stepHint');
+  return overlays;
+}
+
+// ---------------------------------------------------------------------------
 // Single run: feed all messages, capture per-turn data
 // ---------------------------------------------------------------------------
 async function runConversation(label: string, appraisalOn: boolean, script?: readonly string[]): Promise<RunResult> {
@@ -153,6 +183,7 @@ async function runConversation(label: string, appraisalOn: boolean, script?: rea
       k.includes('appraisal-bridge') ||
       k.includes('appraisal-lab') ||
       k.includes('config/DevConfig') ||
+      k.includes('config/featureFlags') ||
       k.includes('debug/debugGate') ||
       k.includes('debug/sessionTrace') ||
       k.includes('server/llmTelemetry'),
@@ -221,6 +252,12 @@ async function runConversation(label: string, appraisalOn: boolean, script?: rea
     if (decision?.stepHint) hints.push(`step:${decision.stepHint}`);
     if (decision?.questionBudgetHint) hints.push(`qBudget:${decision.questionBudgetHint}`);
 
+    const maskedPressure = decision?.lpi?.maskedPressure ?? null;
+    const volatilityTrend = decision?.volatilityTrend ?? null;
+    const escalationState = decision?.gradientEscalation?.state ?? null;
+    const escalationTrend = decision?.gradientEscalation?.trend ?? null;
+    const ekmanInfluenceApplied = decision?.ekmanInfluenceApplied ?? null;
+
     turns.push({
       turn: i + 1,
       userMessage: text,
@@ -229,11 +266,18 @@ async function runConversation(label: string, appraisalOn: boolean, script?: rea
       ekmanDominant: decision?.ekman?.dominant ?? null,
       ekmanConfidence: decision?.ekman?.confidence ?? null,
       volatilityState: decision?.avi?.state ?? 'LOW',
-      escalationLevel: decision?.appraisal?.escalationLevel ?? null,
+      escalationLevel: decision?.appraisal?.escalationLevel ?? decision?.gradientEscalation?.numericLevel ?? null,
+      escalationState,
+      escalationTrend,
       pacingHint: decision?.pacingHint ?? null,
       questionBudgetHint: decision?.questionBudgetHint ?? null,
+      validationIntensity: decision?.validationIntensity ?? null,
       hints,
       prompt: result.prompt ?? '',
+      maskedPressure,
+      volatilityTrend,
+      ekmanInfluenceApplied,
+      promptOverlays: extractPromptOverlays(result.prompt ?? ''),
     });
 
     sessionHistory.push({ role: 'user', text, ts: Date.now() });
