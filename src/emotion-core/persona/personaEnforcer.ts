@@ -72,7 +72,11 @@ export function runPersonaEnforcer(input: PersonaEnforcerInput): PersonaEnforcer
     }
   }
 
-  // 2. Relational intent — deterministic override for known relational intents
+  // 2. Relational intent — deterministic override (ONLY when LORA_RELATIONAL_ROUTER=1)
+  // When router is OFF: do NOT run relational detection, do NOT attach relational debug, do NOT alter reply.
+  if (process.env.LORA_RELATIONAL_ROUTER !== '1') {
+    // Skip relational path entirely; fall through to no enforcement.
+  } else {
   const effectiveRelational = relationalResult ?? classifyRelationalIntent(userText);
   if (effectiveRelational.intent !== 'none' && effectiveRelational.confidence >= RELATIONAL_CONFIDENCE_THRESHOLD) {
     const relPolicy = generateRelationalResponse({
@@ -94,6 +98,7 @@ export function runPersonaEnforcer(input: PersonaEnforcerInput): PersonaEnforcer
         identityResult,
       };
     }
+  }
   }
 
   // 3. No enforcement

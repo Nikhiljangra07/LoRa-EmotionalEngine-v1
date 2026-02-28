@@ -86,6 +86,15 @@ describe('personaEnforcer — identity overrides', () => {
 });
 
 describe('personaEnforcer — relational overrides', () => {
+  const origRelational = process.env.LORA_RELATIONAL_ROUTER;
+  beforeAll(() => {
+    process.env.LORA_RELATIONAL_ROUTER = '1';
+  });
+  afterAll(() => {
+    if (origRelational === undefined) delete process.env.LORA_RELATIONAL_ROUTER;
+    else process.env.LORA_RELATIONAL_ROUTER = origRelational;
+  });
+
   it('"I love you" triggers relational_override', () => {
     const result = runPersonaEnforcer({
       userText: 'I love you',
