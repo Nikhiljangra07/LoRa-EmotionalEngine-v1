@@ -5,14 +5,16 @@ import {
 } from '../identityConstants';
 
 describe('identityConstants', () => {
-  it('SYSTEM_CREATOR is Nikhil', () => {
-    expect(SYSTEM_CREATOR).toBe('Nikhil');
+  it('SYSTEM_CREATOR is empty by default (no hardcoded developer name)', () => {
+    expect(SYSTEM_CREATOR).toBe('');
   });
 
-  it('IDENTITY_FALLBACK_PHRASES includes canonical creator phrase', () => {
-    expect(IDENTITY_FALLBACK_PHRASES.some((p) => p.includes('Nikhil'))).toBe(
-      true
-    );
+  it('IDENTITY_FALLBACK_PHRASES does not contain developer name by default', () => {
+    expect(IDENTITY_FALLBACK_PHRASES.some((p) => p.includes('Nikhil'))).toBe(false);
+  });
+
+  it('IDENTITY_FALLBACK_PHRASES includes LoRa identity phrase', () => {
+    expect(IDENTITY_FALLBACK_PHRASES.some((p) => p.includes('LoRa'))).toBe(true);
   });
 });
 
@@ -31,15 +33,14 @@ describe('applyIdentityRepetitionGuard', () => {
   it('returns variant when lastOutput equals override (repetition)', () => {
     const result = applyIdentityRepetitionGuard(base, base);
     expect(result).not.toBe(base);
-    expect(result).toContain('Nikhil');
     expect(result).toContain('LoRa');
   });
 
   it('rotates through variants on consecutive repetitions', () => {
     const v1 = applyIdentityRepetitionGuard(base, base);
-    expect(v1).toContain('My framework was built by Nikhil');
+    expect(v1).toContain('LoRa');
     const v2 = applyIdentityRepetitionGuard(v1, v1);
-    expect(v2).toContain('I run on a system architected by Nikhil');
+    expect(v2).toContain('LoRa');
     const v3 = applyIdentityRepetitionGuard(v2, v2);
     expect(v3).toBe(base);
   });

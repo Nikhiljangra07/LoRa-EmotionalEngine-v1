@@ -1,22 +1,27 @@
 /**
- * Identity constants — stable creator identity and repetition guard.
+ * Identity constants — creator identity (injectable) and repetition guard.
+ *
+ * No hardcoded developer name. Use LORA_SYSTEM_CREATOR env to inject.
+ * Default responses must not contain any creator name.
  */
 
-export const SYSTEM_CREATOR = 'Nikhil';
+export const SYSTEM_CREATOR = process.env.LORA_SYSTEM_CREATOR?.trim() || '';
 
-/** Canonical identity fallback phrases (used for repetition detection). */
-export const IDENTITY_FALLBACK_PHRASES: readonly string[] = [
-  "I'm LoRa. I operate within an architecture designed by Nikhil. What would you like to explore?",
-  "I'm LoRa. My framework was built by Nikhil. What's on your mind?",
-  "I'm LoRa. I run on a system architected by Nikhil. What would you like to explore?",
-];
+/** Canonical identity fallback phrases (used for repetition detection). No creator name by default. */
+export const IDENTITY_FALLBACK_PHRASES: readonly string[] = SYSTEM_CREATOR
+  ? [
+      `I'm LoRa. I operate within an architecture designed by ${SYSTEM_CREATOR}. What would you like to explore?`,
+      `I'm LoRa. My framework was built by ${SYSTEM_CREATOR}. What's on your mind?`,
+      `I'm LoRa. I run on a system architected by ${SYSTEM_CREATOR}. What would you like to explore?`,
+    ]
+  : [
+      "I'm LoRa. What would you like to explore?",
+      "I'm LoRa. What's on your mind?",
+      "I'm LoRa. I run on a thoughtfully designed architecture. What would you like to explore?",
+    ];
 
 /** Variants for repetition guard — rotate when last output matches current. */
-const IDENTITY_VARIANTS: readonly string[] = [
-  "I'm LoRa. I operate within an architecture designed by Nikhil. What would you like to explore?",
-  "I'm LoRa. My framework was built by Nikhil. What's on your mind?",
-  "I'm LoRa. I run on a system architected by Nikhil. What would you like to explore?",
-];
+const IDENTITY_VARIANTS: readonly string[] = [...IDENTITY_FALLBACK_PHRASES];
 
 /**
  * If override equals last assistant output (identity repetition), return next variant.
