@@ -254,7 +254,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
           degraded: debug.degraded ?? { falkor: false, chroma: false },
           ...(debug.behaviorMode ? { behaviorMode: debug.behaviorMode } : {}),
           ...(debug.stmTurns !== undefined ? { stmTurns: debug.stmTurns } : {}),
-          ...((debug as any).relational ? { relational: (debug as any).relational } : {}),
           ...((debug as any).personaEnforcer ? { personaEnforcer: (debug as any).personaEnforcer } : {}),
         },
       });
