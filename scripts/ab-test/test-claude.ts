@@ -27,7 +27,7 @@ async function run() {
   const systemPrompt = generateSystemPrompt(userMessage);
 
   const response = await anthropic.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
+    model: 'claude-sonnet-4-6',
     max_tokens: 500,
     temperature: 0.6,
     system: systemPrompt,
@@ -37,7 +37,7 @@ async function run() {
   const firstBlock = response.content[0];
   const text =
     firstBlock && firstBlock.type === 'text' ? firstBlock.text : '';
-  console.log('=== Claude 3.5 Sonnet ===');
+  console.log('=== Claude 4-6 Sonnet ===');
   console.log(text.trim() || '(no text content)');
 }
 
