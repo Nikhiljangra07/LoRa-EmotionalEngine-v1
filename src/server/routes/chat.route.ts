@@ -52,6 +52,13 @@ export interface ApiChatResponse {
       intent: string;
       confidence: number;
     };
+    personaEnforcer?: {
+      triggered: boolean;
+      kind: string;
+      intent?: string;
+      confidence?: number;
+      templateId?: string;
+    };
   };
 }
 
@@ -216,6 +223,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
           ...(debug.behaviorMode ? { behaviorMode: debug.behaviorMode } : {}),
           ...(debug.stmTurns !== undefined ? { stmTurns: debug.stmTurns } : {}),
           ...((debug as any).relational ? { relational: (debug as any).relational } : {}),
+          ...((debug as any).personaEnforcer ? { personaEnforcer: (debug as any).personaEnforcer } : {}),
         },
       });
     } catch (err) {

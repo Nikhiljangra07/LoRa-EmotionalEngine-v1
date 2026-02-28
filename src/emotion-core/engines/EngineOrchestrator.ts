@@ -45,6 +45,8 @@ import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../in
 import type { RelationalClassification } from '../intent/relationalIntent';
 import type { BootstrapMemory } from '../memory-v1/bootstrap/bootstrapMemory';
 import { buildBootstrapContext } from '../memory-v1/bootstrap/bootstrapContext';
+import { runPersonaEnforcer } from '../persona/personaEnforcer';
+import type { PersonaEnforcerDebug } from '../persona/personaEnforcer';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -128,6 +130,7 @@ export class EngineOrchestrator {
       };
       bootstrapActive?: boolean;
       bootstrapInjected?: boolean;
+      personaEnforcer?: PersonaEnforcerDebug;
     };
   };
 
@@ -903,6 +906,56 @@ export class EngineOrchestrator {
     const currentBand = (this.lastEtvPolicy?.band ?? 'B0') as import('../memory-v1/service/memoryTypes').EmotionBand;
     const currentEiv = eivResult.value;
 
+    // ── Persona Enforcer: deterministic override for identity/relational queries ──
+    if (featureFlags.personaEnforcerEnabled) {
+      const enforcerResult = runPersonaEnforcer({
+        userText: userMessage,
+        band: currentBand,
+        intensityLevel: classifyIntensity(currentEiv),
+        userId: this.userId,
+        relationalResult,
+      });
+
+      if (enforcerResult.override) {
+        if (bootstrapActive && enforcerResult.override) {
+          this.bootstrapMemory!.addMessage(
+            this.userId,
+            enforcerResult.override.slice(0, 120),
+            'assistant',
+            undefined,
+            undefined,
+            this.sessionCounter,
+            Date.now(),
+          );
+        }
+
+        const overrideResult = {
+          eiv: eivResult,
+          prompt: '(persona enforcer override)',
+          llmOutput: enforcerResult.override,
+          debug: {
+            etv: this.etvState.value,
+            band: this.lastEtvPolicy?.band ?? 'B0',
+            anchorsUsed: memServiceAnchors.length,
+            schemasUsed: memServiceSemanticCount,
+            degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+            stmTurns: sessionHistory?.length ?? 0,
+            behaviorMode: {
+              band: currentBand,
+              intensityLevel: classifyIntensity(currentEiv),
+              anchorIntegration: memServiceAnchors.length > 0,
+              degradedMode: memServiceDegraded.falkor || memServiceDegraded.chroma,
+            },
+            ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
+            ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
+            personaEnforcer: enforcerResult.debug,
+          },
+        };
+        this.lastDecision = overrideResult;
+        return overrideResult;
+      }
+    }
+
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -1194,6 +1247,7 @@ export class EngineOrchestrator {
         },
         ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
         ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
+        ...(featureFlags.personaEnforcerEnabled ? { personaEnforcer: { triggered: false, kind: 'none' as const } } : {}),
       },
     };
 

@@ -154,6 +154,7 @@
           '<dt>Anchor integration</dt><dd>' + (bm.anchorIntegration ? 'yes' : 'no') + '</dd>' +
           '<dt>Degraded mode</dt><dd class="' + (bm.degradedMode ? 'degraded-true' : '') + '">' + (bm.degradedMode ? 'yes' : 'no') + '</dd>' +
           (d.relational ? '<dt>Relational intent</dt><dd>' + d.relational.intent + ' (' + Number(d.relational.confidence).toFixed(2) + ')</dd>' : '') +
+          (d.personaEnforcer && d.personaEnforcer.triggered ? '<dt>Persona enforcer</dt><dd>' + d.personaEnforcer.kind + (d.personaEnforcer.templateId ? ' (' + d.personaEnforcer.templateId + ')' : '') + '</dd>' : '') +
           '</dl>';
       }
 
