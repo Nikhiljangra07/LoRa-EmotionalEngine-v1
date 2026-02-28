@@ -51,14 +51,17 @@
     "falkor:start": "docker compose -f docker-compose.falkor.yml up -d",
     "falkor:stop": "docker compose -f docker-compose.falkor.yml down",
     "falkor:logs": "docker compose -f docker-compose.falkor.yml logs -f",
-    "demo:fact-anchors": "ts-node scripts/demo-fact-anchors.ts"
+    "demo:fact-anchors": "ts-node scripts/demo-fact-anchors.ts",
+    "ab:gpt": "ts-node scripts/ab-test/test-gpt4o.ts",
+    "ab:claude": "ts-node scripts/ab-test/test-claude.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "chromadb": "^3.3.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "openai": "^6.16.0",
-    "ioredis": "^5.6.0"
+    "ioredis": "^5.6.0",
+    "openai": "^6.16.0"
   }
 }
