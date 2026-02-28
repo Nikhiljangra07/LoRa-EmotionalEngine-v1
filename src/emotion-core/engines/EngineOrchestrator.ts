@@ -2024,14 +2024,18 @@ export class EngineOrchestrator {
             timeoutMs: llmTimeoutMs,
           });
         }
+        const payload = {
+          signal: controller.signal,
+          requestId,
+          sessionHistory: sessionHistory ?? [],
+        };
+        if (process.env.NODE_ENV === 'test') {
+          console.log(Object.keys(payload));
+        }
         const response = await this.getResponder().generateResponse(
           systemPrompt,
           userMessage,
-          {
-            signal: controller.signal,
-            requestId,
-            ...(sessionHistory && sessionHistory.length > 0 ? { sessionHistory } : {}),
-          }
+          payload
         );
         clearTimeout(timer);
         return response;

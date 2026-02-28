@@ -7,6 +7,7 @@ let lastPayloadSeen: {
   systemPrompt: string;
   userMessage: string;
   sessionHistory?: Array<{ role: string; text: string }>;
+  payloadKeys?: string[];
 } = { systemPrompt: '', userMessage: '' };
 
 function createMockMemoryService(): MemoryService {
@@ -82,6 +83,7 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
             role: t.role,
             text: (t as { text?: string }).text ?? (t as { content?: string }).content ?? '',
           })),
+          payloadKeys: options ? Object.keys(options) : [],
         };
         const history = options?.sessionHistory ?? [];
         const priorTexts = history.map((t) => ((t as { text?: string }).text ?? (t as { content?: string }).content ?? '')).join(' ');
@@ -116,6 +118,20 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
 
   beforeEach(() => {
     lastPayloadSeen = { systemPrompt: '', userMessage: '' };
+  });
+
+  test('payload contains sessionHistory key before LLM send', async () => {
+    const userId = 'stm-keys';
+    const sessionId = 'stm-keys-sess';
+    await postApiChat(port, {
+      userId,
+      sessionId,
+      messageId: 'msg-keys',
+      text: 'Hello',
+    });
+    expect(lastPayloadSeen.payloadKeys).toBeDefined();
+    expect(lastPayloadSeen.payloadKeys).toContain('sessionHistory');
+    expect(lastPayloadSeen.sessionHistory).toBeDefined();
   });
 
   test('Test A: same-session continuity — earlier turns visible in payload', async () => {
