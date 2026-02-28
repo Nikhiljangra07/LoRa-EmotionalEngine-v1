@@ -49,6 +49,8 @@ import { runPersonaEnforcer } from '../persona/personaEnforcer';
 import type { PersonaEnforcerDebug } from '../persona/personaEnforcer';
 import { NarrativeStateEngine } from '../narrative/NarrativeStateEngine';
 import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
+import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
+import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -971,6 +973,23 @@ export class EngineOrchestrator {
       narrativeMomentum = this.narrativeEngine.toMomentumBlock();
     }
 
+    // ── Response Shape Contract: structural reply guidance (feature-flagged) ──
+    let responseShapeContract: ResponseShapeResult | undefined;
+    if (featureFlags.responseShapeContractEnabled && narrativeMomentum) {
+      responseShapeContract = buildResponseShapeContract({
+        band: currentBand,
+        guidanceMode,
+        narrative: {
+          phase: narrativeMomentum.currentPhase,
+          strategy: narrativeMomentum.suggestedStrategy,
+          theme: narrativeMomentum.dominantTheme,
+          trajectory: narrativeMomentum.emotionalTrajectory,
+        },
+        ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
+        intensityLevel: classifyIntensity(currentEiv),
+      });
+    }
+
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -998,6 +1017,7 @@ export class EngineOrchestrator {
       ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
       ...(bootstrapContextStr ? { bootstrapContext: bootstrapContextStr } : {}),
       ...(narrativeMomentum ? { narrativeMomentum } : {}),
+      ...(responseShapeContract ? { responseShapeContract } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -1264,6 +1284,7 @@ export class EngineOrchestrator {
         ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
         ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
         ...(featureFlags.personaEnforcerEnabled ? { personaEnforcer: { triggered: false, kind: 'none' as const } } : {}),
+        ...(responseShapeContract ? { responseShapeContract: { enabled: true, contractId: responseShapeContract.contractId } } : {}),
       },
     };
 

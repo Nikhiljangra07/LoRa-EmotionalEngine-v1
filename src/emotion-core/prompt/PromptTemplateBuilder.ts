@@ -100,6 +100,7 @@ export class PromptTemplateBuilder {
       relational?: { intent: RelationalIntent; confidence: number };
       bootstrapContext?: string;
       narrativeMomentum?: NarrativeMomentumBlock;
+      responseShapeContract?: { blockText: string; contractId: string };
       messageId?: string;
       userId?: string;
     }
@@ -211,6 +212,7 @@ export class PromptTemplateBuilder {
     const sessionContextBlock = this.getSessionContextBlock(options?.sessionHistory);
     const bootstrapBlock = this.getBootstrapContextBlock(options?.bootstrapContext);
     const narrativeMomentumBlock = this.getNarrativeMomentumBlock(options?.narrativeMomentum);
+    const responseShapeBlock = this.getResponseShapeContractBlock(options?.responseShapeContract);
 
     const prompt = `
 You are LoRa, an emotionally intelligent AI companion designed by NeuraSoul.
@@ -245,7 +247,7 @@ ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${p
 
 BAND CALIBRATION
 ----------------
-${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}
 
 GLOBAL SAFETY CONSTRAINTS
 -------------------------
@@ -919,6 +921,22 @@ Conversation phase: ${momentum.currentPhase}
 Suggested strategy: ${momentum.suggestedStrategy}
 
 This is internal guidance. Do not expose these labels to the user.`;
+  }
+
+  /* ============================================================
+   * Response Shape Contract (RSC) — structural reply guidance
+   * ============================================================
+   */
+  static getResponseShapeContractBlock(
+    rsc?: { blockText: string; contractId: string },
+  ): string {
+    if (!rsc) return '';
+
+    return `
+
+RESPONSE SHAPE CONTRACT
+-----------------------
+${rsc.blockText}`;
   }
 
   /* ============================================================
