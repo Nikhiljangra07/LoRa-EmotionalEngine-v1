@@ -53,7 +53,10 @@
     "falkor:logs": "docker compose -f docker-compose.falkor.yml logs -f",
     "demo:fact-anchors": "ts-node scripts/demo-fact-anchors.ts",
     "ab:gpt": "ts-node scripts/ab-test/test-gpt4o.ts",
-    "ab:claude": "ts-node scripts/ab-test/test-claude.ts"
+    "ab:claude": "ts-node scripts/ab-test/test-claude.ts",
+    "ab:appraisal": "ts-node src/tools/ab/ab-appraisal-harness.ts",
+    "ab:wave": "ts-node src/tools/ab/ab-wave-harness.ts",
+    "ab:wave:v2": "LORA_WAVE_SCRIPT=v2 ts-node src/tools/ab/ab-wave-harness.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
