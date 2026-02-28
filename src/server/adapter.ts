@@ -7,6 +7,7 @@ import { SessionManager } from './session/SessionManager';
 import { getLLMHealth } from './llmTelemetry';
 import { debugEnabled } from '../emotion-core/debug/debugGate';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
+import { featureFlags } from '../emotion-core/config/featureFlags';
 
 const app = express();
 const port = 3000;
@@ -84,6 +85,7 @@ app.post('/chat', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`[LoRa::Adapter] listening on ${port}`);
+  console.log('[LoRa] Feature Flags:', featureFlags);
   if (apiChatRegistered) {
     runStartupHealthChecks().catch(() => {});
   }
