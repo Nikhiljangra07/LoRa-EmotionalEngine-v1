@@ -17,6 +17,8 @@ export interface IdentityIntentResult {
   intent: IdentityIntent;
   confidence: number;
   cues: string[];
+  /** True when user claims to be the creator (e.g. "I created you"), not asking who created. */
+  isCreatorClaim?: boolean;
 }
 
 interface DetectorEntry {
@@ -129,9 +131,16 @@ export function classifyIdentityIntent(text: string): IdentityIntentResult {
     }
   }
 
+  const isCreatorClaim =
+    bestIntent === 'origin_creator' &&
+    /\b(?:i\s+(?:created|made|built)\s+you|i(?:'m| am)\s+your\s+(?:creator|maker|builder|founder))\b/i.test(
+      normalized
+    );
+
   return {
     intent: bestIntent,
     confidence: Math.round(bestScore * 100) / 100,
     cues: bestCues,
+    ...(isCreatorClaim ? { isCreatorClaim: true } : {}),
   };
 }

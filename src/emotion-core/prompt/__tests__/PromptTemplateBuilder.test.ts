@@ -141,6 +141,8 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
 
     expect(prompt).toMatch(/you are/i);
     expect(prompt).toMatch(/perceptive conversational presence/i);
+    expect(prompt).toMatch(/Nikhil/i); // stable creator identity
+    expect(prompt).not.toMatch(/NeuraSoul/i);
     expect(prompt).toMatch(/do not/i); // must include constraints
 
     expectNoNumericLeak(prompt);

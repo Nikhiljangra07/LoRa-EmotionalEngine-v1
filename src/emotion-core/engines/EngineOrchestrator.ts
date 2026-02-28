@@ -47,6 +47,7 @@ import type { BootstrapMemory } from '../memory-v1/bootstrap/bootstrapMemory';
 import { buildBootstrapContext } from '../memory-v1/bootstrap/bootstrapContext';
 import { runPersonaEnforcer } from '../persona/personaEnforcer';
 import type { PersonaEnforcerDebug } from '../persona/personaEnforcer';
+import { applyIdentityRepetitionGuard } from '../config/identityConstants';
 import { NarrativeStateEngine } from '../narrative/NarrativeStateEngine';
 import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
@@ -925,10 +926,16 @@ export class EngineOrchestrator {
       });
 
       if (enforcerResult.override) {
-        if (bootstrapActive && enforcerResult.override) {
+        const lastAssistant = sessionHistory?.filter((t) => t.role === 'assistant').pop()?.text;
+        const finalOverride =
+          enforcerResult.debug.kind === 'identity_override'
+            ? applyIdentityRepetitionGuard(enforcerResult.override, lastAssistant)
+            : enforcerResult.override;
+
+        if (bootstrapActive && finalOverride) {
           this.bootstrapMemory!.addMessage(
             this.userId,
-            enforcerResult.override.slice(0, 120),
+            finalOverride.slice(0, 120),
             'assistant',
             undefined,
             undefined,
@@ -940,7 +947,7 @@ export class EngineOrchestrator {
         const overrideResult = {
           eiv: eivResult,
           prompt: '(persona enforcer override)',
-          llmOutput: enforcerResult.override,
+          llmOutput: finalOverride,
           debug: {
             etv: this.etvState.value,
             band: this.lastEtvPolicy?.band ?? 'B0',

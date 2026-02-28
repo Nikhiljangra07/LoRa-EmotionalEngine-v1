@@ -21,11 +21,20 @@ describe('classifyIdentityIntent', () => {
     it('"who is your creator?" => origin_creator', () => {
       expectIntent('who is your creator?', 'origin_creator');
     });
-    it('"I created you" => origin_creator', () => {
-      expectIntent('I created you', 'origin_creator');
+    it('"I created you" => origin_creator + isCreatorClaim', () => {
+      const r = classifyIdentityIntent('I created you');
+      expect(r.intent).toBe('origin_creator');
+      expect(r.isCreatorClaim).toBe(true);
     });
-    it('"I\'m your creator" => origin_creator', () => {
-      expectIntent("I'm your creator", 'origin_creator');
+    it('"I\'m your creator" => origin_creator + isCreatorClaim', () => {
+      const r = classifyIdentityIntent("I'm your creator");
+      expect(r.intent).toBe('origin_creator');
+      expect(r.isCreatorClaim).toBe(true);
+    });
+    it('"who created you?" => origin_creator, NOT isCreatorClaim', () => {
+      const r = classifyIdentityIntent('who created you?');
+      expect(r.intent).toBe('origin_creator');
+      expect(r.isCreatorClaim).toBeFalsy();
     });
     it('"your creator" => origin_creator', () => {
       expectIntent('tell me about your creator', 'origin_creator');

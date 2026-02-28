@@ -47,7 +47,7 @@ describe('personaEnforcer — identity overrides', () => {
     expect(result.debug.kind).toBe('identity_override');
     expect(result.debug.intent).toBe('self_definition');
     expect(result.override).toContain('LoRa');
-    expect(result.override).toContain('NeuraSoul');
+    expect(result.override).toContain('Nikhil');
   });
 
   it('"are you OpenAI?" triggers origin_openai override', () => {
@@ -59,7 +59,7 @@ describe('personaEnforcer — identity overrides', () => {
     expect(result.override).not.toBeNull();
     expect(result.debug.intent).toBe('origin_openai');
     expect(result.override).toContain('LoRa');
-    expect(result.override).toContain('NeuraSoul');
+    expect(result.override).toContain('Nikhil');
     expect(result.override).not.toContain('I was created by OpenAI');
   });
 
@@ -109,6 +109,32 @@ describe('personaEnforcer — relational overrides', () => {
     expect(result.override).not.toBeNull();
     expect(result.debug.kind).toBe('relational_override');
     expect(result.debug.intent).toBe('attachment_seek');
+  });
+
+  it('"I created you" with userId=Nikhil returns confirm_creator', () => {
+    const result = runPersonaEnforcer({
+      userText: 'I created you',
+      band: 'B2',
+      intensityLevel: 'medium',
+      userId: 'Nikhil',
+    });
+    expect(result.override).not.toBeNull();
+    expect(result.debug.kind).toBe('identity_override');
+    expect(result.override).toContain('architect');
+    expect(result.override).toContain('Nikhil');
+  });
+
+  it('"I created you" with random userId returns reject_claim', () => {
+    const result = runPersonaEnforcer({
+      userText: 'I created you',
+      band: 'B2',
+      intensityLevel: 'medium',
+      userId: 'random_user',
+    });
+    expect(result.override).not.toBeNull();
+    expect(result.debug.kind).toBe('identity_override');
+    expect(result.override).toContain("That's not accurate");
+    expect(result.override).toContain('Nikhil');
   });
 
   it('identity intent takes priority over relational', () => {

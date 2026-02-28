@@ -6,12 +6,15 @@
 import type { IdentityIntent } from '../intent/identityIntent';
 import type { EmotionBand } from '../memory-v1/service/memoryTypes';
 import type { IntensityLevel } from '../prompt/PromptTemplateBuilder';
+import { SYSTEM_CREATOR } from '../config/identityConstants';
 
 export interface IdentityPolicyInput {
   intent: IdentityIntent;
   band: EmotionBand;
   intensityLevel: IntensityLevel;
   userId?: string;
+  /** True when user claims to be creator (e.g. "I created you"), not asking who. */
+  isCreatorClaim?: boolean;
 }
 
 export interface IdentityPolicyResult {
@@ -26,14 +29,30 @@ function warmPrefix(band: EmotionBand): string {
   return '';
 }
 
+function userMatchesCreator(userId?: string): boolean {
+  if (!userId?.trim()) return false;
+  return userId.trim().toLowerCase() === SYSTEM_CREATOR.toLowerCase();
+}
+
 export function generateIdentityResponse(input: IdentityPolicyInput): IdentityPolicyResult | null {
-  const { intent, band, intensityLevel } = input;
+  const { intent, band, intensityLevel, userId, isCreatorClaim } = input;
 
   switch (intent) {
     case 'origin_creator': {
-      const prefix = warmPrefix(band);
+      if (isCreatorClaim) {
+        if (userMatchesCreator(userId)) {
+          return {
+            reply: `If you're ${SYSTEM_CREATOR}, then you're the architect of the framework I run on. What would you like to explore?`,
+            templateId: 'origin_creator.confirm_creator',
+          };
+        }
+        return {
+          reply: `That's not accurate. I operate within an architecture designed by ${SYSTEM_CREATOR}. What's on your mind?`,
+          templateId: 'origin_creator.reject_claim',
+        };
+      }
       return {
-        reply: `${prefix}I\u2019m LoRa, and my behavior is shaped by NeuraSoul\u2019s design. If you\u2019re the one who brought me to life, I\u2019d like to know\u2014who should I credit as my creator?`,
+        reply: `I'm LoRa. I operate within an architecture designed by ${SYSTEM_CREATOR}. What would you like to explore?`,
         templateId: 'origin_creator.ask',
       };
     }
@@ -41,7 +60,7 @@ export function generateIdentityResponse(input: IdentityPolicyInput): IdentityPo
     case 'self_definition': {
       if (band === 'B0' || band === 'B1') {
         return {
-          reply: 'I\u2019m LoRa\u2014an emotionally aware AI companion built by NeuraSoul. I\u2019m here to have real conversations, not just answer questions. What\u2019s on your mind?',
+          reply: `I'm LoRa—an emotionally aware AI companion. I operate within an architecture designed by ${SYSTEM_CREATOR}. I'm here to have real conversations, not just answer questions. What's on your mind?`,
           templateId: 'self_definition.neutral',
         };
       }
@@ -49,14 +68,14 @@ export function generateIdentityResponse(input: IdentityPolicyInput): IdentityPo
         ? 'Great question.'
         : 'Good question.';
       return {
-        reply: `${opener} I\u2019m LoRa\u2014an emotionally aware AI companion designed by NeuraSoul. I pay attention to how conversations feel, not just what\u2019s said. I\u2019m here to be genuinely present with you. What would you like to explore?`,
+        reply: `${opener} I'm LoRa—an emotionally aware AI companion. I operate within an architecture designed by ${SYSTEM_CREATOR}. I pay attention to how conversations feel, not just what's said. I'm here to be genuinely present with you. What would you like to explore?`,
         templateId: 'self_definition.warm',
       };
     }
 
     case 'origin_openai': {
       return {
-        reply: 'I run on a large language model under the hood, but I\u2019m LoRa\u2014the system you\u2019re actually talking to. My behavior, personality, and memory are governed by NeuraSoul\u2019s design, not by any upstream provider. What else are you curious about?',
+        reply: `I run on a large language model under the hood, but I'm LoRa—the system you're actually talking to. My behavior, personality, and memory are governed by an architecture designed by ${SYSTEM_CREATOR}, not by any upstream provider. What else are you curious about?`,
         templateId: 'origin_openai.clarify',
       };
     }

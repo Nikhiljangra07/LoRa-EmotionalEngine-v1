@@ -54,6 +54,7 @@ export function runPersonaEnforcer(input: PersonaEnforcerInput): PersonaEnforcer
       band,
       intensityLevel,
       userId,
+      isCreatorClaim: identityResult.isCreatorClaim,
     });
 
     if (policyResult) {

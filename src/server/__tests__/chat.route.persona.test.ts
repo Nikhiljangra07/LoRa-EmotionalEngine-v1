@@ -115,7 +115,7 @@ describe('POST /api/chat — persona enforcer (LORA_PERSONA_ENFORCER=1)', () => 
     });
     expect(res.status).toBe(200);
     expect((res.body.reply as string)).toContain('LoRa');
-    expect((res.body.reply as string)).toContain('NeuraSoul');
+    expect((res.body.reply as string)).toContain('Nikhil');
 
     const pe = (res.body.debug as any).personaEnforcer;
     expect(pe.kind).toBe('identity_override');
