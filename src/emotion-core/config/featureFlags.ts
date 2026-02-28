@@ -28,4 +28,6 @@ export const featureFlags = Object.freeze({
   factAnchorEnabled: process.env.LORA_FACT_ANCHOR === '1',
   memoryServiceEnabled: process.env.LORA_MEMORY_SERVICE === '1',
   relationalRouterEnabled: process.env.LORA_RELATIONAL_ROUTER === '1',
+  bootstrapMemoryEnabled: process.env.LORA_BOOTSTRAP_MEMORY === '1',
+  bootstrapMemorySessionThreshold: parseInt(process.env.LORA_BOOTSTRAP_SESSIONS ?? '5', 10),
 });

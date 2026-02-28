@@ -43,6 +43,8 @@ import type { AnchorRecord, MemorySaveInput, EmotionBand, RetrieveContextOpts } 
 import { MAX_ANCHORS_IN_PROMPT } from '../memory-v1/factAnchorTypes';
 import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../intent/relationalIntent';
 import type { RelationalClassification } from '../intent/relationalIntent';
+import type { BootstrapMemory } from '../memory-v1/bootstrap/bootstrapMemory';
+import { buildBootstrapContext } from '../memory-v1/bootstrap/bootstrapContext';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -124,6 +126,8 @@ export class EngineOrchestrator {
         intent: string;
         confidence: number;
       };
+      bootstrapActive?: boolean;
+      bootstrapInjected?: boolean;
     };
   };
 
@@ -157,6 +161,7 @@ export class EngineOrchestrator {
 
   // ── Memory Service — dual DB pipeline (gated by memoryServiceEnabled) ──
   private readonly memoryService?: MemoryService;
+  private readonly bootstrapMemory?: BootstrapMemory;
   private chromaDegraded = false;
   private falkorDegraded = false;
   private degradedLogged = { chroma: false, falkor: false, dual: false };
@@ -166,7 +171,7 @@ export class EngineOrchestrator {
     llmConfig: Partial<LLMConfig> = {},
     responderFactory: () => LLMResponder = () =>
       new OpenAIResponder(),
-    options: { userId?: string; memoryService?: MemoryService } = {},
+    options: { userId?: string; memoryService?: MemoryService; bootstrapMemory?: BootstrapMemory } = {},
   ) {
     this.userId = options.userId ?? 'anonymous';
     this.etvState = {
@@ -186,6 +191,9 @@ export class EngineOrchestrator {
     }
     if (featureFlags.memoryServiceEnabled && options.memoryService) {
       this.memoryService = options.memoryService;
+    }
+    if (featureFlags.bootstrapMemoryEnabled && options.bootstrapMemory) {
+      this.bootstrapMemory = options.bootstrapMemory;
     }
   }
 
@@ -858,6 +866,39 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── Bootstrap Memory: addMessage + conditional context injection ──
+    const structuredEmpty = memServiceAnchors.length === 0 && memServiceSemanticCount === 0;
+    let bootstrapContextStr: string | undefined;
+    const bootstrapActive = featureFlags.bootstrapMemoryEnabled && !!this.bootstrapMemory;
+
+    if (bootstrapActive) {
+      const emotionVec = [
+        analyzerOutputs.valence.score,
+        analyzerOutputs.arousal.score,
+        analyzerOutputs.expressionStrength.score,
+        Math.min(
+          analyzerOutputs.valence.confidence,
+          analyzerOutputs.arousal.confidence,
+          analyzerOutputs.expressionStrength.confidence,
+        ),
+      ];
+      this.bootstrapMemory!.addMessage(
+        this.userId,
+        userMessage.slice(0, 120),
+        'user',
+        emotionVec,
+        eivResult.value,
+        this.sessionCounter,
+        messageTimestampMs,
+      );
+
+      if (structuredEmpty) {
+        const state = this.bootstrapMemory!.getState(this.userId);
+        const ctx = buildBootstrapContext(state);
+        if (ctx) bootstrapContextStr = ctx;
+      }
+    }
+
     // 6. Build prompt (PURE)
     const currentBand = (this.lastEtvPolicy?.band ?? 'B0') as import('../memory-v1/service/memoryTypes').EmotionBand;
     const currentEiv = eivResult.value;
@@ -887,6 +928,7 @@ export class EngineOrchestrator {
       eiv: currentEiv,
       ...(sessionHistory && sessionHistory.length > 0 ? { sessionHistory } : {}),
       ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
+      ...(bootstrapContextStr ? { bootstrapContext: bootstrapContextStr } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
     });
@@ -964,6 +1006,19 @@ export class EngineOrchestrator {
       decision,
       fallbackContext
     );
+
+    // ── Bootstrap Memory: record assistant reply summary ──
+    if (bootstrapActive && llmOutput) {
+      this.bootstrapMemory!.addMessage(
+        this.userId,
+        llmOutput.slice(0, 120),
+        'assistant',
+        undefined,
+        undefined,
+        this.sessionCounter,
+        Date.now(),
+      );
+    }
 
     // 7. Message-level decision logging
     const relationshipStyle: PromptProfile['relationshipStyle'] =
@@ -1138,6 +1193,7 @@ export class EngineOrchestrator {
           degradedMode: memServiceDegraded.falkor || memServiceDegraded.chroma,
         },
         ...(relationalResult ? { relational: { intent: relationalResult.intent, confidence: relationalResult.confidence } } : {}),
+        ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
       },
     };
 
@@ -1297,6 +1353,28 @@ export class EngineOrchestrator {
       });
     }
 
+    // ── Bootstrap Memory: increment session + graduation check ──
+    if (featureFlags.bootstrapMemoryEnabled && this.bootstrapMemory) {
+      try {
+        const nowMs = Date.now();
+        this.bootstrapMemory.incrementSession(this.userId, nowMs);
+        if (this.bootstrapMemory.shouldGraduate(this.userId, featureFlags.bootstrapMemorySessionThreshold)) {
+          const graduation = this.bootstrapMemory.graduate(this.userId);
+          if (graduation.graduated && debugEnabled) {
+            console.log('[LoRa::Bootstrap] Graduated', {
+              userId: this.userId,
+              candidates: graduation.anchorCandidates.length,
+              purged: graduation.purged,
+            });
+          }
+        }
+      } catch {
+        if (debugEnabled) {
+          console.error('[LoRa::Bootstrap] endSession error');
+        }
+      }
+    }
+
     // Reset session
     this.etvState = {
       value: newETV,
@@ -1328,6 +1406,16 @@ export class EngineOrchestrator {
     this.degradedLogged = { chroma: false, falkor: false, dual: false };
 
     return { newETV };
+  }
+
+  /**
+   * Purge all user data including bootstrap memory.
+   * Call this in addition to MemoryService.purgeUser() when deleting a user.
+   */
+  purgeBootstrapData(): void {
+    if (this.bootstrapMemory) {
+      this.bootstrapMemory.purge(this.userId);
+    }
   }
 
   // ---------------------------------------------------

@@ -97,6 +97,7 @@ export class PromptTemplateBuilder {
       eiv?: number;
       sessionHistory?: ChatTurn[];
       relational?: { intent: RelationalIntent; confidence: number };
+      bootstrapContext?: string;
       messageId?: string;
       userId?: string;
     }
@@ -206,6 +207,7 @@ export class PromptTemplateBuilder {
     const degradedModeBlock = this.getDegradedModeBlock(options?.degraded);
     const relationalPolicyBlock = this.getRelationalPolicyBlock(options?.relational, band, intensity);
     const sessionContextBlock = this.getSessionContextBlock(options?.sessionHistory);
+    const bootstrapBlock = this.getBootstrapContextBlock(options?.bootstrapContext);
 
     const prompt = `
 You are LoRa, an emotionally aware AI companion.
@@ -236,7 +238,7 @@ GLOBAL CONSTRAINTS
 - Never claim to recall or reference having been told something
 - Never use possessive framing about the relationship
 - Never use dependency or manipulation language
-${constraintOverlay}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}`.trim();
+${constraintOverlay}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}`.trim();
 
     if (debugEnabled) {
       console.log('[LoRa::Audit][PromptTemplate]', {
@@ -892,6 +894,16 @@ Degraded Mode: Partial
     }
 
     return lines.join('\n');
+  }
+
+  /* ============================================================
+   * Bootstrap Context (cold-start personalization bridge)
+   * ============================================================
+   */
+  static getBootstrapContextBlock(bootstrapContext?: string): string {
+    if (!bootstrapContext || bootstrapContext.trim().length === 0) return '';
+
+    return `\n\nBOOTSTRAP CONTEXT (early personalization)\n-----------------------------------------\n${bootstrapContext.trim()}`;
   }
 
   /* ============================================================
