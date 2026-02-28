@@ -56,12 +56,12 @@ describe('GuidanceMode compatibility matrix', () => {
       expect(prompt).toMatch(/You are LoRa/);
     });
 
-    test('contains RESPONSE GUIDELINES section', () => {
-      expect(prompt).toContain('RESPONSE GUIDELINES');
+    test('contains RESPONSE PRINCIPLES section', () => {
+      expect(prompt).toContain('RESPONSE PRINCIPLES');
     });
 
-    test('contains GLOBAL CONSTRAINTS section', () => {
-      expect(prompt).toContain('GLOBAL CONSTRAINTS');
+    test('contains GLOBAL SAFETY CONSTRAINTS section', () => {
+      expect(prompt).toContain('GLOBAL SAFETY CONSTRAINTS');
     });
   });
 

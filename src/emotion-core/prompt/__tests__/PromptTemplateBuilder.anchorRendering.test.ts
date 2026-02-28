@@ -99,8 +99,8 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
     PromptTemplateBuilder.resetMemoryShadowLimiter();
   });
 
-  describe('prompt ordering: GLOBAL CONSTRAINTS > MEMORY CONTEXT > FACT CONTEXT', () => {
-    it('anchors appear AFTER memory context (schemas) in the final prompt', () => {
+  describe('prompt ordering: MEMORY CONTEXT > FACT CONTEXT > GLOBAL SAFETY CONSTRAINTS', () => {
+    it('anchors appear AFTER memory context (schemas) and BEFORE global safety constraints', () => {
       const anchors = [
         makeAnchor({ anchorId: 'a1', contentSummary: 'Job interview prep', band: 'B3' }),
       ];
@@ -114,19 +114,19 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
         },
       );
 
-      const globalConstraintsIdx = prompt.indexOf('GLOBAL CONSTRAINTS');
       const memoryContextIdx = prompt.indexOf('MEMORY CONTEXT');
       const factContextIdx = prompt.indexOf('FACT CONTEXT');
+      const globalConstraintsIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
 
-      expect(globalConstraintsIdx).toBeGreaterThan(-1);
       expect(memoryContextIdx).toBeGreaterThan(-1);
       expect(factContextIdx).toBeGreaterThan(-1);
+      expect(globalConstraintsIdx).toBeGreaterThan(-1);
 
-      expect(globalConstraintsIdx).toBeLessThan(memoryContextIdx);
       expect(memoryContextIdx).toBeLessThan(factContextIdx);
+      expect(factContextIdx).toBeLessThan(globalConstraintsIdx);
     });
 
-    it('anchors appear after schemas even when no memory context provided', () => {
+    it('anchors appear before global safety constraints even when no memory context provided', () => {
       const anchors = [
         makeAnchor({ anchorId: 'a1', contentSummary: 'Meeting with manager', band: 'B2' }),
       ];
@@ -137,12 +137,12 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
         { relevantAnchors: anchors },
       );
 
-      const globalConstraintsIdx = prompt.indexOf('GLOBAL CONSTRAINTS');
       const factContextIdx = prompt.indexOf('FACT CONTEXT');
+      const globalConstraintsIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
 
-      expect(globalConstraintsIdx).toBeGreaterThan(-1);
       expect(factContextIdx).toBeGreaterThan(-1);
-      expect(globalConstraintsIdx).toBeLessThan(factContextIdx);
+      expect(globalConstraintsIdx).toBeGreaterThan(-1);
+      expect(factContextIdx).toBeLessThan(globalConstraintsIdx);
     });
   });
 

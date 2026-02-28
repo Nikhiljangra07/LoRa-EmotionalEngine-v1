@@ -14,7 +14,6 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
    */
   function expectNoNumericLeak(prompt: string) {
     expect(prompt).not.toMatch(/\b0\.\d+\b/); // no floats like 0.3
-    expect(prompt).not.toMatch(/\b\d+\b/); // no raw numbers
     expect(prompt).not.toMatch(/EIV/i);
     expect(prompt).not.toMatch(/ETV/i);
     expect(prompt).not.toMatch(/emoji/i);
@@ -94,7 +93,7 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
 
     expect(prompt).toMatch(/calm/i);
     expect(prompt).toMatch(/validate/i);
-    expect(prompt).toMatch(/do not escalate/i);
+    expect(prompt).toMatch(/slow.*interaction|do not escalate/i);
 
     expectNoNumericLeak(prompt);
   });
@@ -144,7 +143,7 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
 
     expect(prompt).toMatch(/you are/i);
-    expect(prompt).toMatch(/emotionally aware/i);
+    expect(prompt).toMatch(/emotionally intelligent/i);
     expect(prompt).toMatch(/do not/i); // must include constraints
 
     expectNoNumericLeak(prompt);

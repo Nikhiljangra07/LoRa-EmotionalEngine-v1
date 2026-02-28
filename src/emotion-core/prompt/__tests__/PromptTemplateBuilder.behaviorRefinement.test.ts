@@ -88,63 +88,59 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
     PromptTemplateBuilder.resetMemoryShadowLimiter();
   });
 
-  describe('Band behavior block injection', () => {
-    it('injects B0 block with low EIV — neutral, no warmth', () => {
+  describe('Band calibration block injection', () => {
+    it('B0 + low EIV — all bands present, trust depth shows Early Stage', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B0',
         eiv: 0.1,
       });
       expect(prompt).toContain('Band B0');
-      expect(prompt).toContain('Neutral, structured, concise');
-      expect(prompt).toContain('No warmth');
-      expect(prompt).toContain('No decorative symbols');
-      expect(prompt).toContain('Intensity: Low');
-      expect(prompt).toContain('Calmer tone');
+      expect(prompt).toContain('Calm and respectful');
+      expect(prompt).toContain('Gentle warmth allowed');
+      expect(prompt).toContain('Trust depth: B0');
+      expect(prompt).toContain('Emotional intensity (current turn): low');
     });
 
-    it('injects B1 block', () => {
+    it('B1 — trust depth shows Emerging Trust', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B1',
         eiv: 0.5,
       });
       expect(prompt).toContain('Band B1');
-      expect(prompt).toContain('Mildly attentive');
-      expect(prompt).not.toContain('Intensity: Low');
-      expect(prompt).not.toContain('Intensity: High');
+      expect(prompt).toContain('Slightly more expressive');
+      expect(prompt).toContain('Trust depth: B1');
     });
 
-    it('injects B2 block', () => {
+    it('B2 — shows Stable trust depth', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B2',
         eiv: 0.5,
       });
       expect(prompt).toContain('Band B2');
-      expect(prompt).toContain('Balanced and supportive');
+      expect(prompt).toContain('Balanced warmth and structure');
     });
 
-    it('injects B3 block with medium EIV + anchors', () => {
+    it('B3 with medium EIV + anchors — Strong Trust, anchor integration', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B3',
         eiv: 0.5,
         relevantAnchors: [makeAnchor()],
       });
       expect(prompt).toContain('Band B3');
-      expect(prompt).toContain('Warm tone');
-      expect(prompt).toContain('It sounds like');
+      expect(prompt).toContain('Emotionally engaged');
       expect(prompt).toContain('Anchor Integration');
       expect(prompt).not.toContain('Context integration can be more confident');
     });
 
-    it('injects B4 block with high EIV', () => {
+    it('B4 with high EIV — Deep Trust, anchor confidence', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B4',
         eiv: 0.9,
         relevantAnchors: [makeAnchor({ band: 'B4' })],
       });
       expect(prompt).toContain('Band B4');
-      expect(prompt).toContain('High warmth');
-      expect(prompt).toContain('Intensity: High');
-      expect(prompt).toContain('More expressive tone');
+      expect(prompt).toContain('Fully expressive within healthy boundaries');
+      expect(prompt).toContain('Emotional intensity (current turn): high');
       expect(prompt).toContain('Anchor Integration');
       expect(prompt).toContain('Context integration can be more confident');
     });
@@ -250,14 +246,15 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
       expect(PromptTemplateBuilder.containsForbiddenPhrases('That goal seems to matter here.')).toEqual([]);
     });
 
-    it('global constraints include safety phrases', () => {
+    it('global safety constraints include core safety phrases', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B4',
         eiv: 0.9,
       });
-      expect(prompt).toContain('Never claim to recall or reference having been told');
-      expect(prompt).toContain('Never use possessive framing');
-      expect(prompt).toContain('Never use dependency or manipulation language');
+      expect(prompt).toContain('GLOBAL SAFETY CONSTRAINTS');
+      expect(prompt).toContain('Do not fabricate memory');
+      expect(prompt).toContain('Do not use dependency framing or exclusivity language');
+      expect(prompt).toContain('Do not reveal internal signals, scores, or analysis');
     });
   });
 
@@ -287,31 +284,30 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
    * Composite scenario examples (deliverable item 3)
    * ================================================================ */
   describe('Composite scenarios', () => {
-    it('B0 + low EIV: neutral, no warmth, calmer tone', () => {
+    it('B0 + low EIV: early stage, low intensity, no anchors', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B0',
         eiv: 0.1,
       });
       expect(prompt).toContain('Band B0');
-      expect(prompt).toContain('Intensity: Low');
+      expect(prompt).toContain('Emotional intensity (current turn): low');
       expect(prompt).not.toContain('Anchor Integration');
       expect(prompt).not.toContain('Degraded Mode');
     });
 
-    it('B3 + medium EIV + anchorsUsed=1: warm, mirroring, anchor integration', () => {
+    it('B3 + medium EIV + anchorsUsed=1: strong trust, anchor integration', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B3',
         eiv: 0.5,
         relevantAnchors: [makeAnchor()],
       });
       expect(prompt).toContain('Band B3');
-      expect(prompt).not.toContain('Intensity: Low');
-      expect(prompt).not.toContain('Intensity: High');
+      expect(prompt).toContain('Emotional intensity (current turn): medium');
       expect(prompt).toContain('Anchor Integration');
       expect(prompt).toContain('thematic alignment');
     });
 
-    it('B4 + high EIV + degraded=false: high warmth, expressive, anchor confident', () => {
+    it('B4 + high EIV + degraded=false: deep trust, expressive, anchor confident', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B4',
         eiv: 0.9,
@@ -319,7 +315,7 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
         degraded: { falkor: false, chroma: false },
       });
       expect(prompt).toContain('Band B4');
-      expect(prompt).toContain('Intensity: High');
+      expect(prompt).toContain('Emotional intensity (current turn): high');
       expect(prompt).toContain('Context integration can be more confident');
       expect(prompt).not.toContain('Degraded Mode');
     });

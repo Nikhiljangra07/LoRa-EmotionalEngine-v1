@@ -86,18 +86,18 @@ describe('PromptTemplateBuilder — BOOTSTRAP CONTEXT block', () => {
     expect(bootstrapSection).not.toMatch(MARKER_PATTERN);
   });
 
-  it('BOOTSTRAP CONTEXT is placed after FACT CONTEXT block area', () => {
+  it('BOOTSTRAP CONTEXT is placed before GLOBAL SAFETY CONSTRAINTS', () => {
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState, {
       bootstrapContext: 'Themes: exercise.',
       band: 'B2',
       eiv: 0.4,
     });
 
-    const constraintsIdx = prompt.indexOf('GLOBAL CONSTRAINTS');
     const bootstrapIdx = prompt.indexOf('BOOTSTRAP CONTEXT');
-    expect(constraintsIdx).toBeGreaterThan(-1);
+    const constraintsIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
     expect(bootstrapIdx).toBeGreaterThan(-1);
-    expect(bootstrapIdx).toBeGreaterThan(constraintsIdx);
+    expect(constraintsIdx).toBeGreaterThan(-1);
+    expect(bootstrapIdx).toBeLessThan(constraintsIdx);
   });
 
   it('coexists with FACT CONTEXT when both provided', () => {

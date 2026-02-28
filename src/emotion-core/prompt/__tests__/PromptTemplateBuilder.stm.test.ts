@@ -152,7 +152,7 @@ describe('PromptTemplateBuilder — Session Transcript Memory', () => {
       expect(prompt).not.toContain('SESSION CONTEXT');
     });
 
-    it('SESSION CONTEXT appears after GLOBAL CONSTRAINTS', () => {
+    it('SESSION CONTEXT appears before GLOBAL SAFETY CONSTRAINTS', () => {
       const history: ChatTurn[] = [
         { role: 'user', text: 'hi', ts: 1000 },
       ];
@@ -161,10 +161,11 @@ describe('PromptTemplateBuilder — Session Transcript Memory', () => {
         makeETVState(),
         { sessionHistory: history },
       );
-      const gcIdx = prompt.indexOf('GLOBAL CONSTRAINTS');
       const scIdx = prompt.indexOf('SESSION CONTEXT');
+      const gcIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
+      expect(scIdx).toBeGreaterThan(-1);
       expect(gcIdx).toBeGreaterThan(-1);
-      expect(scIdx).toBeGreaterThan(gcIdx);
+      expect(scIdx).toBeLessThan(gcIdx);
     });
 
     it('SESSION CONTEXT does not contain forbidden phrases', () => {
