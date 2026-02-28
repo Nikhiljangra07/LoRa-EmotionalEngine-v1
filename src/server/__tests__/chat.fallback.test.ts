@@ -2,19 +2,19 @@ import http from 'http';
 
 // ── Mocks (registered before adapter import) ───────────────────
 
-process.env.OPENAI_API_KEY =
-  process.env.OPENAI_API_KEY || 'test-openai-key';
+process.env.ANTHROPIC_API_KEY =
+  process.env.ANTHROPIC_API_KEY || 'test-anthropic-key';
 
 /**
  * Simulate LLM unavailability: the constructor throws exactly as
- * the real OpenAIResponder does when OPENAI_API_KEY is unset.
+ * the real ClaudeResponder does when ANTHROPIC_API_KEY is unset.
  * The engine's retry loop catches this, exhausts attempts, and
  * returns a fallback response — which is the path under test.
  */
-jest.mock('../../emotion-core/llm/OpenAIResponder', () => ({
-  OpenAIResponder: class {
+jest.mock('../../emotion-core/llm/ClaudeResponder', () => ({
+  ClaudeResponder: class {
     constructor() {
-      throw new Error('OPENAI_API_KEY not set');
+      throw new Error('ANTHROPIC_API_KEY not set');
     }
     async generateResponse(): Promise<string> {
       throw new Error('unreachable');

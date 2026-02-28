@@ -12,7 +12,7 @@ import type { SignalPacket } from '../types/SignalPacket.types';
 import { PromptTemplateBuilder, classifyIntensity } from '../prompt/PromptTemplateBuilder';
 import { DecisionLogger } from '../logging/DecisionLogger';
 import type { MessageDecisionLog } from '../logging/DecisionLogger';
-import { OpenAIResponder } from '../llm/OpenAIResponder';
+import { ClaudeResponder } from '../llm/ClaudeResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
@@ -181,7 +181,7 @@ export class EngineOrchestrator {
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
     llmConfig: Partial<LLMConfig> = {},
     responderFactory: () => LLMResponder = () =>
-      new OpenAIResponder(),
+      new ClaudeResponder(),
     options: { userId?: string; memoryService?: MemoryService; bootstrapMemory?: BootstrapMemory } = {},
   ) {
     this.userId = options.userId ?? 'anonymous';

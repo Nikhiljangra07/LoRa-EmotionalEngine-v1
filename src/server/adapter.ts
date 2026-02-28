@@ -85,6 +85,7 @@ app.post('/chat', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`[LoRa::Adapter] listening on ${port}`);
+  console.log('[LoRa] Runtime Model: Claude Sonnet 4-6');
   console.log('[LoRa] Feature Flags:', featureFlags);
   if (apiChatRegistered) {
     runStartupHealthChecks().catch(() => {});

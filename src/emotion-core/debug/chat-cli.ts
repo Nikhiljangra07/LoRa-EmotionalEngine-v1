@@ -1,6 +1,6 @@
 /**
  * Usage:
- *   LORA_DEBUG=1 LORA_DEBUG_VERBOSE=1 OPENAI_API_KEY=... \
+ *   LORA_DEBUG=1 LORA_DEBUG_VERBOSE=1 ANTHROPIC_API_KEY=... \
  *   npx ts-node src/emotion-core/debug/chat-cli.ts
  */
 import '../../bootstrap';
@@ -8,7 +8,7 @@ import readline from "readline";
 import { EngineOrchestrator } from "../engines/EngineOrchestrator";
 import { InputProcessor } from "../processors/InputProcessor";
 import { DecisionLogger } from "../logging/DecisionLogger";
-import { OpenAIResponder } from "../llm/OpenAIResponder";
+import { ClaudeResponder } from "../llm/ClaudeResponder";
 import { debugEnabled } from "./debugGate";
 
 const COMMANDS = ["/help", "/exit", "/quit"];
@@ -36,8 +36,8 @@ export const runChatCLI = () => {
   const maxContextChars = 300;
 
   if (debugEnabled && process.env.LORA_DEBUG_WIRING) {
-    const originalGenerate = OpenAIResponder.prototype.generateResponse;
-    OpenAIResponder.prototype.generateResponse = async function (
+    const originalGenerate = ClaudeResponder.prototype.generateResponse;
+    ClaudeResponder.prototype.generateResponse = async function (
       systemPrompt: string,
       userMessage: string,
       opts?: { signal?: AbortSignal; requestId?: string }

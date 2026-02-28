@@ -6,7 +6,7 @@ import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { MemoryService } from '../../emotion-core/memory-v1/service/MemoryService';
 import { EngineOrchestrator } from '../../emotion-core/engines/EngineOrchestrator';
-import { OpenAIResponder } from '../../emotion-core/llm/OpenAIResponder';
+import { ClaudeResponder } from '../../emotion-core/llm/ClaudeResponder';
 import { InputProcessor } from '../../emotion-core/processors/InputProcessor';
 import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, STM_MAX_TEXT_LENGTH, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
@@ -119,7 +119,7 @@ function emptyDebug(): ApiChatResponse['debug'] {
  */
 export function registerChatRoute(app: Express, options?: ChatRouteOptions): void {
   let memoryService: MemoryService;
-  const responderFactory = options?.responderFactory ?? (() => new OpenAIResponder());
+  const responderFactory = options?.responderFactory ?? (() => new ClaudeResponder());
 
   if (options?.memoryService) {
     memoryService = options.memoryService;

@@ -2,12 +2,12 @@ import http from 'http';
 
 // ── Mocks (registered before adapter import) ───────────────────
 
-process.env.OPENAI_API_KEY =
-  process.env.OPENAI_API_KEY || 'test-openai-key';
+process.env.ANTHROPIC_API_KEY =
+  process.env.ANTHROPIC_API_KEY || 'test-anthropic-key';
 
-/** Prevent real OpenAI API calls; return a deterministic non-empty string. */
-jest.mock('../../emotion-core/llm/OpenAIResponder', () => ({
-  OpenAIResponder: class {
+/** Prevent real Claude API calls; return a deterministic non-empty string. */
+jest.mock('../../emotion-core/llm/ClaudeResponder', () => ({
+  ClaudeResponder: class {
     async generateResponse() {
       return 'mock-llm-reply';
     }
