@@ -47,15 +47,17 @@ export function registerSessionEndRoute(
     }
 
     if (!found) {
+      console.log('[LoRa] SESSION END RESPONSE:', { ended: false });
       res.status(200).json({ ended: false, reason: 'no_active_session' });
       return;
     }
 
     const tierState = TierStorage.load(userId);
-    res.status(200).json({
-      ended: true,
-      tier: tierState?.currentTier ?? 'TIER_1',
-      sessionCount: tierState?.sessionCount ?? 0,
-    });
+    const tier = tierState?.currentTier ?? 'TIER_1';
+    const sessionCount = tierState?.sessionCount ?? 0;
+
+    console.log('[LoRa] SESSION END RESPONSE:', { ended: true, tier, sessionCount });
+    res.status(200).json({ ended: true, tier, sessionCount });
+    return;
   });
 }
