@@ -11,6 +11,7 @@ import { InputProcessor } from '../../emotion-core/processors/InputProcessor';
 import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../../emotion-core/intent/relationalIntent';
+import { TierStorage } from '../../emotion-core/tier/TierState';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -166,17 +167,24 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
   }
 
   app.post('/api/chat', async (req: Request, res: Response): Promise<void> => {
-    const validated = validateBody(req.body);
-    if (!validated.ok) {
-      res.status(validated.status).json({ error: validated.error });
-      return;
-    }
-    const { userId, sessionId, messageId, text, timestamp, endSession } = validated.data;
+    // ── Early end-session interception ──────────────────────────────────────
+    // Handles: endSession:true flag, body.message="end session", body.text="end session"
+    // Runs before full validation so the frontend can omit text/messageId entirely
+    // and simply send { userId, sessionId, message: "end session" }.
+    const raw = req.body as Record<string, unknown>;
+    const rawText    = typeof raw?.text    === 'string' ? raw.text.trim().toLowerCase()    : '';
+    const rawMessage = typeof raw?.message === 'string' ? raw.message.trim().toLowerCase() : '';
+    const isEndSessionByText = rawText === 'end session' || rawMessage === 'end session';
+    const isEndSessionByFlag = raw?.endSession === true;
 
-    const session = getSession(userId, sessionId);
-
-    const normalizedText = text.trim().toLowerCase();
-    if (normalizedText === 'end session' || endSession) {
+    if (isEndSessionByText || isEndSessionByFlag) {
+      console.log('[LoRa] END SESSION ROUTE HIT');
+      const userId    = typeof raw?.userId    === 'string' ? raw.userId.trim()    : '';
+      const sessionId = typeof raw?.sessionId === 'string' ? raw.sessionId.trim() : '';
+      if (!userId || !sessionId) {
+        res.status(400).json({ error: 'userId and sessionId are required to end a session.' });
+        return;
+      }
       // End ALL sessions for this userId (handles sessionId mismatch).
       const userPrefix = `${userId}::`;
       for (const [k, entry] of sessions.entries()) {
@@ -185,16 +193,27 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
           sessions.delete(k);
         }
       }
-      const reply = normalizedText === 'end session'
-        ? 'Session ended. You can start a new conversation.'
-        : '';
+      const tierState = TierStorage.load(userId);
+      const reply = isEndSessionByText ? 'Session ended. You can start a new conversation.' : '';
       res.status(200).json({
+        ended: true,
+        tier: tierState?.currentTier ?? 'TIER_1',
+        sessionCount: tierState?.sessionCount ?? 0,
         reply,
-        ...(normalizedText === 'end session' ? { ended: true } : {}),
         debug: emptyDebug(),
       });
       return;
     }
+    // ────────────────────────────────────────────────────────────────────────
+
+    const validated = validateBody(req.body);
+    if (!validated.ok) {
+      res.status(validated.status).json({ error: validated.error });
+      return;
+    }
+    const { userId, sessionId, messageId, text, timestamp } = validated.data;
+
+    const session = getSession(userId, sessionId);
 
     try {
       const userTurn: ChatTurn = {

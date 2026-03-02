@@ -308,6 +308,19 @@ describe('POST /api/chat — tier promotion across sessions (regression)', () =>
     expect(file?.sessionCount).toBe(1);
   });
 
+  test('"end session" response includes tier and sessionCount fields', async () => {
+    cleanupTier(userId);
+
+    await postApiChat(port, { userId, sessionId: 'tf1', messageId: 'm1', text: 'hi' });
+    const res = await postApiChat(port, { userId, sessionId: 'tf1', messageId: 'm2', text: 'end session' });
+
+    expect(res.body.ended).toBe(true);
+    expect(typeof res.body.tier).toBe('string');
+    expect(typeof res.body.sessionCount).toBe('number');
+    expect(res.body.sessionCount).toBe(1);
+    expect(res.body.tier).toBe('TIER_1');
+  });
+
   test('"end session" does not reset existing tier file', async () => {
     cleanupTier(userId);
 
@@ -322,5 +335,100 @@ describe('POST /api/chat — tier promotion across sessions (regression)', () =>
     await postApiChat(port, { userId, sessionId: 'a3', messageId: 'm5', text: 'end session' });
     expect(readTierFile(userId)?.sessionCount).toBe(2);
     expect(readTierFile(userId)?.currentTier).toBe('TIER_2');
+  });
+});
+
+describe('POST /api/chat — end session via body.message field', () => {
+  let server: http.Server | null = null;
+  let port = 0;
+  let msgLlmCallCount = 0;
+
+  const userId = '__msg_field_end_sess__';
+
+  const origTier = process.env.LORA_TIER_MODEL;
+  const origPersona = process.env.LORA_PERSONA_ENFORCER;
+  const origRelational = process.env.LORA_RELATIONAL_ROUTER;
+
+  beforeAll((done) => {
+    process.env.LORA_TIER_MODEL = '1';
+    delete process.env.LORA_PERSONA_ENFORCER;
+    delete process.env.LORA_RELATIONAL_ROUTER;
+    jest.resetModules();
+
+    cleanupTier(userId);
+    msgLlmCallCount = 0;
+
+    const app = express();
+    app.use(express.json());
+
+    const mockResponder = () => ({
+      generateResponse: async () => {
+        msgLlmCallCount += 1;
+        return 'msg-field-test reply';
+      },
+    });
+
+    const { registerChatRoute } = require('../routes/chat.route') as typeof import('../routes/chat.route');
+    registerChatRoute(app, {
+      responderFactory: mockResponder,
+      memoryService: createMockMemoryService(),
+    });
+
+    server = app.listen(0, () => {
+      const addr = server!.address();
+      port = typeof addr === 'object' && addr !== null ? addr.port : 0;
+      done();
+    });
+  });
+
+  afterAll((done) => {
+    cleanupTier(userId);
+    if (origTier === undefined) delete process.env.LORA_TIER_MODEL;
+    else process.env.LORA_TIER_MODEL = origTier;
+    if (origPersona === undefined) delete process.env.LORA_PERSONA_ENFORCER;
+    else process.env.LORA_PERSONA_ENFORCER = origPersona;
+    if (origRelational === undefined) delete process.env.LORA_RELATIONAL_ROUTER;
+    else process.env.LORA_RELATIONAL_ROUTER = origRelational;
+    if (server) server.close(done);
+    else done();
+  });
+
+  beforeEach(() => {
+    msgLlmCallCount = 0;
+  });
+
+  test('body.message="end session" triggers endSession, increments tier, makes no LLM call', async () => {
+    // Establish a session with at least one message so tier is counted on end
+    await postApiChat(port, { userId, sessionId: 'ms1', messageId: 'm1', text: 'hello' });
+    expect(msgLlmCallCount).toBe(1);
+    msgLlmCallCount = 0;
+
+    // End the session using body.message — no text or messageId fields sent
+    const res = await postApiChat(port, { userId, sessionId: 'ms1', message: 'end session' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ended).toBe(true);
+    expect(msgLlmCallCount).toBe(0); // endSession must never invoke the LLM
+
+    // Tier must have been incremented by endSession()
+    const stored = readTierFile(userId);
+    expect(stored?.sessionCount).toBe(1);
+    expect(stored?.currentTier).toBe('TIER_1');
+
+    // Response must carry tier snapshot
+    expect(res.body.tier).toBe('TIER_1');
+    expect(res.body.sessionCount).toBe(1);
+  });
+
+  test('body.message="end session" (mixed case) also triggers endSession', async () => {
+    cleanupTier(userId);
+    await postApiChat(port, { userId, sessionId: 'ms2', messageId: 'm2', text: 'hello' });
+    msgLlmCallCount = 0;
+
+    const res = await postApiChat(port, { userId, sessionId: 'ms2', message: 'END SESSION' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ended).toBe(true);
+    expect(msgLlmCallCount).toBe(0);
   });
 });
