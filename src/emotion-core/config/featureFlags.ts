@@ -49,4 +49,5 @@ export const featureFlags = Object.freeze({
   responseShapeContractEnabled: flag(process.env.LORA_RSC, 'responseShapeContractEnabled'),
   bootstrapMemoryEnabled: flag(process.env.LORA_BOOTSTRAP_MEMORY, 'bootstrapMemoryEnabled'),
   bootstrapMemorySessionThreshold: parseInt(process.env.LORA_BOOTSTRAP_SESSIONS ?? '5', 10),
+  tierModelEnabled: flag(process.env.LORA_TIER_MODEL, 'tierModelEnabled'),
 });

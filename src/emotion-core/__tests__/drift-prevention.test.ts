@@ -200,7 +200,8 @@ describe("Drift prevention fixtures", () => {
   test("DRIFT-004: Hidden persistence detection", () => {
     const ETV_DIR = path.resolve(CORE_DIR, "etv");
     const MEMORY_V1_DIR = path.resolve(CORE_DIR, "memory-v1");
-    const files = collectTypeScriptFiles(CORE_DIR, [LOGGING_DIR, ETV_DIR, MEMORY_V1_DIR]);
+    const TIER_DIR = path.resolve(CORE_DIR, "tier");
+    const files = collectTypeScriptFiles(CORE_DIR, [LOGGING_DIR, ETV_DIR, MEMORY_V1_DIR, TIER_DIR]);
     const pattern =
       /\b(localStorage|sessionStorage|indexedDB|fs|writeFile|save|persist|cache)\b/i;
     const violations: string[] = [];

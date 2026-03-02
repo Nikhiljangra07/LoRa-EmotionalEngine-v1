@@ -60,6 +60,8 @@ import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
 import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 import { isMaskedPressurePersistent } from './maskedPressurePersistence';
+import { TierStorage, type TierStateStored } from '../tier/TierState';
+import { computeTierTransition } from '../tier/tierTransition';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -196,6 +198,9 @@ export class EngineOrchestrator {
   private falkorDegraded = false;
   private degradedLogged = { chroma: false, falkor: false, dual: false };
 
+  // ── Tier Model (gated by tierModelEnabled) ──
+  private tierState?: TierStateStored;
+
   // ── Narrative State Engine (gated by narrativeStateEngineEnabled) ──
   private narrativeEngine?: NarrativeStateEngine;
 
@@ -232,6 +237,10 @@ export class EngineOrchestrator {
     }
     if (featureFlags.bootstrapMemoryEnabled && options.bootstrapMemory) {
       this.bootstrapMemory = options.bootstrapMemory;
+    }
+    if (featureFlags.tierModelEnabled) {
+      const loaded = TierStorage.load(this.userId);
+      this.tierState = loaded ?? TierStorage.initState(this.userId);
     }
   }
 
@@ -1705,6 +1714,18 @@ export class EngineOrchestrator {
           console.error('[LoRa::Bootstrap] endSession error');
         }
       }
+    }
+
+    // ── Tier Model: passive update (gated by tierModelEnabled) ──
+    if (featureFlags.tierModelEnabled && this.tierState) {
+      this.tierState.sessionCount += 1;
+      this.tierState.etvTrajectory.push(sessionMean);
+      const nextTier = computeTierTransition(this.tierState, sessionMean);
+      if (nextTier !== this.tierState.currentTier) {
+        this.tierState.lastTransitionAt = Date.now();
+      }
+      this.tierState.currentTier = nextTier;
+      TierStorage.save(this.tierState);
     }
 
     // Reset session
