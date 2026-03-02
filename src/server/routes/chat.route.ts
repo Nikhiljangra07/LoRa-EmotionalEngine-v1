@@ -175,6 +175,19 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
 
     const session = getSession(userId, sessionId);
 
+    const normalizedText = text.trim().toLowerCase();
+    if (normalizedText === 'end session') {
+      session.engine.endSession();
+      const key = `${userId}::${sessionId}`;
+      sessions.delete(key);
+      res.status(200).json({
+        reply: 'Session ended. You can start a new conversation.',
+        ended: true,
+        debug: emptyDebug(),
+      });
+      return;
+    }
+
     if (endSession) {
       session.engine.endSession();
       const key = `${userId}::${sessionId}`;
