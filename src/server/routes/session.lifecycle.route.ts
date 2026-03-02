@@ -1,15 +1,22 @@
 import type { Express, Request, Response } from 'express';
 import { SessionManager } from '../session/SessionManager';
 import { TierService } from '../tier/TierService';
+import type { SessionEntry } from './chat.route';
+
+const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
 /**
  * Register session lifecycle endpoints:
  *   POST /api/session/start      — create a new session
- *   POST /api/session/terminate  — cleanly end a session + update tier
+ *   POST /api/session/terminate  — cleanly end a session, evict engine, update tier
  *
- * Tier promotion is driven exclusively by session termination.
+ * @param engineSessions - the live engine Map from registerChatRoute (shared reference).
+ *   When provided, terminate evicts the engine entry so subsequent messages get a fresh engine.
  */
-export function registerSessionLifecycleRoute(app: Express): void {
+export function registerSessionLifecycleRoute(
+  app: Express,
+  engineSessions?: Map<string, SessionEntry>,
+): void {
   const manager = new SessionManager();
   const tierService = new TierService();
 
@@ -39,16 +46,24 @@ export function registerSessionLifecycleRoute(app: Express): void {
       return;
     }
 
-    const session = manager.getSession(sessionId.trim());
-    const ended = manager.endSession(sessionId.trim());
-    console.log('[LoRa] SESSION TERMINATE:', { sessionId, ended });
+    const trimmedId = sessionId.trim();
+    const session = manager.getSession(trimmedId);
+    const ended = manager.endSession(trimmedId);
+    console.log('[LoRa] SESSION TERMINATE:', { sessionId: trimmedId, ended });
 
-    if (!ended) {
+    if (!ended || !session) {
       res.status(200).json({ ended: false });
       return;
     }
 
-    const tierRecord = tierService.recordSessionCompletion(session!.userId);
+    // Evict the engine entry so subsequent messages on a new session get a fresh engine.
+    if (engineSessions) {
+      const engineKey = `${session.userId}::${trimmedId}`;
+      const evicted = engineSessions.delete(engineKey);
+      if (sessionDebug) console.log('[LoRa::Session] engine evicted', { key: engineKey, evicted });
+    }
+
+    const tierRecord = tierService.recordSessionCompletion(session.userId);
 
     res.status(200).json({
       ended: true,

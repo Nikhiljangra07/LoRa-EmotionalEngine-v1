@@ -15,7 +15,7 @@ import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../..
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
 
-interface SessionEntry {
+export interface SessionEntry {
   engine: EngineOrchestrator;
   history: ChatTurn[];
 }
@@ -124,7 +124,7 @@ function emptyDebug(): ApiChatResponse['debug'] {
  * factory once. Throws if LORA_FALKOR_URL or LORA_CHROMA_URL are missing (unless options
  * provide memoryService for testing). Use options to inject mocks in tests and avoid real DB.
  */
-export function registerChatRoute(app: Express, options?: ChatRouteOptions): void {
+export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map<string, SessionEntry> {
   let memoryService: MemoryService;
   const responderFactory = options?.responderFactory ?? (() => new ClaudeResponder());
 
@@ -145,6 +145,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
   }
 
   const sessions = new Map<string, SessionEntry>();
+  const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
   function getSession(userId: string, sessionId: string): SessionEntry {
     const key = `${userId}::${sessionId}`;
@@ -158,6 +159,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
         history: [],
       };
       sessions.set(key, entry);
+      if (sessionDebug) console.log('[LoRa::Session] engine created', { key });
     }
     return entry;
   }
@@ -169,6 +171,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       return;
     }
     const { userId, sessionId, text, timestamp } = validated.data;
+    if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: `${userId}::${sessionId}` });
 
     const session = getSession(userId, sessionId);
 
@@ -248,6 +251,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       res.status(500).json({ reply: '', debug: emptyDebug(), error: message });
     }
   });
+
+  return sessions;
 }
 
 /**
