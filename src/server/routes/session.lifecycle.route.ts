@@ -60,6 +60,7 @@ export function registerSessionLifecycleRoute(
     if (engineSessions) {
       const engineKey = `${session.userId}::${trimmedId}`;
       const evicted = engineSessions.delete(engineKey);
+      console.log('ENGINE EVICTED:', engineKey);
       if (sessionDebug) console.log('[LoRa::Session] engine evicted', { key: engineKey, evicted });
     }
 

@@ -147,8 +147,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   const sessions = new Map<string, SessionEntry>();
   const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
-  function getSession(userId: string, sessionId: string): SessionEntry {
-    const key = `${userId}::${sessionId}`;
+  function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
     let entry = sessions.get(key);
     if (!entry) {
       entry = {
@@ -171,9 +170,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       return;
     }
     const { userId, sessionId, text, timestamp } = validated.data;
-    if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: `${userId}::${sessionId}` });
+    const engineKey = `${userId}::${sessionId}`;
+    console.log('ENGINE KEY:', engineKey);
+    if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });
 
-    const session = getSession(userId, sessionId);
+    const session = getSession(userId, sessionId, engineKey);
 
     try {
       const userTurn: ChatTurn = {
