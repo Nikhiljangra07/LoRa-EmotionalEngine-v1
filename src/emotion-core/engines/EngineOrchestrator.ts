@@ -62,6 +62,7 @@ import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 import { isMaskedPressurePersistent } from './maskedPressurePersistence';
 import { TierStorage, type TierStateStored } from '../tier/TierState';
 import { computeTierTransition } from '../tier/tierTransition';
+import { getTierPolicy, SAFETY_MODES, type RelationalTier } from '../tier/RelationalTier';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -955,6 +956,52 @@ export class EngineOrchestrator {
       questionBudgetHint = currentHints.questionBudgetHint as typeof questionBudgetHint;
     }
 
+    // ── Tier clamping (gated by tierModelEnabled, after all hint resolution) ──
+    let tierClampLog: { current: RelationalTier; clamped: boolean; clampsApplied: string[] } | undefined;
+    if (featureFlags.tierModelEnabled && this.tierState) {
+      const policy = getTierPolicy(this.tierState.currentTier);
+      const clamps: string[] = [];
+
+      if (!SAFETY_MODES.has(guidanceMode) && !policy.allowedGuidanceModes.has(guidanceMode)) {
+        guidanceMode = 'CALM_NEUTRAL';
+        clamps.push('guidanceMode');
+      }
+
+      if (questionBudgetHint === undefined && policy.maxQuestionBudget === 'ZERO') {
+        questionBudgetHint = 'ZERO';
+        clamps.push('questionBudget');
+      } else if (questionBudgetHint === undefined && policy.maxQuestionBudget === 'ONE') {
+        questionBudgetHint = 'ONE';
+        clamps.push('questionBudget');
+      }
+
+      if (validationIntensity !== undefined) {
+        const VI_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
+        const capRank = VI_RANK[policy.validationIntensityCap] ?? 2;
+        const currentRank = VI_RANK[validationIntensity] ?? 0;
+        if (currentRank > capRank) {
+          validationIntensity = policy.validationIntensityCap;
+          clamps.push('validationIntensity');
+        }
+      }
+
+      if (toneHint === undefined && policy.defaultToneHint !== undefined) {
+        toneHint = policy.defaultToneHint;
+        clamps.push('toneHint');
+      }
+
+      if (!policy.actionHintsAllowed && actionHint !== undefined) {
+        actionHint = undefined;
+        clamps.push('actionHint');
+      }
+
+      tierClampLog = {
+        current: this.tierState.currentTier,
+        clamped: clamps.length > 0,
+        clampsApplied: clamps,
+      };
+    }
+
     // ── Memory V1: per-message processing ──
     let memoryContext: MemoryContext | undefined;
     let memoryV1Result: MemoryProcessMessageOutput | null = null;
@@ -1231,6 +1278,13 @@ export class EngineOrchestrator {
       } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
+      ...(featureFlags.tierModelEnabled && this.tierState ? {
+        tierContext: {
+          tier: this.tierState.currentTier,
+          description: getTierPolicy(this.tierState.currentTier).description,
+          sessionCount: this.tierState.sessionCount,
+        },
+      } : {}),
     });
 
     // ── Memory V1: debug snapshot (zero behavior impact) ──
@@ -1436,6 +1490,7 @@ export class EngineOrchestrator {
         ? { gradientEscalation: { state: gradientEscalation.state, numericLevel: gradientEscalation.numericLevel, trend: gradientEscalation.trend } }
         : {}),
       ...(ekmanWeightResult?.applied ? { ekmanInfluenceApplied: true } : {}),
+      ...(tierClampLog ? { tier: tierClampLog } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext

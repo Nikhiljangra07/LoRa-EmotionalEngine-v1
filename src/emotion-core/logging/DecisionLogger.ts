@@ -90,6 +90,12 @@ export interface MessageDecisionLog {
     trend: 'UP' | 'DOWN' | 'FLAT';
   };
   ekmanInfluenceApplied?: boolean;
+
+  tier?: {
+    current: 'TIER_1' | 'TIER_2' | 'TIER_3';
+    clamped: boolean;
+    clampsApplied: string[];
+  };
 }
 
 export interface SessionLog {

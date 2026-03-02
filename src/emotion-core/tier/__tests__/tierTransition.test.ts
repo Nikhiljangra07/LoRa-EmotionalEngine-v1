@@ -42,4 +42,19 @@ describe('computeTierTransition', () => {
     const state = makeState({ sessionCount: 3, currentTier: 'TIER_1' });
     expect(computeTierTransition(state, 0.1)).toBe('TIER_1');
   });
+
+  it('promotes to TIER_2 after exactly 2 sessions (visible by session 3)', () => {
+    const state = makeState({ sessionCount: 2, currentTier: 'TIER_1' });
+    expect(computeTierTransition(state, 0.4)).toBe('TIER_2');
+  });
+
+  it('does not skip from TIER_1 directly to TIER_3 at session 2', () => {
+    const state = makeState({ sessionCount: 2, currentTier: 'TIER_1' });
+    expect(computeTierTransition(state, 0.6)).toBe('TIER_2');
+  });
+
+  it('no skipping: sessionCount=3 with high etvMean still gives TIER_2', () => {
+    const state = makeState({ sessionCount: 3, currentTier: 'TIER_1' });
+    expect(computeTierTransition(state, 0.8)).toBe('TIER_2');
+  });
 });

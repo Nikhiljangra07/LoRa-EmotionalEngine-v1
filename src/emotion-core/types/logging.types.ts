@@ -107,6 +107,12 @@ export interface MessageDecisionLog {
   };
   ekmanInfluenceApplied?: boolean;
 
+  tier?: {
+    current: 'TIER_1' | 'TIER_2' | 'TIER_3';
+    clamped: boolean;
+    clampsApplied: string[];
+  };
+
   llmOutput?: string;
   userReaction?: 'positive' | 'neutral' | 'negative';
 }
