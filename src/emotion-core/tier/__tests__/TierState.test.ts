@@ -52,6 +52,23 @@ describe('TierStorage', () => {
     expect(loaded!.lastTransitionAt).toBe(1000000);
   });
 
+  it('saveOnboarding merges onboarding into state', () => {
+    cleanup(testUser);
+    TierStorage.saveOnboarding(testUser, {
+      name: 'TestUser',
+      preferredTone: 'direct',
+      goalOrientation: 'growth',
+    });
+    const loaded = TierStorage.load(testUser);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.onboardingComplete).toBe(true);
+    expect(loaded!.onboardingPreferences).toEqual({
+      name: 'TestUser',
+      preferredTone: 'direct',
+      goalOrientation: 'growth',
+    });
+  });
+
   it('load returns null for corrupted JSON', () => {
     const safe = testUser.replace(/[^a-zA-Z0-9_-]/g, '_');
     const fp = path.join(TIER_DIR, `${safe}.json`);

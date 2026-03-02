@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { RelationalTier } from './RelationalTier';
+import type { OnboardingPreferences } from '../onboarding/onboardingQuiz';
 
 export interface TierStateStored {
   userId: string;
@@ -9,6 +10,8 @@ export interface TierStateStored {
   etvTrajectory: number[];
   escalationCount: number;
   lastTransitionAt: number;
+  onboardingComplete?: boolean;
+  onboardingPreferences?: OnboardingPreferences;
 }
 
 const TIER_DIR = path.resolve(process.cwd(), '.lora', 'tier');
@@ -40,7 +43,12 @@ export const TierStorage = {
         return null;
       }
 
-      return parsed;
+      return {
+        ...parsed,
+        currentTier: parsed.currentTier ?? 'TIER_1',
+        escalationCount: parsed.escalationCount ?? 0,
+        lastTransitionAt: parsed.lastTransitionAt ?? Date.now(),
+      } as TierStateStored;
     } catch {
       return null;
     }
@@ -57,6 +65,8 @@ export const TierStorage = {
       etvTrajectory: state.etvTrajectory,
       escalationCount: state.escalationCount,
       lastTransitionAt: state.lastTransitionAt,
+      ...(state.onboardingComplete !== undefined ? { onboardingComplete: state.onboardingComplete } : {}),
+      ...(state.onboardingPreferences ? { onboardingPreferences: state.onboardingPreferences } : {}),
     };
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
     fs.renameSync(tmp, fp);
@@ -71,5 +81,16 @@ export const TierStorage = {
       escalationCount: 0,
       lastTransitionAt: Date.now(),
     };
+  },
+
+  /** Merge onboarding into existing tier state; creates state if missing. */
+  saveOnboarding(userId: string, preferences: OnboardingPreferences): void {
+    const existing = this.load(userId) ?? this.initState(userId);
+    const updated: TierStateStored = {
+      ...existing,
+      onboardingComplete: true,
+      onboardingPreferences: preferences,
+    };
+    this.save(updated);
   },
 };

@@ -96,6 +96,36 @@ describe('PromptTemplateBuilder — Tier Policy', () => {
     });
   });
 
+  describe('onboarding in tier context (when LORA_TIER_MODEL=1)', () => {
+    it('includes onboarding prefs in RELATIONAL TRAJECTORY when provided', () => {
+      const prompt = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: {
+          tier: 'TIER_1',
+          description: 'Conservative',
+          sessionCount: 1,
+          onboarding: {
+            name: 'Alex',
+            preferredTone: 'direct',
+            goalOrientation: 'growth',
+          },
+        },
+      });
+      expect(prompt).toContain('RELATIONAL TRAJECTORY');
+      expect(prompt).toContain('User name: Alex');
+      expect(prompt).toContain('Preferred tone: direct');
+      expect(prompt).toContain('Goal: growth');
+    });
+
+    it('tier block without onboarding omits user prefs', () => {
+      const prompt = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_1', description: 'Conservative', sessionCount: 1 },
+      });
+      expect(prompt).not.toContain('User name:');
+    });
+  });
+
   describe('no numeric leakage across all tiers', () => {
     it.each(['TIER_1', 'TIER_2', 'TIER_3'] as const)('%s has no float leakage in tier blocks', (tier) => {
       const prompt = PromptTemplateBuilder.build(defaultState, defaultETV, {

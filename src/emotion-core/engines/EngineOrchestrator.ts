@@ -986,8 +986,11 @@ export class EngineOrchestrator {
       }
 
       if (toneHint === undefined && policy.defaultToneHint !== undefined) {
-        toneHint = policy.defaultToneHint;
-        clamps.push('toneHint');
+        const preferDirect = this.tierState.onboardingPreferences?.preferredTone === 'direct';
+        if (!preferDirect) {
+          toneHint = policy.defaultToneHint;
+          clamps.push('toneHint');
+        }
       }
 
       if (!policy.actionHintsAllowed && actionHint !== undefined) {
@@ -1283,6 +1286,9 @@ export class EngineOrchestrator {
           tier: this.tierState.currentTier,
           description: getTierPolicy(this.tierState.currentTier).description,
           sessionCount: this.tierState.sessionCount,
+          onboarding: this.tierState.onboardingComplete && this.tierState.onboardingPreferences
+            ? this.tierState.onboardingPreferences
+            : undefined,
         },
       } : {}),
     });
@@ -1625,7 +1631,7 @@ export class EngineOrchestrator {
 
     const sessionMean =
       this.sessionEIVs.reduce((a, b) => a + b, 0) /
-      this.sessionEIVs.length;
+      (this.sessionEIVs.length || 1);
 
     const previousETV = this.etvState.value;
 
@@ -1647,10 +1653,11 @@ export class EngineOrchestrator {
       endedAt: Date.now(),
     });
 
-    // ── ETV V1: parallel Beta-with-decay update (Phase 1 — log only) ──
+    // ── ETV V1: parallel Beta-with-decay update; summary.eivMean feeds tier when both enabled ──
+    let sessionSummary: import('../etv').SessionSummaryV1 | undefined;
     if (featureFlags.etvV1Enabled) {
       const now = Date.now();
-      const summary = buildSessionSummary({
+      sessionSummary = buildSessionSummary({
         sessionId,
         userId: this.userId,
         startedAt: this.sessionStartedAt || now,
@@ -1662,7 +1669,7 @@ export class EngineOrchestrator {
       });
 
       try {
-        const { policy, log } = ETVEngineV1.updateFromSession(summary);
+        const { policy, log } = ETVEngineV1.updateFromSession(sessionSummary!);
         this.lastEtvPolicy = policy;
         DecisionLogger.logETVUpdateV1({
           userId: log.userId,
@@ -1775,7 +1782,8 @@ export class EngineOrchestrator {
     if (featureFlags.tierModelEnabled && this.tierState) {
       this.tierState.sessionCount += 1;
       this.tierState.etvTrajectory.push(sessionMean);
-      const nextTier = computeTierTransition(this.tierState, sessionMean);
+      const etvMeanForTier = sessionSummary?.eivMean ?? sessionMean;
+      const nextTier = computeTierTransition(this.tierState, etvMeanForTier);
       if (nextTier !== this.tierState.currentTier) {
         this.tierState.lastTransitionAt = Date.now();
       }

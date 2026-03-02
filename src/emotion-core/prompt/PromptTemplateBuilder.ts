@@ -17,6 +17,7 @@ import type { RelationalIntent } from '../intent/relationalIntent';
 import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { SYSTEM_CREATOR } from '../config/identityConstants';
 import type { RelationalTier } from '../tier/RelationalTier';
+import type { OnboardingPreferences } from '../onboarding/onboardingQuiz';
 
 function creatorAttributionPrompt(): string {
   return SYSTEM_CREATOR
@@ -135,6 +136,7 @@ export class PromptTemplateBuilder {
         tier: RelationalTier;
         description: string;
         sessionCount: number;
+        onboarding?: OnboardingPreferences;
       };
     }
   ): string {
@@ -1213,7 +1215,12 @@ ${rsc.blockText}`;
    * ============================================================
    */
   private static getTierContextBlock(
-    tierContext?: { tier: RelationalTier; description: string; sessionCount: number },
+    tierContext?: {
+      tier: RelationalTier;
+      description: string;
+      sessionCount: number;
+      onboarding?: OnboardingPreferences;
+    },
   ): string {
     if (!tierContext) return '';
 
@@ -1223,13 +1230,21 @@ ${rsc.blockText}`;
       TIER_3: 'Leverage established trust for direct, structured support.',
     };
 
-    return `
-
-RELATIONAL TRAJECTORY
----------------------
-Tier: ${tierContext.tier} (${tierContext.description})
-Sessions observed: ${tierContext.sessionCount}
-Expectation: ${expectation[tierContext.tier]}`;
+    const lines: string[] = [
+      '',
+      'RELATIONAL TRAJECTORY',
+      '---------------------',
+      `Tier: ${tierContext.tier} (${tierContext.description})`,
+      `Sessions observed: ${tierContext.sessionCount}`,
+      `Expectation: ${expectation[tierContext.tier]}`,
+    ];
+    if (tierContext.onboarding) {
+      const ob = tierContext.onboarding;
+      if (ob.name) lines.push(`User name: ${ob.name}`);
+      lines.push(`Preferred tone: ${ob.preferredTone}`);
+      lines.push(`Goal: ${ob.goalOrientation}`);
+    }
+    return '\n' + lines.join('\n');
   }
 
   /* ============================================================

@@ -7,6 +7,7 @@ import { SessionManager } from './session/SessionManager';
 import { getLLMHealth } from './llmTelemetry';
 import { debugEnabled } from '../emotion-core/debug/debugGate';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
+import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
 import type { ChatTurn } from '../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, truncateTurnText } from '../emotion-core/prompt/PromptTemplateBuilder';
@@ -35,6 +36,7 @@ try {
   const msg = err instanceof Error ? err.message : String(err);
   console.warn('[LoRa::Adapter] /api/chat not registered:', msg);
 }
+registerOnboardingRoute(app);
 
 // ── Session layer ──────────────────────────────────────────────────
 // The frontend sends no session identifier, so all HTTP requests share
