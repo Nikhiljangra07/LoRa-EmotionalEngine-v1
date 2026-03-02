@@ -1,31 +1,43 @@
-import { EngineOrchestrator } from '../../emotion-core/engines/EngineOrchestrator';
+import crypto from 'crypto';
+
+export interface SessionState {
+  sessionId: string;
+  userId: string;
+  startedAt: number;
+  endedAt?: number;
+  active: boolean;
+}
 
 /**
- * SessionManager
- * ──────────────
- * Minimal adapter-layer class that holds EngineOrchestrator instances
- * keyed by session ID so that HTTP requests can share stateful engine
- * behavior across calls (ETV, momentum, cooldown, message count).
+ * Pure lifecycle manager for sessions.
  *
- * IMPORTANT:
- *  - In-memory only. All state is ephemeral and lost on process restart.
- *  - No TTL, no cleanup, no persistence. These are explicitly deferred.
- *  - This class is an adapter concern. It must never be imported by
- *    the emotional engine, analyzers, scorers, or prompt builders.
+ * No tier logic. No ETV logic. No engine coupling.
+ * Tracks creation, termination, and lookup of sessions in-memory.
  */
 export class SessionManager {
-  private readonly sessions = new Map<string, EngineOrchestrator>();
+  private sessions = new Map<string, SessionState>();
 
-  /**
-   * Return the engine for `sessionId`, creating one lazily if needed.
-   */
-  getEngine(sessionId: string): EngineOrchestrator {
-    let engine = this.sessions.get(sessionId);
-    if (!engine) {
-      engine = new EngineOrchestrator();
-      this.sessions.set(sessionId, engine);
-      console.log(`[LoRa::Session] created session ${sessionId}`);
-    }
-    return engine;
+  createSession(userId: string): SessionState {
+    const session: SessionState = {
+      sessionId: crypto.randomUUID(),
+      userId,
+      startedAt: Date.now(),
+      active: true,
+    };
+    this.sessions.set(session.sessionId, session);
+    return session;
+  }
+
+  endSession(sessionId: string): boolean {
+    const session = this.sessions.get(sessionId);
+    if (!session || !session.active) return false;
+
+    session.active = false;
+    session.endedAt = Date.now();
+    return true;
+  }
+
+  getSession(sessionId: string): SessionState | undefined {
+    return this.sessions.get(sessionId);
   }
 }

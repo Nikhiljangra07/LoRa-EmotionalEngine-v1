@@ -15,7 +15,7 @@ import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../..
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
 
-export interface SessionEntry {
+interface SessionEntry {
   engine: EngineOrchestrator;
   history: ChatTurn[];
 }
@@ -124,7 +124,7 @@ function emptyDebug(): ApiChatResponse['debug'] {
  * factory once. Throws if LORA_FALKOR_URL or LORA_CHROMA_URL are missing (unless options
  * provide memoryService for testing). Use options to inject mocks in tests and avoid real DB.
  */
-export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map<string, SessionEntry> {
+export function registerChatRoute(app: Express, options?: ChatRouteOptions): void {
   let memoryService: MemoryService;
   const responderFactory = options?.responderFactory ?? (() => new ClaudeResponder());
 
@@ -146,8 +146,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
   const sessions = new Map<string, SessionEntry>();
 
-  // Expose sessions so /api/session/end can share the same map.
-  // Caller must pass this reference to registerSessionEndRoute.
   function getSession(userId: string, sessionId: string): SessionEntry {
     const key = `${userId}::${sessionId}`;
     let entry = sessions.get(key);
@@ -250,8 +248,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       res.status(500).json({ reply: '', debug: emptyDebug(), error: message });
     }
   });
-
-  return sessions;
 }
 
 /**

@@ -3,11 +3,11 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { InputProcessor } from '../emotion-core/processors/InputProcessor';
-import { SessionManager } from './session/SessionManager';
+import { EngineOrchestrator } from '../emotion-core/engines/EngineOrchestrator';
 import { getLLMHealth } from './llmTelemetry';
 import { debugEnabled } from '../emotion-core/debug/debugGate';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
-import { registerSessionEndRoute } from './routes/session.route';
+import { registerSessionLifecycleRoute } from './routes/session.lifecycle.route';
 import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
 import type { ChatTurn } from '../emotion-core/prompt/PromptTemplateBuilder';
@@ -31,24 +31,21 @@ app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
 let apiChatRegistered = false;
 try {
-  const sessions = registerChatRoute(app);
-  registerSessionEndRoute(app, sessions);
+  registerChatRoute(app);
   apiChatRegistered = true;
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);
   console.warn('[LoRa::Adapter] /api/chat not registered:', msg);
 }
 registerOnboardingRoute(app);
+registerSessionLifecycleRoute(app);
 
-// ── Session layer ──────────────────────────────────────────────────
-// The frontend sends no session identifier, so all HTTP requests share
-// a single global engine instance.  This is intentional: it mirrors
-// the CLI's single-engine behaviour and preserves emotional continuity
-// (ETV, momentum, cooldown, message count) across requests.
-// The session is ephemeral — lost on process restart, no persistence.
-const sessionManager = new SessionManager();
-const DEFAULT_SESSION_ID = 'default-http-session';
+// ── Legacy /chat session layer ──────────────────────────────────────
+// Single global engine for the legacy /chat endpoint (no session IDs).
+// Ephemeral — lost on process restart, no persistence.
+const legacyEngine = new EngineOrchestrator();
 const legacyChatHistory = new Map<string, ChatTurn[]>();
+const DEFAULT_SESSION_ID = 'default-http-session';
 
 function getLegacyHistory(sessionId: string): ChatTurn[] {
   let h = legacyChatHistory.get(sessionId);
@@ -73,7 +70,7 @@ app.post('/chat', async (req, res) => {
   }
 
   try {
-    const engine = sessionManager.getEngine(DEFAULT_SESSION_ID);
+    const engine = legacyEngine;
     const history = getLegacyHistory(DEFAULT_SESSION_ID);
 
     const userTurn: ChatTurn = {

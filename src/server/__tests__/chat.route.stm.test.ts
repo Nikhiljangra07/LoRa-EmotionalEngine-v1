@@ -189,7 +189,7 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
     expect(texts).not.toMatch(/\bMessage number 2\b/);
   });
 
-  test('Test C: endSession clears STM — new session has no prior context', async () => {
+  test('Test C: different sessionId has no prior context (session isolation)', async () => {
     const userId = 'stm-user-c';
     const sessionId1 = 'stm-sess-c1';
     const sessionId2 = 'stm-sess-c2';
@@ -199,14 +199,6 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
       sessionId: sessionId1,
       messageId: 'msg-c1',
       text: 'My name is Nikhil. I created you.',
-    });
-
-    await postApiChat(port, {
-      userId,
-      sessionId: sessionId1,
-      messageId: 'msg-c2',
-      text: '(end)',
-      endSession: true,
     });
 
     const res = await postApiChat(port, {
