@@ -1,5 +1,4 @@
 import type { Express, Request, Response } from 'express';
-import { TierStorage } from '../../emotion-core/tier/TierState';
 import { parseOnboardingInput, type OnboardingPreferences } from '../../emotion-core/onboarding/onboardingQuiz';
 
 export interface OnboardingBody {
@@ -17,8 +16,7 @@ function isNonEmptyString(x: unknown): x is string {
 
 /**
  * Register POST /api/onboarding.
- * Persists onboarding preferences via TierStorage when LORA_TIER_MODEL=1.
- * When tier model is OFF, returns success but does not persist.
+ * Accepts onboarding preferences and returns success.
  */
 export function registerOnboardingRoute(app: Express): void {
   app.post('/api/onboarding', (req: Request, res: Response): void => {
@@ -44,9 +42,6 @@ export function registerOnboardingRoute(app: Express): void {
       preferredTone: typeof ob.preferredTone === 'string' ? ob.preferredTone : undefined,
       goalOrientation: typeof ob.goalOrientation === 'string' ? ob.goalOrientation : undefined,
     });
-    if (process.env.LORA_TIER_MODEL === '1') {
-      TierStorage.saveOnboarding(userId, preferences);
-    }
     res.status(200).json({ ok: true });
   });
 }

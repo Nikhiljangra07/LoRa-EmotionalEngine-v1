@@ -16,7 +16,7 @@ import { ClaudeResponder } from '../llm/ClaudeResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint, VolatilityState } from '../types/logging.types';
-import { debugEnabled, decisionLogEnabled, tierDebugEnabled } from '../debug/debugGate';
+import { debugEnabled, decisionLogEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
 import { resolveHints, type ResolvableHints } from './hintResolver';
@@ -60,9 +60,6 @@ import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
 import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 import { isMaskedPressurePersistent } from './maskedPressurePersistence';
-import { TierStorage, type TierStateStored } from '../tier/TierState';
-import { computeTierTransition } from '../tier/tierTransition';
-import { getTierPolicy, SAFETY_MODES, type RelationalTier } from '../tier/RelationalTier';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -199,9 +196,6 @@ export class EngineOrchestrator {
   private falkorDegraded = false;
   private degradedLogged = { chroma: false, falkor: false, dual: false };
 
-  // ── Tier Model (gated by tierModelEnabled) ──
-  private tierState?: TierStateStored;
-
   // ── Narrative State Engine (gated by narrativeStateEngineEnabled) ──
   private narrativeEngine?: NarrativeStateEngine;
 
@@ -238,11 +232,6 @@ export class EngineOrchestrator {
     }
     if (featureFlags.bootstrapMemoryEnabled && options.bootstrapMemory) {
       this.bootstrapMemory = options.bootstrapMemory;
-    }
-    if (featureFlags.tierModelEnabled) {
-      const loaded = TierStorage.load(this.userId);
-      this.tierState = loaded ?? TierStorage.initState(this.userId);
-      if (tierDebugEnabled) console.log('[LoRa::Tier] constructor', { userId: this.userId, loaded: !!loaded, sessionCount: this.tierState.sessionCount, tier: this.tierState.currentTier });
     }
   }
 
@@ -957,55 +946,6 @@ export class EngineOrchestrator {
       questionBudgetHint = currentHints.questionBudgetHint as typeof questionBudgetHint;
     }
 
-    // ── Tier clamping (gated by tierModelEnabled, after all hint resolution) ──
-    let tierClampLog: { current: RelationalTier; clamped: boolean; clampsApplied: string[] } | undefined;
-    if (featureFlags.tierModelEnabled && this.tierState) {
-      const policy = getTierPolicy(this.tierState.currentTier);
-      const clamps: string[] = [];
-
-      if (!SAFETY_MODES.has(guidanceMode) && !policy.allowedGuidanceModes.has(guidanceMode)) {
-        guidanceMode = 'CALM_NEUTRAL';
-        clamps.push('guidanceMode');
-      }
-
-      if (questionBudgetHint === undefined && policy.maxQuestionBudget === 'ZERO') {
-        questionBudgetHint = 'ZERO';
-        clamps.push('questionBudget');
-      } else if (questionBudgetHint === undefined && policy.maxQuestionBudget === 'ONE') {
-        questionBudgetHint = 'ONE';
-        clamps.push('questionBudget');
-      }
-
-      if (validationIntensity !== undefined) {
-        const VI_RANK: Record<string, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
-        const capRank = VI_RANK[policy.validationIntensityCap] ?? 2;
-        const currentRank = VI_RANK[validationIntensity] ?? 0;
-        if (currentRank > capRank) {
-          validationIntensity = policy.validationIntensityCap;
-          clamps.push('validationIntensity');
-        }
-      }
-
-      if (toneHint === undefined && policy.defaultToneHint !== undefined) {
-        const preferDirect = this.tierState.onboardingPreferences?.preferredTone === 'direct';
-        if (!preferDirect) {
-          toneHint = policy.defaultToneHint;
-          clamps.push('toneHint');
-        }
-      }
-
-      if (!policy.actionHintsAllowed && actionHint !== undefined) {
-        actionHint = undefined;
-        clamps.push('actionHint');
-      }
-
-      tierClampLog = {
-        current: this.tierState.currentTier,
-        clamped: clamps.length > 0,
-        clampsApplied: clamps,
-      };
-    }
-
     // ── Memory V1: per-message processing ──
     let memoryContext: MemoryContext | undefined;
     let memoryV1Result: MemoryProcessMessageOutput | null = null;
@@ -1282,16 +1222,6 @@ export class EngineOrchestrator {
       } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
-      ...(featureFlags.tierModelEnabled && this.tierState ? {
-        tierContext: {
-          tier: this.tierState.currentTier,
-          description: getTierPolicy(this.tierState.currentTier).description,
-          sessionCount: this.tierState.sessionCount,
-          onboarding: this.tierState.onboardingComplete && this.tierState.onboardingPreferences
-            ? this.tierState.onboardingPreferences
-            : undefined,
-        },
-      } : {}),
     });
 
     // ── Memory V1: debug snapshot (zero behavior impact) ──
@@ -1497,7 +1427,6 @@ export class EngineOrchestrator {
         ? { gradientEscalation: { state: gradientEscalation.state, numericLevel: gradientEscalation.numericLevel, trend: gradientEscalation.trend } }
         : {}),
       ...(ekmanWeightResult?.applied ? { ekmanInfluenceApplied: true } : {}),
-      ...(tierClampLog ? { tier: tierClampLog } : {}),
     };
     DecisionLogger.logMessageDecision(
       (debugEnabled && microContext
@@ -1617,25 +1546,6 @@ export class EngineOrchestrator {
   // Session boundary (ETV updates ONLY here)
   // ---------------------------------------------------
   endSession() {
-    // ── Tier Model: update BEFORE the ETV guard so tier persistence is never
-    //    blocked by ETV session-state checks. Only counts real sessions. ──
-    if (featureFlags.tierModelEnabled && this.tierState && this.messageCount > 0) {
-      const prevCount = this.tierState.sessionCount;
-      const prevTier = this.tierState.currentTier;
-      this.tierState.sessionCount += 1;
-      const tierSessionMean = this.sessionEIVs.length > 0
-        ? this.sessionEIVs.reduce((a, b) => a + b, 0) / this.sessionEIVs.length
-        : 0;
-      this.tierState.etvTrajectory.push(tierSessionMean);
-      const nextTier = computeTierTransition(this.tierState);
-      if (nextTier !== this.tierState.currentTier) {
-        this.tierState.lastTransitionAt = Date.now();
-      }
-      this.tierState.currentTier = nextTier;
-      if (tierDebugEnabled) console.log('[LoRa::Tier] endSession', { userId: this.userId, sessionCount: `${prevCount}->${this.tierState.sessionCount}`, tier: `${prevTier}->${nextTier}` });
-      TierStorage.save(this.tierState);
-    }
-
     // ── Idempotent guard (ETV V1): prevents double-close / double ETV update ──
     if (featureFlags.etvV1Enabled) {
       if (!this.sessionOpen || this.messageCount === 0) {

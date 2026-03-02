@@ -1,15 +1,17 @@
 import type { Express, Request, Response } from 'express';
 import { SessionManager } from '../session/SessionManager';
+import { TierService } from '../tier/TierService';
 
 /**
  * Register session lifecycle endpoints:
  *   POST /api/session/start      — create a new session
- *   POST /api/session/terminate  — cleanly end a session
+ *   POST /api/session/terminate  — cleanly end a session + update tier
  *
- * Pure lifecycle — no tier, no ETV, no engine coupling.
+ * Tier promotion is driven exclusively by session termination.
  */
 export function registerSessionLifecycleRoute(app: Express): void {
   const manager = new SessionManager();
+  const tierService = new TierService();
 
   app.post('/api/session/start', (req: Request, res: Response): void => {
     const { userId } = req.body ?? {};
@@ -37,10 +39,22 @@ export function registerSessionLifecycleRoute(app: Express): void {
       return;
     }
 
+    const session = manager.getSession(sessionId.trim());
     const ended = manager.endSession(sessionId.trim());
     console.log('[LoRa] SESSION TERMINATE:', { sessionId, ended });
 
-    res.status(200).json({ ended });
+    if (!ended) {
+      res.status(200).json({ ended: false });
+      return;
+    }
+
+    const tierRecord = tierService.recordSessionCompletion(session!.userId);
+
+    res.status(200).json({
+      ended: true,
+      tier: tierRecord.tier,
+      sessionCount: tierRecord.sessionCount,
+    });
     return;
   });
 }

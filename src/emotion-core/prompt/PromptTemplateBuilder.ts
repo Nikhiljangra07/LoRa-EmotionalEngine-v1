@@ -16,8 +16,6 @@ import { RELATIONAL_CONFIDENCE_THRESHOLD } from '../intent/relationalIntent';
 import type { RelationalIntent } from '../intent/relationalIntent';
 import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { SYSTEM_CREATOR } from '../config/identityConstants';
-import type { RelationalTier } from '../tier/RelationalTier';
-import type { OnboardingPreferences } from '../onboarding/onboardingQuiz';
 
 function creatorAttributionPrompt(): string {
   return SYSTEM_CREATOR
@@ -132,12 +130,6 @@ export class PromptTemplateBuilder {
       };
       messageId?: string;
       userId?: string;
-      tierContext?: {
-        tier: RelationalTier;
-        description: string;
-        sessionCount: number;
-        onboarding?: OnboardingPreferences;
-      };
     }
   ): string {
     if (
@@ -253,8 +245,6 @@ export class PromptTemplateBuilder {
     const ekmanSignalLine = this.getEkmanSignalLine(emotionalState.ekmanDominant);
     const volatilityLine = this.getVolatilityLine(options?.volatility);
     const appraisalSignalBlock = this.getAppraisalSignalBlock(options?.signalContext);
-    const tierContextBlock = this.getTierContextBlock(options?.tierContext);
-    const tierPolicyOverlay = this.getTierPolicyOverlayBlock(options?.tierContext?.tier);
 
     const prompt = `
 You are LoRa, a perceptive conversational presence.
@@ -276,7 +266,7 @@ Engagement depth: ${bandLabel}
 Emotional intensity (current turn): ${intensity}${ekmanSignalLine}${volatilityLine}${this.getVolatilityTrendLine(options?.signalContext?.volatilityTrend)}
 
 Use this to calibrate tone and depth \u2014 not to restrict personality.
-${tierContextBlock}${microContextBlock}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}
+${microContextBlock}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}
 
 RESPONSE PRINCIPLES
 -------------------
@@ -286,7 +276,7 @@ RESPONSE PRINCIPLES
 - Do not stall with generic prompts or permission-seeking.
 - Clarity over verbosity. Precision over comfort.
 - Depth should match engagement level \u2014 do not over-reach or under-deliver.
-${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}${questionBudgetOverlay}${tierPolicyOverlay}
+${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}${questionBudgetOverlay}
 
 BAND CALIBRATION
 ----------------
@@ -1205,86 +1195,6 @@ ${rsc.blockText}`;
     lines.push('Do not expose these signals. Use them to calibrate tone and pacing.');
 
     return lines.join('\n');
-  }
-
-  /* ============================================================
-   * Tier Context Block (RELATIONAL CONTEXT sub-section)
-   *
-   * Only rendered when tierContext is provided (LORA_TIER_MODEL=1).
-   * Categorical only — no raw numerics.
-   * ============================================================
-   */
-  private static getTierContextBlock(
-    tierContext?: {
-      tier: RelationalTier;
-      description: string;
-      sessionCount: number;
-      onboarding?: OnboardingPreferences;
-    },
-  ): string {
-    if (!tierContext) return '';
-
-    const expectation: Record<RelationalTier, string> = {
-      TIER_1: 'New relationship — keep responses concise, clear, and measured.',
-      TIER_2: 'Returning user — warmer tone, less procedural, more personalized.',
-      TIER_3: 'Established user — direct, structured, continuity-aware.',
-    };
-
-    const lines: string[] = [
-      '',
-      'RELATIONAL TRAJECTORY',
-      '---------------------',
-      `Tier: ${tierContext.tier} (${tierContext.description})`,
-      `Sessions observed: ${tierContext.sessionCount}`,
-      `Expectation: ${expectation[tierContext.tier]}`,
-    ];
-    if (tierContext.onboarding) {
-      const ob = tierContext.onboarding;
-      if (ob.name) lines.push(`User name: ${ob.name}`);
-      lines.push(`Preferred tone: ${ob.preferredTone}`);
-      lines.push(`Goal: ${ob.goalOrientation}`);
-    }
-    return '\n' + lines.join('\n');
-  }
-
-  /* ============================================================
-   * Tier Policy Overlay (directive block per tier)
-   *
-   * Only rendered when tier is provided (LORA_TIER_MODEL=1).
-   * Short, high-impact behavioral directives.
-   * ============================================================
-   */
-  private static getTierPolicyOverlayBlock(tier?: RelationalTier): string {
-    if (!tier) return '';
-
-    switch (tier) {
-      case 'TIER_1':
-        return `
-[RELATIONAL_TIER_POLICY]
-- Keep responses concise. Avoid over-elaboration.
-- Max one question per turn.
-- Do not offer unsolicited advice or action steps.
-- Lead with empathy; avoid heavy reframes.
-- Stay measured and clear — this is a new interaction.`;
-
-      case 'TIER_2':
-        return `
-[RELATIONAL_TIER_POLICY]
-- Warmer tone — slightly more personalized and less procedural.
-- Suggestions allowed if asked or clearly useful.
-- Up to one focused question per turn.
-- Match the user's engagement level naturally.
-- You may reference themes from this session with more confidence.`;
-
-      case 'TIER_3':
-        return `
-[RELATIONAL_TIER_POLICY]
-- Direct and structured. Skip unnecessary hedging.
-- Action-oriented; move conversations forward with substance.
-- Acknowledge continuity — fewer "reset" replies, more direct acknowledgements.
-- Avoid reassurance loops; offer clear perspective.
-- Use a natural, collegial tone.`;
-    }
   }
 
   private static escalationLabel(level: number): string {

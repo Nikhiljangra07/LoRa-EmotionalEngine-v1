@@ -73,13 +73,15 @@ describe('Session Lifecycle — /api/session/start + /api/session/terminate', ()
     expect(typeof res.body.error).toBe('string');
   });
 
-  test('/api/session/terminate returns ended:true for active session', async () => {
+  test('/api/session/terminate returns ended:true with tier info', async () => {
     const startRes = await httpPost(port, '/api/session/start', { userId: 'u2' });
     const sessionId = startRes.body.sessionId as string;
 
     const endRes = await httpPost(port, '/api/session/terminate', { sessionId });
     expect(endRes.status).toBe(200);
     expect(endRes.body.ended).toBe(true);
+    expect(typeof endRes.body.tier).toBe('string');
+    expect(typeof endRes.body.sessionCount).toBe('number');
   });
 
   test('/api/session/terminate returns ended:false for unknown session', async () => {
@@ -105,7 +107,7 @@ describe('Session Lifecycle — /api/session/start + /api/session/terminate', ()
     expect(typeof res.body.error).toBe('string');
   });
 
-  test('no LLM or tier side effects — pure lifecycle', async () => {
+  test('terminate returns tier and sessionCount — no LLM, no ETV', async () => {
     const startRes = await httpPost(port, '/api/session/start', { userId: 'u4' });
     expect(startRes.status).toBe(200);
     const sessionId = startRes.body.sessionId as string;
@@ -113,9 +115,8 @@ describe('Session Lifecycle — /api/session/start + /api/session/terminate', ()
     const endRes = await httpPost(port, '/api/session/terminate', { sessionId });
     expect(endRes.status).toBe(200);
     expect(endRes.body.ended).toBe(true);
-    // Response contains only { ended: true } — no tier, no ETV, no LLM output
-    expect(endRes.body).not.toHaveProperty('tier');
-    expect(endRes.body).not.toHaveProperty('sessionCount');
+    expect(endRes.body.tier).toBe('TIER_1');
+    expect(endRes.body.sessionCount).toBe(1);
     expect(endRes.body).not.toHaveProperty('reply');
   });
 });
