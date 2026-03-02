@@ -7,6 +7,7 @@ import { SessionManager } from './session/SessionManager';
 import { getLLMHealth } from './llmTelemetry';
 import { debugEnabled } from '../emotion-core/debug/debugGate';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
+import { registerSessionEndRoute } from './routes/session.route';
 import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
 import type { ChatTurn } from '../emotion-core/prompt/PromptTemplateBuilder';
@@ -30,7 +31,8 @@ app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
 let apiChatRegistered = false;
 try {
-  registerChatRoute(app);
+  const sessions = registerChatRoute(app);
+  registerSessionEndRoute(app, sessions);
   apiChatRegistered = true;
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);

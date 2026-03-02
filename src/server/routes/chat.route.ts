@@ -11,12 +11,11 @@ import { InputProcessor } from '../../emotion-core/processors/InputProcessor';
 import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../../emotion-core/intent/relationalIntent';
-import { TierStorage } from '../../emotion-core/tier/TierState';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
 
-interface SessionEntry {
+export interface SessionEntry {
   engine: EngineOrchestrator;
   history: ChatTurn[];
 }
@@ -41,7 +40,6 @@ export interface ApiChatBody {
   messageId: string;
   text: string;
   timestamp?: number;
-  endSession?: boolean;
 }
 
 export interface ApiChatResponse {
@@ -98,7 +96,6 @@ function validateBody(body: unknown): { ok: true; data: ApiChatBody } | { ok: fa
     typeof b.timestamp === 'number' && Number.isFinite(b.timestamp)
       ? b.timestamp
       : Date.now();
-  const endSession = b.endSession === true;
   return {
     ok: true,
     data: {
@@ -107,7 +104,6 @@ function validateBody(body: unknown): { ok: true; data: ApiChatBody } | { ok: fa
       messageId: b.messageId.trim(),
       text: b.text.trim(),
       timestamp,
-      endSession,
     },
   };
 }
@@ -128,7 +124,7 @@ function emptyDebug(): ApiChatResponse['debug'] {
  * factory once. Throws if LORA_FALKOR_URL or LORA_CHROMA_URL are missing (unless options
  * provide memoryService for testing). Use options to inject mocks in tests and avoid real DB.
  */
-export function registerChatRoute(app: Express, options?: ChatRouteOptions): void {
+export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map<string, SessionEntry> {
   let memoryService: MemoryService;
   const responderFactory = options?.responderFactory ?? (() => new ClaudeResponder());
 
@@ -150,6 +146,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
 
   const sessions = new Map<string, SessionEntry>();
 
+  // Expose sessions so /api/session/end can share the same map.
+  // Caller must pass this reference to registerSessionEndRoute.
   function getSession(userId: string, sessionId: string): SessionEntry {
     const key = `${userId}::${sessionId}`;
     let entry = sessions.get(key);
@@ -167,51 +165,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
   }
 
   app.post('/api/chat', async (req: Request, res: Response): Promise<void> => {
-    // ── Early end-session interception ──────────────────────────────────────
-    // Handles: endSession:true flag, body.message="end session", body.text="end session"
-    // Runs before full validation so the frontend can omit text/messageId entirely
-    // and simply send { userId, sessionId, message: "end session" }.
-    const raw = req.body as Record<string, unknown>;
-    const rawText    = typeof raw?.text    === 'string' ? raw.text.trim().toLowerCase()    : '';
-    const rawMessage = typeof raw?.message === 'string' ? raw.message.trim().toLowerCase() : '';
-    const isEndSessionByText = rawText === 'end session' || rawMessage === 'end session';
-    const isEndSessionByFlag = raw?.endSession === true;
-
-    if (isEndSessionByText || isEndSessionByFlag) {
-      console.log('[LoRa] END SESSION ROUTE HIT');
-      const userId    = typeof raw?.userId    === 'string' ? raw.userId.trim()    : '';
-      const sessionId = typeof raw?.sessionId === 'string' ? raw.sessionId.trim() : '';
-      if (!userId || !sessionId) {
-        res.status(400).json({ error: 'userId and sessionId are required to end a session.' });
-        return;
-      }
-      // End ALL sessions for this userId (handles sessionId mismatch).
-      const userPrefix = `${userId}::`;
-      for (const [k, entry] of sessions.entries()) {
-        if (k.startsWith(userPrefix)) {
-          entry.engine.endSession();
-          sessions.delete(k);
-        }
-      }
-      const tierState = TierStorage.load(userId);
-      const reply = isEndSessionByText ? 'Session ended. You can start a new conversation.' : '';
-      res.status(200).json({
-        ended: true,
-        tier: tierState?.currentTier ?? 'TIER_1',
-        sessionCount: tierState?.sessionCount ?? 0,
-        reply,
-        debug: emptyDebug(),
-      });
-      return;
-    }
-    // ────────────────────────────────────────────────────────────────────────
-
     const validated = validateBody(req.body);
     if (!validated.ok) {
       res.status(validated.status).json({ error: validated.error });
       return;
     }
-    const { userId, sessionId, messageId, text, timestamp } = validated.data;
+    const { userId, sessionId, text, timestamp } = validated.data;
 
     const session = getSession(userId, sessionId);
 
@@ -291,6 +250,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       res.status(500).json({ reply: '', debug: emptyDebug(), error: message });
     }
   });
+
+  return sessions;
 }
 
 /**
