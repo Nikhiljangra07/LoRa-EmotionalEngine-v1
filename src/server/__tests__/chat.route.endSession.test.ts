@@ -1,8 +1,32 @@
 import http from 'http';
+import * as fs from 'fs';
+import * as path from 'path';
 import express from 'express';
 import type { MemoryService } from '../../emotion-core/memory-v1/service/MemoryService';
 
 let llmCallCount = 0;
+
+const TIER_DIR = path.resolve(process.cwd(), '.lora', 'tier');
+
+function tierFile(userId: string): string {
+  const safe = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return path.join(TIER_DIR, `${safe}.json`);
+}
+
+function cleanupTier(userId: string): void {
+  const fp = tierFile(userId);
+  try { fs.unlinkSync(fp); } catch { /* noop */ }
+  try { fs.unlinkSync(fp + '.tmp'); } catch { /* noop */ }
+}
+
+function readTierFile(userId: string): { sessionCount: number; currentTier: string } | null {
+  try {
+    const raw = JSON.parse(fs.readFileSync(tierFile(userId), 'utf-8'));
+    return { sessionCount: raw.sessionCount, currentTier: raw.currentTier };
+  } catch {
+    return null;
+  }
+}
 
 function createMockMemoryService(): MemoryService {
   return {
@@ -199,5 +223,104 @@ describe('POST /api/chat — manual session termination ("end session")', () => 
     expect(res.body.reply).toBe('Normal reply from LLM');
     expect(res.body.ended).toBeUndefined();
     expect(llmCallCount).toBe(1);
+  });
+});
+
+describe('POST /api/chat — tier promotion across sessions (regression)', () => {
+  let server: http.Server | null = null;
+  let port = 0;
+
+  const userId = '__tier_route_test__';
+
+  const origTier = process.env.LORA_TIER_MODEL;
+  const origPersona = process.env.LORA_PERSONA_ENFORCER;
+  const origRelational = process.env.LORA_RELATIONAL_ROUTER;
+
+  beforeAll((done) => {
+    process.env.LORA_TIER_MODEL = '1';
+    delete process.env.LORA_PERSONA_ENFORCER;
+    delete process.env.LORA_RELATIONAL_ROUTER;
+    jest.resetModules();
+
+    cleanupTier(userId);
+
+    const app = express();
+    app.use(express.json());
+
+    const mockResponder = () => ({
+      generateResponse: async () => 'tier test reply',
+    });
+
+    const { registerChatRoute } = require('../routes/chat.route') as typeof import('../routes/chat.route');
+    registerChatRoute(app, {
+      responderFactory: mockResponder,
+      memoryService: createMockMemoryService(),
+    });
+
+    server = app.listen(0, () => {
+      const addr = server!.address();
+      port = typeof addr === 'object' && addr !== null ? addr.port : 0;
+      done();
+    });
+  });
+
+  afterAll((done) => {
+    cleanupTier(userId);
+    if (origTier === undefined) delete process.env.LORA_TIER_MODEL;
+    else process.env.LORA_TIER_MODEL = origTier;
+    if (origPersona === undefined) delete process.env.LORA_PERSONA_ENFORCER;
+    else process.env.LORA_PERSONA_ENFORCER = origPersona;
+    if (origRelational === undefined) delete process.env.LORA_RELATIONAL_ROUTER;
+    else process.env.LORA_RELATIONAL_ROUTER = origRelational;
+    if (server) server.close(done);
+    else done();
+  });
+
+  test('tier promotes to TIER_2 after 2 completed sessions', async () => {
+    // Session 1: send a message, then end
+    await postApiChat(port, { userId, sessionId: 's1', messageId: 'm1', text: 'hello' });
+    await postApiChat(port, { userId, sessionId: 's1', messageId: 'm2', text: 'end session' });
+
+    const after1 = readTierFile(userId);
+    expect(after1?.sessionCount).toBe(1);
+    expect(after1?.currentTier).toBe('TIER_1');
+
+    // Session 2: send a message, then end
+    await postApiChat(port, { userId, sessionId: 's2', messageId: 'm3', text: 'world' });
+    await postApiChat(port, { userId, sessionId: 's2', messageId: 'm4', text: 'end session' });
+
+    const after2 = readTierFile(userId);
+    expect(after2?.sessionCount).toBe(2);
+    expect(after2?.currentTier).toBe('TIER_2');
+  });
+
+  test('"end session" with mismatched sessionId still ends the active session', async () => {
+    cleanupTier(userId);
+
+    // Send a message on session s-active
+    await postApiChat(port, { userId, sessionId: 's-active', messageId: 'm1', text: 'hello' });
+
+    // End with DIFFERENT sessionId — route should find and end s-active
+    const res = await postApiChat(port, { userId, sessionId: 's-different', messageId: 'm2', text: 'end session' });
+    expect(res.body.reply).toBe('Session ended. You can start a new conversation.');
+
+    const file = readTierFile(userId);
+    expect(file?.sessionCount).toBe(1);
+  });
+
+  test('"end session" does not reset existing tier file', async () => {
+    cleanupTier(userId);
+
+    // Build up to TIER_2
+    await postApiChat(port, { userId, sessionId: 'a1', messageId: 'm1', text: 'hi' });
+    await postApiChat(port, { userId, sessionId: 'a1', messageId: 'm2', text: 'end session' });
+    await postApiChat(port, { userId, sessionId: 'a2', messageId: 'm3', text: 'hi' });
+    await postApiChat(port, { userId, sessionId: 'a2', messageId: 'm4', text: 'end session' });
+    expect(readTierFile(userId)?.currentTier).toBe('TIER_2');
+
+    // Another "end session" on fresh sessionId should NOT create a phantom session increment
+    await postApiChat(port, { userId, sessionId: 'a3', messageId: 'm5', text: 'end session' });
+    expect(readTierFile(userId)?.sessionCount).toBe(2);
+    expect(readTierFile(userId)?.currentTier).toBe('TIER_2');
   });
 });

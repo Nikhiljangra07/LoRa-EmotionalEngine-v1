@@ -16,7 +16,7 @@ import { ClaudeResponder } from '../llm/ClaudeResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint, VolatilityState } from '../types/logging.types';
-import { debugEnabled, decisionLogEnabled } from '../debug/debugGate';
+import { debugEnabled, decisionLogEnabled, tierDebugEnabled } from '../debug/debugGate';
 import { featureFlags } from '../config/featureFlags';
 import { AppraisalBridgeRunner } from '../../appraisal-bridge/AppraisalBridgeRunner';
 import { resolveHints, type ResolvableHints } from './hintResolver';
@@ -242,6 +242,7 @@ export class EngineOrchestrator {
     if (featureFlags.tierModelEnabled) {
       const loaded = TierStorage.load(this.userId);
       this.tierState = loaded ?? TierStorage.initState(this.userId);
+      if (tierDebugEnabled) console.log('[LoRa::Tier] constructor', { userId: this.userId, loaded: !!loaded, sessionCount: this.tierState.sessionCount, tier: this.tierState.currentTier });
     }
   }
 
@@ -1616,6 +1617,25 @@ export class EngineOrchestrator {
   // Session boundary (ETV updates ONLY here)
   // ---------------------------------------------------
   endSession() {
+    // ── Tier Model: update BEFORE the ETV guard so tier persistence is never
+    //    blocked by ETV session-state checks. Only counts real sessions. ──
+    if (featureFlags.tierModelEnabled && this.tierState && this.messageCount > 0) {
+      const prevCount = this.tierState.sessionCount;
+      const prevTier = this.tierState.currentTier;
+      this.tierState.sessionCount += 1;
+      const tierSessionMean = this.sessionEIVs.length > 0
+        ? this.sessionEIVs.reduce((a, b) => a + b, 0) / this.sessionEIVs.length
+        : 0;
+      this.tierState.etvTrajectory.push(tierSessionMean);
+      const nextTier = computeTierTransition(this.tierState);
+      if (nextTier !== this.tierState.currentTier) {
+        this.tierState.lastTransitionAt = Date.now();
+      }
+      this.tierState.currentTier = nextTier;
+      if (tierDebugEnabled) console.log('[LoRa::Tier] endSession', { userId: this.userId, sessionCount: `${prevCount}->${this.tierState.sessionCount}`, tier: `${prevTier}->${nextTier}` });
+      TierStorage.save(this.tierState);
+    }
+
     // ── Idempotent guard (ETV V1): prevents double-close / double ETV update ──
     if (featureFlags.etvV1Enabled) {
       if (!this.sessionOpen || this.messageCount === 0) {
@@ -1776,18 +1796,6 @@ export class EngineOrchestrator {
           console.error('[LoRa::Bootstrap] endSession error');
         }
       }
-    }
-
-    // ── Tier Model: passive update (gated by tierModelEnabled) ──
-    if (featureFlags.tierModelEnabled && this.tierState) {
-      this.tierState.sessionCount += 1;
-      this.tierState.etvTrajectory.push(sessionMean);
-      const nextTier = computeTierTransition(this.tierState);
-      if (nextTier !== this.tierState.currentTier) {
-        this.tierState.lastTransitionAt = Date.now();
-      }
-      this.tierState.currentTier = nextTier;
-      TierStorage.save(this.tierState);
     }
 
     // Reset session

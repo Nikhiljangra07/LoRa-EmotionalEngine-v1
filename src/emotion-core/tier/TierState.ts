@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { RelationalTier } from './RelationalTier';
 import type { OnboardingPreferences } from '../onboarding/onboardingQuiz';
+import { tierDebugEnabled } from '../debug/debugGate';
 
 export interface TierStateStored {
   userId: string;
@@ -30,8 +31,12 @@ function userPath(userId: string): string {
 export const TierStorage = {
   load(userId: string): TierStateStored | null {
     const fp = userPath(userId);
+    if (tierDebugEnabled) console.log('[LoRa::Tier] load', { userId, path: fp });
     try {
-      if (!fs.existsSync(fp)) return null;
+      if (!fs.existsSync(fp)) {
+        if (tierDebugEnabled) console.log('[LoRa::Tier] load: file not found');
+        return null;
+      }
       const raw = fs.readFileSync(fp, 'utf-8');
       const parsed = JSON.parse(raw) as TierStateStored;
 
@@ -57,6 +62,7 @@ export const TierStorage = {
   save(state: TierStateStored): void {
     ensureDir();
     const fp = userPath(state.userId);
+    if (tierDebugEnabled) console.log('[LoRa::Tier] save', { userId: state.userId, path: fp, sessionCount: state.sessionCount, tier: state.currentTier });
     const tmp = fp + '.tmp';
     const data: TierStateStored = {
       userId: state.userId,

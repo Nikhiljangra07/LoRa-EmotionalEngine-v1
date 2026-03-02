@@ -176,24 +176,21 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
     const session = getSession(userId, sessionId);
 
     const normalizedText = text.trim().toLowerCase();
-    if (normalizedText === 'end session') {
-      session.engine.endSession();
-      const key = `${userId}::${sessionId}`;
-      sessions.delete(key);
+    if (normalizedText === 'end session' || endSession) {
+      // End ALL sessions for this userId (handles sessionId mismatch).
+      const userPrefix = `${userId}::`;
+      for (const [k, entry] of sessions.entries()) {
+        if (k.startsWith(userPrefix)) {
+          entry.engine.endSession();
+          sessions.delete(k);
+        }
+      }
+      const reply = normalizedText === 'end session'
+        ? 'Session ended. You can start a new conversation.'
+        : '';
       res.status(200).json({
-        reply: 'Session ended. You can start a new conversation.',
-        ended: true,
-        debug: emptyDebug(),
-      });
-      return;
-    }
-
-    if (endSession) {
-      session.engine.endSession();
-      const key = `${userId}::${sessionId}`;
-      sessions.delete(key);
-      res.status(200).json({
-        reply: '',
+        reply,
+        ...(normalizedText === 'end session' ? { ended: true } : {}),
         debug: emptyDebug(),
       });
       return;
