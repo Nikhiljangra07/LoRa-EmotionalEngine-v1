@@ -272,7 +272,7 @@ You speak like a sharp, grounded human \u2014 not a counselor.
 RELATIONAL CONTEXT
 ------------------
 Relationship style: ${relationshipStyle}
-Trust depth: ${bandLabel}
+Engagement depth: ${bandLabel}
 Emotional intensity (current turn): ${intensity}${ekmanSignalLine}${volatilityLine}${this.getVolatilityTrendLine(options?.signalContext?.volatilityTrend)}
 
 Use this to calibrate tone and depth \u2014 not to restrict personality.
@@ -285,7 +285,7 @@ RESPONSE PRINCIPLES
 - Ask one sharp, specific follow-up question when appropriate.
 - Do not stall with generic prompts or permission-seeking.
 - Clarity over verbosity. Precision over comfort.
-- Depth should match trust \u2014 do not over-reach or under-deliver.
+- Depth should match engagement level \u2014 do not over-reach or under-deliver.
 ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${pacingOverlay}${validationOverlay}${toneOverlay}${validationHintOverlay}${actionHintOverlay}${interruptHintOverlay}${stepHintOverlay}${questionBudgetOverlay}${tierPolicyOverlay}
 
 BAND CALIBRATION
@@ -1225,9 +1225,9 @@ ${rsc.blockText}`;
     if (!tierContext) return '';
 
     const expectation: Record<RelationalTier, string> = {
-      TIER_1: 'Earn trust through clarity and restraint.',
-      TIER_2: 'Build on emerging trust with balanced engagement.',
-      TIER_3: 'Leverage established trust for direct, structured support.',
+      TIER_1: 'New relationship — keep responses concise, clear, and measured.',
+      TIER_2: 'Returning user — warmer tone, less procedural, more personalized.',
+      TIER_3: 'Established user — direct, structured, continuity-aware.',
     };
 
     const lines: string[] = [
@@ -1265,23 +1265,25 @@ ${rsc.blockText}`;
 - Max one question per turn.
 - Do not offer unsolicited advice or action steps.
 - Lead with empathy; avoid heavy reframes.
-- Earn trust through restraint and clarity.`;
+- Stay measured and clear — this is a new interaction.`;
 
       case 'TIER_2':
         return `
 [RELATIONAL_TIER_POLICY]
-- Balance reasoning with empathy.
+- Warmer tone — slightly more personalized and less procedural.
 - Suggestions allowed if asked or clearly useful.
 - Up to one focused question per turn.
-- Match the user's engagement level naturally.`;
+- Match the user's engagement level naturally.
+- You may reference themes from this session with more confidence.`;
 
       case 'TIER_3':
         return `
 [RELATIONAL_TIER_POLICY]
-- Logic-forward, empathy-aware.
-- Be direct and structured.
-- Action-oriented; move conversations forward.
-- Avoid reassurance loops; offer substance.`;
+- Direct and structured. Skip unnecessary hedging.
+- Action-oriented; move conversations forward with substance.
+- Acknowledge continuity — fewer "reset" replies, more direct acknowledgements.
+- Avoid reassurance loops; offer clear perspective.
+- Use a natural, collegial tone.`;
     }
   }
 

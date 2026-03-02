@@ -89,7 +89,7 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
   });
 
   describe('Band calibration block injection', () => {
-    it('B0 + low EIV — only active band present, trust depth shows Early Stage', () => {
+    it('B0 + low EIV — only active band present, engagement depth shows Early Stage', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B0',
         eiv: 0.1,
@@ -98,11 +98,11 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
       expect(prompt).toContain('Calm and respectful');
       expect(prompt).not.toContain('Band B1');
       expect(prompt).not.toContain('Band B2');
-      expect(prompt).toContain('Trust depth: B0');
+      expect(prompt).toContain('Engagement depth: B0');
       expect(prompt).toContain('Emotional intensity (current turn): low');
     });
 
-    it('B1 — trust depth shows Emerging Trust, only B1 band injected', () => {
+    it('B1 — engagement depth shows Emerging Trust, only B1 band injected', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B1',
         eiv: 0.5,
@@ -110,10 +110,10 @@ describe('PromptTemplateBuilder — Behavior Refinement Layer', () => {
       expect(prompt).toContain('Band B1');
       expect(prompt).toContain('Slightly more expressive');
       expect(prompt).not.toContain('Band B0');
-      expect(prompt).toContain('Trust depth: B1');
+      expect(prompt).toContain('Engagement depth: B1');
     });
 
-    it('B2 — shows Stable trust depth, only B2 band injected', () => {
+    it('B2 — shows Stable engagement depth, only B2 band injected', () => {
       const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
         band: 'B2',
         eiv: 0.5,

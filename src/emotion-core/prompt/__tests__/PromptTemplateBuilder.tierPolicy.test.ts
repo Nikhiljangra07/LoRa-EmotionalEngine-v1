@@ -38,7 +38,7 @@ describe('PromptTemplateBuilder — Tier Policy', () => {
       expect(prompt).toContain('RELATIONAL TRAJECTORY');
       expect(prompt).toContain('TIER_1 (Conservative)');
       expect(prompt).toContain('Sessions observed: 1');
-      expect(prompt).toContain('Earn trust through clarity and restraint');
+      expect(prompt).toContain('New relationship');
     });
 
     it('includes RELATIONAL_TIER_POLICY directive', () => {
@@ -76,7 +76,7 @@ describe('PromptTemplateBuilder — Tier Policy', () => {
       expect(prompt).toContain('TIER_2 (Balanced)');
       expect(prompt).toContain('Sessions observed: 3');
       expect(prompt).toContain('[RELATIONAL_TIER_POLICY]');
-      expect(prompt).toContain('Balance reasoning with empathy');
+      expect(prompt).toContain('Warmer tone');
     });
   });
 
@@ -91,7 +91,7 @@ describe('PromptTemplateBuilder — Tier Policy', () => {
       expect(prompt).toContain('TIER_3 (Direct)');
       expect(prompt).toContain('Sessions observed: 6');
       expect(prompt).toContain('[RELATIONAL_TIER_POLICY]');
-      expect(prompt).toContain('Logic-forward');
+      expect(prompt).toContain('Direct and structured');
       expect(prompt).toContain('Action-oriented');
     });
   });
@@ -138,6 +138,87 @@ describe('PromptTemplateBuilder — Tier Policy', () => {
         const section = prompt.slice(start, end);
         expect(section).not.toMatch(/\b0\.\d{2,}\b/);
       }
+    });
+  });
+
+  describe('no trust-based tier language in prompt (regression)', () => {
+    const trustPhrases = [
+      'Earn trust',
+      'earning trust',
+      'emerging trust',
+      'established trust',
+      'trust depth',
+      'Tier progression tracks consistency',
+      'not session count alone',
+    ];
+
+    it.each(['TIER_1', 'TIER_2', 'TIER_3'] as const)('%s tier blocks contain no trust-based language', (tier) => {
+      const prompt = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier, description: 'test', sessionCount: 3 },
+      });
+      const trajectoryStart = prompt.indexOf('RELATIONAL TRAJECTORY');
+      const policyEnd = prompt.indexOf('BAND CALIBRATION');
+      if (trajectoryStart >= 0 && policyEnd >= 0) {
+        const tierSection = prompt.slice(trajectoryStart, policyEnd).toLowerCase();
+        for (const phrase of trustPhrases) {
+          expect(tierSection).not.toContain(phrase.toLowerCase());
+        }
+      }
+    });
+
+    it('RELATIONAL CONTEXT header does not use "Trust depth"', () => {
+      const prompt = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_1', description: 'Conservative', sessionCount: 1 },
+      });
+      expect(prompt).not.toContain('Trust depth:');
+      expect(prompt).toContain('Engagement depth:');
+    });
+
+    it('RESPONSE PRINCIPLES does not reference trust', () => {
+      const prompt = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_1', description: 'Conservative', sessionCount: 1 },
+      });
+      const principlesStart = prompt.indexOf('RESPONSE PRINCIPLES');
+      const principlesEnd = prompt.indexOf('BAND CALIBRATION');
+      if (principlesStart >= 0 && principlesEnd >= 0) {
+        const section = prompt.slice(principlesStart, principlesEnd);
+        expect(section).not.toContain('match trust');
+      }
+    });
+  });
+
+  describe('tier policy differentiation', () => {
+    it('TIER_2 prompt is warmer than TIER_1', () => {
+      const t1 = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_1', description: 'Conservative', sessionCount: 1 },
+      });
+      const t2 = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_2', description: 'Balanced', sessionCount: 3 },
+      });
+      expect(t1).toContain('measured and clear');
+      expect(t1).not.toContain('Warmer tone');
+      expect(t2).toContain('Warmer tone');
+      expect(t2).toContain('personalized');
+    });
+
+    it('TIER_3 prompt is more direct than TIER_2', () => {
+      const t2 = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_2', description: 'Balanced', sessionCount: 3 },
+      });
+      const t3 = PromptTemplateBuilder.build(defaultState, defaultETV, {
+        guidanceMode: 'CALM_NEUTRAL',
+        tierContext: { tier: 'TIER_3', description: 'Direct', sessionCount: 6 },
+      });
+      expect(t3).toContain('Direct and structured');
+      expect(t3).toContain('collegial tone');
+      expect(t3).toContain('continuity');
+      expect(t2).not.toContain('collegial tone');
     });
   });
 });
