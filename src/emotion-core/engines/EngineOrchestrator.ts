@@ -1782,8 +1782,7 @@ export class EngineOrchestrator {
     if (featureFlags.tierModelEnabled && this.tierState) {
       this.tierState.sessionCount += 1;
       this.tierState.etvTrajectory.push(sessionMean);
-      const etvMeanForTier = sessionSummary?.eivMean ?? sessionMean;
-      const nextTier = computeTierTransition(this.tierState, etvMeanForTier);
+      const nextTier = computeTierTransition(this.tierState);
       if (nextTier !== this.tierState.currentTier) {
         this.tierState.lastTransitionAt = Date.now();
       }
