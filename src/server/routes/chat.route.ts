@@ -49,6 +49,8 @@ export interface ApiChatBody {
 
 export interface ApiChatResponse {
   reply: string;
+  tier: import('../tier/TierTypes').TierLevel;
+  sessionCount: number;
   debug: {
     eiv: number;
     etv: number;
@@ -214,6 +216,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });
 
     const session = getSession(userId, sessionId, engineKey);
+    const tierRecord = tierService.getTier(userId);
 
     try {
       const userTurn: ChatTurn = {
@@ -236,6 +239,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           const debug = emptyDebug();
           res.status(200).json({
             reply: RELATIONAL_REPLY,
+            tier: tierRecord.tier,
+            sessionCount: tierRecord.sessionCount,
             debug: {
               ...debug,
               relational: { intent: classification.intent, confidence: classification.confidence },
@@ -274,6 +279,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       const debug = result.debug ?? emptyDebug();
       res.status(200).json({
         reply: result.llmOutput,
+        tier: tierRecord.tier,
+        sessionCount: tierRecord.sessionCount,
         debug: {
           eiv: result.eiv?.value ?? 0,
           etv: debug.etv ?? 0,
@@ -289,7 +296,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[LoRa::Chat] engine error:', message);
-      res.status(500).json({ reply: '', debug: emptyDebug(), error: 'engine_error', details: message });
+      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: emptyDebug(), error: 'engine_error', details: message });
     }
   });
 
