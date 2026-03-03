@@ -96,23 +96,20 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
   });
 
   /**
-   * ETV EFFECT: Stranger vs Familiar
-   *
-   * IMPORTANT:
-   * - We do NOT rely on ETV "labels" in tests; only numeric values.
-   * - We assert *observable* differences in guidance wording.
+   * ETV EFFECT: Without V1 policy, relationship style defaults to Professional
+   * regardless of legacy scalar. V1 band is the sole trust source.
    */
-  it('changes intimacy based on ETV without changing emotion logic', () => {
+  it('defaults to Professional relationship style without V1 policy', () => {
     const emotionalState = makeEmotionalState('MEDIUM', 'POSITIVE');
 
-    const strangerPrompt = PromptTemplateBuilder.build(emotionalState, makeETVState(0.3));
-    const familiarPrompt = PromptTemplateBuilder.build(emotionalState, makeETVState(0.7));
+    const lowPrompt = PromptTemplateBuilder.build(emotionalState, makeETVState(0.3));
+    const highPrompt = PromptTemplateBuilder.build(emotionalState, makeETVState(0.7));
 
-    expect(strangerPrompt).toMatch(/professional/i);
-    expect(familiarPrompt).toMatch(/friendly|casual/i);
+    expect(lowPrompt).toMatch(/professional/i);
+    expect(highPrompt).toMatch(/professional/i);
 
-    expectNoNumericLeak(strangerPrompt);
-    expectNoNumericLeak(familiarPrompt);
+    expectNoNumericLeak(lowPrompt);
+    expectNoNumericLeak(highPrompt);
   });
 
   /**

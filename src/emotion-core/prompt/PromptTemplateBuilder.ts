@@ -142,9 +142,11 @@ export class PromptTemplateBuilder {
       );
     }
 
-    const legacyRelationshipStyle = this.mapETVToRelationshipStyle(etvState.value);
+    // Fixed default — legacy etvState.value scalar no longer drives prompt.
+    // V1 policy (when present and served) is the sole trust source.
+    const DEFAULT_RELATIONSHIP_STYLE = 'Professional — polite, calm, and respectful';
 
-    let relationshipStyle = legacyRelationshipStyle;
+    let relationshipStyle = DEFAULT_RELATIONSHIP_STYLE;
     let constraintOverlay = '';
 
     const hasPolicy = options?.etvPolicy !== undefined;
@@ -159,7 +161,7 @@ export class PromptTemplateBuilder {
       DecisionLogger.logPromptProfileDiff({
         messageId: options!.messageId ?? 'unknown',
         userId: options!.userId ?? 'unknown',
-        oldRelationshipStyle: legacyRelationshipStyle,
+        oldRelationshipStyle: DEFAULT_RELATIONSHIP_STYLE,
         newRelationshipStyle: newRelStyle,
         band: mapping.constraints.band,
         maxInitiative: mapping.constraints.maxInitiative,

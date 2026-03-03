@@ -1128,7 +1128,7 @@ export class EngineOrchestrator {
           prompt: '(persona enforcer override)',
           llmOutput: finalOverride,
           debug: {
-            etv: this.etvState.value,
+            etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
             band: this.lastEtvPolicy?.band ?? 'B0',
             anchorsUsed: memServiceAnchors.length,
             schemasUsed: memServiceSemanticCount,
@@ -1513,7 +1513,7 @@ export class EngineOrchestrator {
       prompt,
       llmOutput,
       debug: {
-        etv: this.etvState.value,
+        etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
         band: this.lastEtvPolicy?.band ?? 'B0',
         anchorsUsed: memServiceAnchors.length,
         schemasUsed: memServiceSemanticCount,
