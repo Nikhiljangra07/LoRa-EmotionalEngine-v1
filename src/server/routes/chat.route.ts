@@ -40,6 +40,8 @@ export interface ApiChatBody {
   messageId: string;
   text: string;
   timestamp?: number;
+  /** Alias accepted from external UIs that send "message" instead of "text". */
+  message?: string;
 }
 
 export interface ApiChatResponse {
@@ -75,23 +77,31 @@ function isNonEmptyString(x: unknown): x is string {
   return typeof x === 'string' && x.trim().length > 0;
 }
 
-function validateBody(body: unknown): { ok: true; data: ApiChatBody } | { ok: false; status: number; error: string } {
+interface ValidationError { ok: false; status: number; error: string; details: string }
+interface ValidationOk    { ok: true;  data: ApiChatBody }
+
+function validateBody(body: unknown): ValidationOk | ValidationError {
   if (body == null || typeof body !== 'object') {
-    return { ok: false, status: 400, error: 'Request body must be a JSON object.' };
+    return { ok: false, status: 400, error: 'invalid_request', details: 'Request body must be a JSON object.' };
   }
   const b = body as Record<string, unknown>;
   if (!isNonEmptyString(b.userId)) {
-    return { ok: false, status: 400, error: 'userId must be a non-empty string.' };
+    return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty userId.' };
   }
   if (!isNonEmptyString(b.sessionId)) {
-    return { ok: false, status: 400, error: 'sessionId must be a non-empty string.' };
+    return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty sessionId.' };
   }
-  if (!isNonEmptyString(b.messageId)) {
-    return { ok: false, status: 400, error: 'messageId must be a non-empty string.' };
+
+  // Accept "text" or "message" — normalize to text
+  const rawText = b.text ?? b.message;
+  if (!isNonEmptyString(rawText)) {
+    return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty text (also accepts "message").' };
   }
-  if (!isNonEmptyString(b.text)) {
-    return { ok: false, status: 400, error: 'text must be a non-empty string.' };
-  }
+
+  const messageId = isNonEmptyString(b.messageId)
+    ? (b.messageId as string).trim()
+    : `auto-${Date.now()}`;
+
   const timestamp =
     typeof b.timestamp === 'number' && Number.isFinite(b.timestamp)
       ? b.timestamp
@@ -99,10 +109,10 @@ function validateBody(body: unknown): { ok: true; data: ApiChatBody } | { ok: fa
   return {
     ok: true,
     data: {
-      userId: b.userId.trim(),
-      sessionId: b.sessionId.trim(),
-      messageId: b.messageId.trim(),
-      text: b.text.trim(),
+      userId: (b.userId as string).trim(),
+      sessionId: (b.sessionId as string).trim(),
+      messageId,
+      text: (rawText as string).trim(),
       timestamp,
     },
   };
@@ -164,9 +174,14 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   }
 
   app.post('/api/chat', async (req: Request, res: Response): Promise<void> => {
+    const origin = req.headers.origin ?? req.headers.referer ?? '(none)';
+    const bodyKeys = req.body && typeof req.body === 'object' ? Object.keys(req.body) : [];
+    console.log('[LoRa::Chat] POST /api/chat', { method: req.method, path: req.path, origin, bodyKeys });
+
     const validated = validateBody(req.body);
     if (!validated.ok) {
-      res.status(validated.status).json({ error: validated.error });
+      console.log('[LoRa::Chat] validation failed:', validated.details);
+      res.status(validated.status).json({ error: validated.error, details: validated.details });
       return;
     }
     const { userId, sessionId, text, timestamp } = validated.data;
@@ -249,7 +264,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ reply: '', debug: emptyDebug(), error: message });
+      console.error('[LoRa::Chat] engine error:', message);
+      res.status(500).json({ reply: '', debug: emptyDebug(), error: 'engine_error', details: message });
     }
   });
 

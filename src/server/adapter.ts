@@ -32,6 +32,9 @@ try {
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);
   console.warn('[LoRa::Adapter] /api/chat not registered:', msg);
+  app.post('/api/chat', (_req, res) => {
+    res.status(503).json({ error: 'service_unavailable', details: msg });
+  });
 }
 registerOnboardingRoute(app);
 registerSessionLifecycleRoute(app, engineSessions);
