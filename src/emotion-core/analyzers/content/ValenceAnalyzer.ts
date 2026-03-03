@@ -16,8 +16,12 @@ export interface ValenceResult {
 }
 
 const SEMANTIC_NEGATIVE_KEYWORDS: ReadonlySet<string> = new Set([
+  // original
   "furious", "bullshit", "useless", "done", "angry",
   "hate", "overwhelmed", "worthless", "can't", "cant",
+  // violent-intent / high-distress expansion
+  "kill", "murder", "beat", "hit", "hurt", "die",
+  "violence", "threat", "rage", "attack", "destroy", "revenge",
 ]);
 
 const SEMANTIC_POSITIVE_KEYWORDS: ReadonlySet<string> = new Set([

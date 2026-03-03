@@ -85,8 +85,9 @@ describe('computeEvidenceScore', () => {
   // ── V1 eivRisk term tests ──
 
   test('eivRisk: eivMean below threshold → no penalty', () => {
+    // Use eivMean well below the threshold (0.45) to verify no penalty
     const zLow = computeEvidenceScore(makeSummary({
-      aviMean: 0, aviMax: 0, eivMean: 0.5, hasViolation: false,
+      aviMean: 0, aviMax: 0, eivMean: 0.3, hasViolation: false,
     }));
     const zAtThreshold = computeEvidenceScore(makeSummary({
       aviMean: 0, aviMax: 0, eivMean: ETV_EIV_RISK.startThreshold, hasViolation: false,
@@ -103,12 +104,13 @@ describe('computeEvidenceScore', () => {
     expect(z).toBeCloseTo(0.80, 4);
   });
 
-  test('eivRisk: eivMean=0.85 → half of max penalty', () => {
+  test('eivRisk: eivMean=0.85 → penalty above threshold (T=0.45)', () => {
     const z = computeEvidenceScore(makeSummary({
       aviMean: 0, aviMax: 0, eivMean: 0.85, hasViolation: false,
     }));
-    // eivRisk = 0.20 * (0.85 - 0.70) / 0.30 = 0.20 * 0.5 = 0.10
-    expect(z).toBeCloseTo(0.90, 4);
+    // eivRisk = 0.20 * (0.85 - 0.45) / (1 - 0.45) = 0.20 * (0.40/0.55) ≈ 0.20 * 0.7273 ≈ 0.1455
+    // z ≈ 1.0 - 0.1455 ≈ 0.8545
+    expect(z).toBeCloseTo(1 - 0.20 * (0.85 - ETV_EIV_RISK.startThreshold) / (1 - ETV_EIV_RISK.startThreshold), 4);
   });
 
   test('eivRisk: monotonicity — higher eivMean → lower z_t', () => {

@@ -59,10 +59,11 @@ export const SHORT_SESSION = Object.freeze({
 });
 
 // ── EIV-risk penalty (stable-high-intensity safety net) ──────────
+// startThreshold lowered from 0.70 → 0.45 to capture mid-intensity sessions.
 
 export const ETV_EIV_RISK = Object.freeze({
   weight: 0.20,
-  startThreshold: 0.70,
+  startThreshold: 0.45,
 });
 
 // ── Session boundary ──────────────────────────────────────────────

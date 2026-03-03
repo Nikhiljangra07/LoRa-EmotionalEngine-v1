@@ -20,9 +20,23 @@ import { debugEnabled } from '../debug/debugGate';
  */
 
 const STRONG_EMOTION_KEYWORDS: ReadonlySet<string> = new Set([
+  // original
   "furious", "bullshit", "useless", "done", "angry",
   "hate", "overwhelmed", "worthless", "cant",
   "confident", "excited", "ready", "strong", "grateful",
+  // high-distress expansion
+  "terrified", "panicked", "shaking", "devastated",
+  "betrayed", "crushed", "heartbroken",
+]);
+
+/**
+ * Violent-intent keywords — when any match, semantic_score receives a +0.6 boost
+ * (clamped to 1.0) to ensure high EIV regardless of polarity-lexicon coverage.
+ * Distinct from STRONG_EMOTION_KEYWORDS (arousal path) — this targets the semantic path.
+ */
+const VIOLENT_INTENT_KEYWORDS: ReadonlySet<string> = new Set([
+  "kill", "murder", "beat", "hit", "hurt", "die",
+  "violence", "threat", "rage", "attack", "destroy", "revenge",
 ]);
 
 const AROUSAL_SIGNALS = MASTER_CONSTANTS.eiv.enhancedArousalSignals;
@@ -45,6 +59,13 @@ function textHasStrongKeyword(text: string): boolean {
   const tokens = text.toLowerCase().replace(/[^a-z\s']/g, ' ').split(/\s+/);
   return tokens.some((t) => STRONG_EMOTION_KEYWORDS.has(t));
 }
+
+function textHasViolentIntent(text: string): boolean {
+  const tokens = text.toLowerCase().replace(/[^a-z\s']/g, ' ').split(/\s+/);
+  return tokens.some((t) => VIOLENT_INTENT_KEYWORDS.has(t));
+}
+
+const VIOLENT_INTENT_SEMANTIC_BOOST = 0.6;
 
 export class InputProcessor {
   private static readonly valenceAnalyzer = new ValenceAnalyzer();
@@ -90,6 +111,7 @@ export class InputProcessor {
     }
 
     const hasStrongKw = textHasStrongKeyword(text);
+    const hasViolentIntent = textHasViolentIntent(text);
     const enhancedArousal = computeEnhancedArousal(
       esFeatures.capsRatio,
       esFeatures.expressiveLengtheningCount > 0,
@@ -99,8 +121,15 @@ export class InputProcessor {
     const capsWeight = Math.min(esFeatures.capsRatio, 1);
     const repetitionWeight = esFeatures.expressiveLengtheningCount > 0 ? 1 : 0;
 
+    // Violent-intent boost: ensure semantic path contributes meaningfully to EIV
+    // even when the polarity lexicon produces a weak score independently.
+    const rawSemantic = valenceResult.semanticScore;
+    const semanticScore = hasViolentIntent
+      ? Math.min(1.0, Math.abs(rawSemantic) + VIOLENT_INTENT_SEMANTIC_BOOST)
+      : rawSemantic;
+
     const enhanced: EnhancedEIVSignals = {
-      semanticScore: valenceResult.semanticScore,
+      semanticScore,
       arousalScore: enhancedArousal,
       repetitionWeight,
       capsWeight,
