@@ -13,6 +13,9 @@ import { STM_MAX_TURNS, truncateTurnText } from '../../emotion-core/prompt/Promp
 import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../../emotion-core/intent/relationalIntent';
 import { sharedTierService } from '../tier/TierService';
 import { TierBehaviorProfiles } from '../behavior/TierBehaviorProfile';
+import { coarsenBand, EtvBandBehaviorProfiles } from '../behavior/EtvBandBehaviorProfile';
+import type { EtvBand } from '../behavior/EtvBandBehaviorProfile';
+import { ETVEngineV1 } from '../../emotion-core/etv';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -55,6 +58,7 @@ export interface ApiChatResponse {
     eiv: number;
     etv: number;
     band: string;
+    etvBand?: EtvBand;
     anchorsUsed: number;
     schemasUsed: number;
     degraded: { falkor: boolean; chroma: boolean };
@@ -164,7 +168,15 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   const sessions = new Map<string, SessionEntry>();
   const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
-  function makeTierAwareFactory(userId: string) {
+  function resolveBand(userId: string): EtvBand {
+    try {
+      return coarsenBand(ETVEngineV1.getPolicy(userId).band);
+    } catch {
+      return 'B0';
+    }
+  }
+
+  function makeBehaviorAwareFactory(userId: string) {
     return () => {
       const base = baseResponderFactory();
       return {
@@ -173,10 +185,18 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           userMessage: string,
           opts?: { signal?: AbortSignal; requestId?: string; sessionHistory?: Array<{ role: string; text: string; ts?: number }> },
         ) {
+          const coarseBand = resolveBand(userId);
+          const bandProfile = EtvBandBehaviorProfiles[coarseBand];
+          if (isDev) console.log('[LoRa::ETVBand]', { userId, band: coarseBand });
+
           const currentTier = tierService.getTier(userId).tier;
-          const profile = TierBehaviorProfiles[currentTier];
+          const tierProfile = TierBehaviorProfiles[currentTier];
           if (isDev) console.log('[LoRa::TierBehavior]', { tier: currentTier });
-          const augmentedPrompt = profile.instruction + '\n\n' + systemPrompt;
+
+          const augmentedPrompt =
+            bandProfile.instruction + '\n\n' +
+            tierProfile.instruction + '\n\n' +
+            systemPrompt;
           return base.generateResponse(augmentedPrompt, userMessage, opts);
         },
       };
@@ -187,7 +207,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     let entry = sessions.get(key);
     if (!entry) {
       entry = {
-        engine: new EngineOrchestrator(DEFAULT_ETV, {}, makeTierAwareFactory(userId), {
+        engine: new EngineOrchestrator(DEFAULT_ETV, {}, makeBehaviorAwareFactory(userId), {
           userId,
           memoryService,
         }),
@@ -243,6 +263,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             sessionCount: tierRecord.sessionCount,
             debug: {
               ...debug,
+              etvBand: resolveBand(userId),
               relational: { intent: classification.intent, confidence: classification.confidence },
             },
           });
@@ -277,6 +298,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       }
 
       const debug = result.debug ?? emptyDebug();
+      const etvBand = resolveBand(userId);
       res.status(200).json({
         reply: result.llmOutput,
         tier: tierRecord.tier,
@@ -285,6 +307,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           eiv: result.eiv?.value ?? 0,
           etv: debug.etv ?? 0,
           band: debug.band ?? 'B0',
+          etvBand,
           anchorsUsed: debug.anchorsUsed ?? 0,
           schemasUsed: debug.schemasUsed ?? 0,
           degraded: debug.degraded ?? { falkor: false, chroma: false },
@@ -296,7 +319,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[LoRa::Chat] engine error:', message);
-      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: emptyDebug(), error: 'engine_error', details: message });
+      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand: resolveBand(userId) }, error: 'engine_error', details: message });
     }
   });
 
