@@ -11,6 +11,8 @@ import { InputProcessor } from '../../emotion-core/processors/InputProcessor';
 import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../../emotion-core/intent/relationalIntent';
+import { sharedTierService } from '../tier/TierService';
+import { TierBehaviorProfiles } from '../behavior/TierBehaviorProfile';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -32,6 +34,7 @@ export interface ChatRouteOptions {
     ): Promise<string>;
   };
   memoryService?: MemoryService;
+  tierService?: typeof sharedTierService;
 }
 
 export interface ApiChatBody {
@@ -136,7 +139,9 @@ function emptyDebug(): ApiChatResponse['debug'] {
  */
 export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map<string, SessionEntry> {
   let memoryService: MemoryService;
-  const responderFactory = options?.responderFactory ?? (() => new ClaudeResponder());
+  const baseResponderFactory = options?.responderFactory ?? (() => new ClaudeResponder());
+  const tierService = options?.tierService ?? sharedTierService;
+  const isDev = process.env.NODE_ENV !== 'production';
 
   if (options?.memoryService) {
     memoryService = options.memoryService;
@@ -157,11 +162,30 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   const sessions = new Map<string, SessionEntry>();
   const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
+  function makeTierAwareFactory(userId: string) {
+    return () => {
+      const base = baseResponderFactory();
+      return {
+        generateResponse(
+          systemPrompt: string,
+          userMessage: string,
+          opts?: { signal?: AbortSignal; requestId?: string; sessionHistory?: Array<{ role: string; text: string; ts?: number }> },
+        ) {
+          const currentTier = tierService.getTier(userId).tier;
+          const profile = TierBehaviorProfiles[currentTier];
+          if (isDev) console.log('[LoRa::TierBehavior]', { tier: currentTier });
+          const augmentedPrompt = profile.instruction + '\n\n' + systemPrompt;
+          return base.generateResponse(augmentedPrompt, userMessage, opts);
+        },
+      };
+    };
+  }
+
   function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
     let entry = sessions.get(key);
     if (!entry) {
       entry = {
-        engine: new EngineOrchestrator(DEFAULT_ETV, {}, responderFactory, {
+        engine: new EngineOrchestrator(DEFAULT_ETV, {}, makeTierAwareFactory(userId), {
           userId,
           memoryService,
         }),

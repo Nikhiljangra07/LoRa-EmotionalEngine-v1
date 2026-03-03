@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { SessionManager } from '../session/SessionManager';
-import { TierService } from '../tier/TierService';
+import { sharedTierService } from '../tier/TierService';
 import type { SessionEntry } from './chat.route';
 
 const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
@@ -18,7 +18,7 @@ export function registerSessionLifecycleRoute(
   engineSessions?: Map<string, SessionEntry>,
 ): void {
   const manager = new SessionManager();
-  const tierService = new TierService();
+  const tierService = sharedTierService;
 
   app.post('/api/session/start', (req: Request, res: Response): void => {
     const { userId } = req.body ?? {};

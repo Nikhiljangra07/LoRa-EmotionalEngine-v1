@@ -43,3 +43,6 @@ export class TierService {
     return 'TIER_1';
   }
 }
+
+/** Module-level shared instance so session lifecycle and chat routes see the same tier state. */
+export const sharedTierService = new TierService();
