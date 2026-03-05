@@ -78,6 +78,12 @@ export class ETVEngineV1 {
     const riskAdjusted = computeRiskAdjusted(fullState);
     const conf = computeConf(fullState);
 
+    console.debug('[LoRa::ETV_BAND]', {
+      etv: fullState.etvMean,
+      riskAdjusted,
+      computedBand: policy.band,
+    });
+
     const log: ETVUpdateLog = {
       userId: summary.userId,
       sessionId: summary.sessionId,

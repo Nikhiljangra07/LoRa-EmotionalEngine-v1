@@ -143,6 +143,15 @@ export class InputProcessor {
       }
     }
 
+    if (semanticScore < 0 || semanticScore > 1) {
+      console.warn('[LoRa::Clamp] semanticScore corrected:', semanticScore);
+    }
+    if (enhancedArousal < 0 || enhancedArousal > 1) {
+      console.warn('[LoRa::Clamp] enhancedArousal corrected:', enhancedArousal);
+    }
+    semanticScore = Math.max(0, Math.min(1, semanticScore));
+    enhancedArousal = Math.max(0, Math.min(1, enhancedArousal));
+
     const enhanced: EnhancedEIVSignals = {
       semanticScore,
       arousalScore: enhancedArousal,
