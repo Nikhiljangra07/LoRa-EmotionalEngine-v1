@@ -171,4 +171,56 @@ describe('scoreAnchors', () => {
     const result = scoreAnchors([a], VEC, NOW, 'B4');
     expect(result).toHaveLength(0);
   });
+
+  it('structured fact (value set) is eligible even with reinforceCount 0', () => {
+    const a = makeAnchor({
+      anchorId: 'deploy-1',
+      type: 'deployment_plan',
+      summary: { template: 'deployment_plan', slot: 'launch_date' },
+      value: '2026-03-23',
+      reinforceCount: 0,
+      appearsInSessions: 1,
+    });
+    const result = scoreAnchors([a], VEC, NOW, 'B4');
+    expect(result.length).toBe(1);
+    expect(result[0].anchor.type).toBe('deployment_plan');
+  });
+
+  it('structured fact bypasses SCORE_FLOOR', () => {
+    const a = makeAnchor({
+      anchorId: 'deploy-floor',
+      type: 'deployment_plan',
+      summary: { template: 'deployment_plan', slot: 'launch_date' },
+      value: '2026-03-23',
+      emotionVecAtCreation: [-1, -1, -1],
+      createdAt: 0,
+      reinforceCount: 0,
+    });
+    const result = scoreAnchors([a], [1, 1, 1], NOW, 'B4');
+    expect(result.length).toBe(1);
+  });
+
+  it('B2 allows structured facts alongside date_event', () => {
+    const deploy = makeAnchor({
+      anchorId: 'deploy-b2',
+      type: 'deployment_plan',
+      summary: { template: 'deployment_plan', slot: 'launch_date' },
+      value: '2026-03-23',
+      reinforceCount: 0,
+    });
+    const goal = makeAnchor({
+      anchorId: 'goal-b2',
+      type: 'goal',
+      reinforceCount: 3,
+    });
+    const result = scoreAnchors([deploy, goal], VEC, NOW, 'B2');
+    expect(result.length).toBe(1);
+    expect(result[0].anchor.type).toBe('deployment_plan');
+  });
+
+  it('non-structured anchor with reinforceCount < 2 still ineligible', () => {
+    const a = makeAnchor({ reinforceCount: 1 });
+    const result = scoreAnchors([a], VEC, NOW, 'B4');
+    expect(result).toHaveLength(0);
+  });
 });

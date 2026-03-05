@@ -30,10 +30,11 @@ function isUpcomingWithin7Days(anchor: FactAnchor, now: number): boolean {
   return diff >= 0 && diff <= SEVEN_DAYS_MS;
 }
 
-function isEligible(anchor: FactAnchor, now: number): boolean {
-  if (anchor.type === 'date_event' && anchor.date && isUpcomingWithin7Days(anchor, now)) {
+function isEligible(anchor: FactAnchor, _now: number): boolean {
+  if (anchor.type === 'date_event' && anchor.date && isUpcomingWithin7Days(anchor, _now)) {
     return true;
   }
+  if (anchor.value !== undefined) return true;
   if (anchor.reinforceCount >= 2) return true;
   return false;
 }
@@ -79,9 +80,9 @@ export function scoreAnchors(
       W_REINFORCE * reinforcementScore +
       W_TEMPORAL * temporalUrgency;
 
-    if (totalScore < SCORE_FLOOR) continue;
+    if (totalScore < SCORE_FLOOR && a.value === undefined) continue;
 
-    if (etvBand === 'B2' && a.type !== 'date_event') continue;
+    if (etvBand === 'B2' && a.type !== 'date_event' && a.value === undefined) continue;
 
     scored.push({
       anchor: a,

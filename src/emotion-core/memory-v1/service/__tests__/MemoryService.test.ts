@@ -390,3 +390,61 @@ describe('MemoryService saveMessage resilience', () => {
     expect(result.degraded.falkor).toBe(false);
   });
 });
+
+describe('MemoryService retrieveContext dedup', () => {
+  it('deduplicates same type+slot anchors keeping newest createdAt', async () => {
+    const olderAnchor = {
+      anchorId: 'deploy-old',
+      userId: 'u1',
+      type: 'deployment_plan' as const,
+      summary: { template: 'deployment_plan' as const, slot: 'launch_date' as const },
+      value: '2026-03-23',
+      salience: 0.8,
+      extractionConfidence: 0.8,
+      status: 'confirmed' as const,
+      emotionVecAtCreation: [0.5, 0.5, 0.5, 0.5],
+      sessionId: 'sess-1',
+      createdAt: 1700000000000,
+      reinforceCount: 1,
+      appearsInSessions: 1,
+      lastSeenSessionId: 'sess-1',
+    };
+
+    const newerAnchor = {
+      ...olderAnchor,
+      anchorId: 'deploy-new',
+      value: '2026-03-13',
+      sessionId: 'sess-2',
+      createdAt: 1700000100000,
+    };
+
+    const mockFactStore = {
+      getCandidates: jest.fn().mockResolvedValue([olderAnchor, newerAnchor]),
+      upsertFromExtraction: jest.fn(),
+      maintain: jest.fn(),
+      purgeAll: jest.fn(),
+      exportAll: jest.fn(),
+    };
+    const mockVectorAdapter = {
+      loadSchemas: jest.fn().mockResolvedValue([]),
+      saveSchemas: jest.fn(),
+      purgeUser: jest.fn(),
+    };
+
+    const service = new MemoryService(
+      {} as FalkorAnchorAdapter,
+      mockVectorAdapter as unknown as ChromaSchemaAdapter,
+      mockFactStore as any,
+    );
+
+    const ctx = await service.retrieveContext('u1', 'When am I deploying?', {
+      emotionVec: [0.5, 0.5, 0.5, 0.5],
+      nowMs: 1700000200000,
+      band: 'B4',
+    });
+
+    const launchAnchors = ctx.anchors.filter((a) => a.slotValue?.includes('launch_date'));
+    expect(launchAnchors.length).toBe(1);
+    expect(launchAnchors[0].slotValue).toBe('launch_date = 2026-03-13');
+  });
+});

@@ -10,7 +10,7 @@ const COLLECTION_NAME = 'lora_schemas';
 async function reset(): Promise<void> {
   const client = getChromaClient();
   try {
-    await client.deleteCollection(COLLECTION_NAME);
+    await client.deleteCollection({ name: COLLECTION_NAME });
   } catch {
     // Collection may not exist
   }
@@ -18,7 +18,7 @@ async function reset(): Promise<void> {
     name: COLLECTION_NAME,
     metadata: { 'hnsw:space': 'cosine' },
   });
-  console.log('Chroma schemas collection reset');
+  console.log('[LoRa] Chroma schemas collection reset (manual-embedding mode)');
 }
 
 reset().catch((err) => {

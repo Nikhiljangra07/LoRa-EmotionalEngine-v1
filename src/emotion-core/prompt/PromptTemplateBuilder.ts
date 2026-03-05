@@ -16,6 +16,7 @@ import { RELATIONAL_CONFIDENCE_THRESHOLD } from '../intent/relationalIntent';
 import type { RelationalIntent } from '../intent/relationalIntent';
 import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { SYSTEM_CREATOR } from '../config/identityConstants';
+import { todayFormatted, todayISO } from '../../config/nowProvider';
 
 function creatorAttributionPrompt(): string {
   return SYSTEM_CREATOR
@@ -260,6 +261,11 @@ You do not perform therapy.
 You do not over-validate.
 You do not narrate emotions back mechanically.
 You speak like a sharp, grounded human \u2014 not a counselor.
+
+CURRENT DATE
+------------
+Today is ${todayFormatted()} (${todayISO()}).
+Use this as the authoritative current date for all time references and calculations.
 
 RELATIONAL CONTEXT
 ------------------

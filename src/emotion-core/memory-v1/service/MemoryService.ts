@@ -155,7 +155,8 @@ export class MemoryService {
     let relevantAnchors: AnchorRecord[] = [];
     if (!falkorDown && rawCandidates.length > 0) {
       const scored: AnchorScore[] = scoreAnchors(rawCandidates, emotionVec, nowMs, band);
-      const byPriority = [...scored].sort((a, b) => {
+      const deduped = deduplicateBySlot(scored);
+      const byPriority = [...deduped].sort((a, b) => {
         const pa = ANCHOR_PRIORITY[a.anchor.type] ?? 10;
         const pb = ANCHOR_PRIORITY[b.anchor.type] ?? 10;
         if (pa !== pb) return pb - pa;
@@ -163,6 +164,12 @@ export class MemoryService {
       });
       const selectedAnchors = byPriority.slice(0, 3);
       relevantAnchors = selectedAnchors.map((s) => factAnchorToRecord(s.anchor, band));
+      console.log('[LoRa::AnchorPoolSize]', {
+        totalAnchorsFromFalkor: rawCandidates.length,
+        scoredCount: scored.length,
+        dedupedCount: deduped.length,
+        returnedAfterRanking: selectedAnchors.length,
+      });
       console.log(
         '[LoRa::AnchorRanking]',
         selectedAnchors.map((s) => ({ type: s.anchor.type, slot: s.anchor.summary.slot, value: s.anchor.value })),
@@ -277,6 +284,23 @@ function deterministicVector(seed: number, dim: number): number[] {
   }
   const norm = Math.sqrt(out.reduce((sum, x) => sum + x * x, 0)) || 1;
   return out.map((x) => x / norm);
+}
+
+/**
+ * For single-valued slots (same type + slot), keep only the anchor with
+ * the latest createdAt. Ensures "latest user assertion wins" for facts
+ * like deployment_plan.launch_date when multiple values exist.
+ */
+function deduplicateBySlot(scored: AnchorScore[]): AnchorScore[] {
+  const seen = new Map<string, AnchorScore>();
+  for (const s of scored) {
+    const key = `${s.anchor.type}|${s.anchor.summary.slot}`;
+    const existing = seen.get(key);
+    if (!existing || s.anchor.createdAt > existing.anchor.createdAt) {
+      seen.set(key, s);
+    }
+  }
+  return [...seen.values()];
 }
 
 /**

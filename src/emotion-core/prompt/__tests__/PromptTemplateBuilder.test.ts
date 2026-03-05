@@ -3,6 +3,7 @@
 import { PromptTemplateBuilder } from '../PromptTemplateBuilder';
 import { EmotionalState } from '../../types/analysis.types';
 import { ETVState } from '../../types/etv.types';
+import { setNowProvider, resetNowProvider } from '../../../config/nowProvider';
 
 describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
   /**
@@ -143,5 +144,32 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
     expect(prompt).toMatch(/do not/i); // must include constraints
 
     expectNoNumericLeak(prompt);
+  });
+
+  it('injects current date from nowProvider into system prompt', () => {
+    const fixedMs = new Date('2026-03-05T12:00:00Z').getTime();
+    setNowProvider(() => fixedMs);
+
+    const emotionalState = makeEmotionalState('LOW', 'NEUTRAL');
+    const etvState = makeETVState(0.3);
+    const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
+
+    expect(prompt).toContain('Today is');
+    expect(prompt).toContain('2026-03-05');
+    expect(prompt).toContain('March');
+
+    resetNowProvider();
+  });
+
+  it('date changes when nowProvider is updated', () => {
+    setNowProvider(() => new Date('2025-12-25T00:00:00Z').getTime());
+    const emotionalState = makeEmotionalState('LOW', 'NEUTRAL');
+    const etvState = makeETVState(0.3);
+    const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
+
+    expect(prompt).toContain('2025-12-25');
+    expect(prompt).toContain('December');
+
+    resetNowProvider();
   });
 });
