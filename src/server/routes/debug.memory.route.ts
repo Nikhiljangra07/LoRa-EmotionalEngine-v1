@@ -6,14 +6,17 @@ import * as path from 'path';
 import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { featureFlags } from '../../emotion-core/config/featureFlags';
+import { computeMemorySummary } from '../debug/memorySummary';
 
 const BOOTSTRAP_DIR = '.lora/bootstrap';
+
+const ANCHOR_COUNT_QUERY = 'MATCH (n:Anchor) RETURN count(n)';
 
 export function registerDebugMemoryRoute(app: Express) {
   app.get('/debug/memory', async (req: Request, res: Response) => {
     let anchorCount = 0;
     let schemaCount = 0;
-    let bootstrapThemeCount = 0;
+    const bootstrapEntries: Array<{ themes?: string[] }> = [];
 
     const debugData: any = {
       timestamp: new Date().toISOString(),
@@ -29,14 +32,12 @@ export function registerDebugMemoryRoute(app: Express) {
       const falkor = getFalkorClient();
       await falkor.ping();
       debugData.falkor.status = 'OK';
-      
-      // Get all graphs
+
       const graphsRaw: any = await falkor.call('GRAPH.LIST');
       debugData.falkor.graphs = graphsRaw;
 
       if (graphsRaw.includes('lora_anchors')) {
-        // Count nodes in lora_anchors
-        const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (n) RETURN count(n)');
+        const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', ANCHOR_COUNT_QUERY);
         anchorCount = Number(countRaw[1]?.[0]?.[0] ?? 0);
         debugData.falkor.nodeCount = anchorCount;
 
@@ -100,24 +101,22 @@ export function registerDebugMemoryRoute(app: Express) {
       if (fs.existsSync(BOOTSTRAP_DIR)) {
         debugData.bootstrap.status = 'OK';
         const files = fs.readdirSync(BOOTSTRAP_DIR).filter(f => f.endsWith('.json'));
-        
+
         debugData.bootstrap.users = files.map(file => {
           const userId = file.replace('.json', '');
           const filePath = path.join(BOOTSTRAP_DIR, file);
           const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           const entries = content.entries ?? [];
-          const themeCount = entries.reduce((sum: number, e: any) => sum + (e.themes?.length ?? 0), 0);
-          bootstrapThemeCount += themeCount;
+          for (const e of entries) bootstrapEntries.push({ themes: e.themes });
           return {
             userId,
             entryCount: entries.length,
             sessionCount: content.sessionCount,
-            // Themes only, no raw text
             recentThemes: entries.slice(-5).map((e: any) => ({
               themes: e.themes,
               role: e.role,
-              timestamp: e.timestamp
-            })) ?? []
+              timestamp: e.timestamp,
+            })) ?? [],
           };
         });
       } else {
@@ -129,11 +128,11 @@ export function registerDebugMemoryRoute(app: Express) {
       debugData.bootstrap.error = err.message;
     }
 
-    debugData.memorySummary = {
+    debugData.memorySummary = computeMemorySummary({
       anchorCount,
       schemaCount,
-      bootstrapThemeCount,
-    };
+      bootstrapEntries,
+    });
 
     res.json(debugData);
   });

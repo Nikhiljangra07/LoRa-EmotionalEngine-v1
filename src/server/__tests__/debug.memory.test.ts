@@ -22,13 +22,15 @@ function hasForbiddenKey(obj: any, seen = new Set<object>()): boolean {
   return false;
 }
 
-// Mock the DB clients to avoid actual connections during tests
+// Mock: only MATCH (n:Anchor) returns anchor count (3); other nodes would be 5+ so total would be 8
+const ANCHOR_COUNT_QUERY = 'MATCH (n:Anchor) RETURN count(n)';
 jest.mock('../../emotion-core/memory-v1/db/falkorClient', () => ({
   getFalkorClient: () => ({
     ping: jest.fn().mockResolvedValue('PONG'),
     call: jest.fn().mockImplementation((cmd: string, ...args: unknown[]) => {
       if (cmd === 'GRAPH.LIST') return ['lora_anchors'];
-      if (cmd === 'GRAPH.QUERY' && args[1] === 'MATCH (n) RETURN count(n)') return [[], [[3]]];
+      if (cmd === 'GRAPH.QUERY' && args[1] === ANCHOR_COUNT_QUERY) return [[], [[3]]];
+      if (cmd === 'GRAPH.QUERY' && typeof args[1] === 'string' && args[1].includes('MATCH (n) RETURN count(n)')) return [[], [[8]]];
       if (cmd === 'GRAPH.QUERY' && typeof args[1] === 'string' && args[1].includes('LIMIT 10')) {
         return [[], [['a-1', JSON.stringify({
           type: 'goal',
@@ -98,15 +100,15 @@ describe('GET /debug/memory', () => {
     if (!fs.existsSync('.lora/bootstrap')) {
       fs.mkdirSync('.lora/bootstrap', { recursive: true });
     }
-    // One user, two entries: 2 themes + 1 theme = 3 theme tokens total
+    // Unique themes: discipline, focus (discipline repeated) -> bootstrapThemeCount = 2
     fs.writeFileSync(
       '.lora/bootstrap/test-user.json',
       JSON.stringify({
         userId: 'test-user',
         sessionCount: 1,
         entries: [
-          { themes: ['discipline', 'fitness'], role: 'user', timestamp: Date.now() },
-          { themes: ['productivity'], role: 'assistant', timestamp: Date.now() },
+          { themes: ['discipline', 'focus'], role: 'user', timestamp: Date.now() },
+          { themes: ['discipline'], role: 'assistant', timestamp: Date.now() },
         ],
       })
     );
@@ -133,8 +135,20 @@ describe('GET /debug/memory', () => {
     expect(res.body.memorySummary).toMatchObject({
       anchorCount: 3,
       schemaCount: 8,
-      bootstrapThemeCount: 3,
+      bootstrapThemeCount: 2,
     });
+  });
+
+  it('anchor count uses label filtering (Anchor nodes only)', async () => {
+    const res = await getDebugMemory(port);
+    expect(res.status).toBe(200);
+    expect(res.body.memorySummary.anchorCount).toBe(3);
+  });
+
+  it('bootstrap theme count is unique themes only', async () => {
+    const res = await getDebugMemory(port);
+    expect(res.status).toBe(200);
+    expect(res.body.memorySummary.bootstrapThemeCount).toBe(2);
   });
 
   it('returns memory debug data with sanitized fields', async () => {

@@ -5,21 +5,23 @@ import * as path from 'path';
 import { getFalkorClient } from '../src/emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../src/emotion-core/memory-v1/db/chromaClient';
 import { featureFlags } from '../src/emotion-core/config/featureFlags';
+import { computeMemorySummary } from '../src/server/debug/memorySummary';
 
 const BOOTSTRAP_DIR = '.lora/bootstrap';
+const ANCHOR_COUNT_QUERY = 'MATCH (n:Anchor) RETURN count(n)';
 
 async function dumpMemory() {
   let anchorCount = 0;
   let schemaCount = 0;
-  let bootstrapThemeCount = 0;
+  const bootstrapEntries: Array<{ themes?: string[] }> = [];
 
-  // --- Falkor
+  // --- Falkor (anchor nodes only)
   try {
     const falkor = getFalkorClient();
     await falkor.ping();
     const graphsRaw: any = await falkor.call('GRAPH.LIST');
     if (graphsRaw.includes('lora_anchors')) {
-      const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (n) RETURN count(n)');
+      const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', ANCHOR_COUNT_QUERY);
       anchorCount = Number(countRaw[1]?.[0]?.[0] ?? 0);
     }
   } catch {
@@ -39,7 +41,7 @@ async function dumpMemory() {
     // leave schemaCount 0
   }
 
-  // --- Bootstrap
+  // --- Bootstrap (collect entries for unique theme count)
   try {
     if (fs.existsSync(BOOTSTRAP_DIR)) {
       const files = fs.readdirSync(BOOTSTRAP_DIR).filter(f => f.endsWith('.json'));
@@ -47,21 +49,23 @@ async function dumpMemory() {
         const filePath = path.join(BOOTSTRAP_DIR, file);
         const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         const entries = content.entries ?? [];
-        bootstrapThemeCount += entries.reduce((sum: number, e: any) => sum + (e.themes?.length ?? 0), 0);
+        for (const e of entries) bootstrapEntries.push({ themes: e.themes });
       }
     }
   } catch {
-    // leave bootstrapThemeCount 0
+    // leave bootstrapEntries empty
   }
+
+  const summary = computeMemorySummary({ anchorCount, schemaCount, bootstrapEntries });
 
   // Print summary at top
   console.log('=== LoRa Memory Dump ===');
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log('');
   console.log('Summary');
-  console.log(`anchors: ${anchorCount}`);
-  console.log(`schemas: ${schemaCount}`);
-  console.log(`themes: ${bootstrapThemeCount}`);
+  console.log(`anchors: ${summary.anchorCount}`);
+  console.log(`schemas: ${summary.schemaCount}`);
+  console.log(`themes: ${summary.bootstrapThemeCount}`);
   console.log('');
 
   // Feature Flags
@@ -80,8 +84,8 @@ async function dumpMemory() {
     const graphsRaw: any = await falkor.call('GRAPH.LIST');
     console.log(`Graphs: ${graphsRaw.join(', ')}`);
     if (graphsRaw.includes('lora_anchors')) {
-      const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (n) RETURN count(n)');
-      console.log(`Node count: ${countRaw[1]?.[0]?.[0] ?? 0}`);
+      const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', ANCHOR_COUNT_QUERY);
+      console.log(`Anchor count: ${countRaw[1]?.[0]?.[0] ?? 0}`);
       const sampleRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (a:Anchor) RETURN a.anchorId, a.payloadJson LIMIT 10');
       const data = sampleRaw[1] ?? [];
       console.log('Samples (sanitized):');
