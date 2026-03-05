@@ -9,34 +9,81 @@ import { featureFlags } from '../src/emotion-core/config/featureFlags';
 const BOOTSTRAP_DIR = '.lora/bootstrap';
 
 async function dumpMemory() {
+  let anchorCount = 0;
+  let schemaCount = 0;
+  let bootstrapThemeCount = 0;
+
+  // --- Falkor
+  try {
+    const falkor = getFalkorClient();
+    await falkor.ping();
+    const graphsRaw: any = await falkor.call('GRAPH.LIST');
+    if (graphsRaw.includes('lora_anchors')) {
+      const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (n) RETURN count(n)');
+      anchorCount = Number(countRaw[1]?.[0]?.[0] ?? 0);
+    }
+  } catch {
+    // leave anchorCount 0
+  }
+
+  // --- Chroma
+  try {
+    const chroma = getChromaClient();
+    await chroma.heartbeat();
+    const collections = await chroma.listCollections();
+    if (collections.some((c: { name: string }) => c.name === 'lora_schemas')) {
+      const collection = await chroma.getCollection({ name: 'lora_schemas' });
+      schemaCount = await collection.count();
+    }
+  } catch {
+    // leave schemaCount 0
+  }
+
+  // --- Bootstrap
+  try {
+    if (fs.existsSync(BOOTSTRAP_DIR)) {
+      const files = fs.readdirSync(BOOTSTRAP_DIR).filter(f => f.endsWith('.json'));
+      for (const file of files) {
+        const filePath = path.join(BOOTSTRAP_DIR, file);
+        const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        const entries = content.entries ?? [];
+        bootstrapThemeCount += entries.reduce((sum: number, e: any) => sum + (e.themes?.length ?? 0), 0);
+      }
+    }
+  } catch {
+    // leave bootstrapThemeCount 0
+  }
+
+  // Print summary at top
   console.log('=== LoRa Memory Dump ===');
   console.log(`Timestamp: ${new Date().toISOString()}`);
   console.log('');
+  console.log('Summary');
+  console.log(`anchors: ${anchorCount}`);
+  console.log(`schemas: ${schemaCount}`);
+  console.log(`themes: ${bootstrapThemeCount}`);
+  console.log('');
 
-  // 1. Feature Flags
+  // Feature Flags
   console.log('--- Feature Flags ---');
   Object.entries(featureFlags).forEach(([key, value]) => {
     console.log(`${key}: ${value}`);
   });
   console.log('');
 
-  // 2. Falkor
+  // Falkor details
   console.log('--- FalkorDB (lora_anchors) ---');
   try {
     const falkor = getFalkorClient();
     await falkor.ping();
     console.log('Status: OK');
-    
     const graphsRaw: any = await falkor.call('GRAPH.LIST');
     console.log(`Graphs: ${graphsRaw.join(', ')}`);
-
     if (graphsRaw.includes('lora_anchors')) {
       const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (n) RETURN count(n)');
-      console.log(`Node count: ${countRaw[1][0][0]}`);
-
+      console.log(`Node count: ${countRaw[1]?.[0]?.[0] ?? 0}`);
       const sampleRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (a:Anchor) RETURN a.anchorId, a.payloadJson LIMIT 10');
-      const data = sampleRaw[1];
-      
+      const data = sampleRaw[1] ?? [];
       console.log('Samples (sanitized):');
       data.forEach((row: any) => {
         const anchorId = row[0];
@@ -46,7 +93,7 @@ async function dumpMemory() {
           console.log(`  - ID: ${anchorId}`);
           console.log(`    Type: ${payload.type}, Status: ${payload.status}`);
           console.log(`    Summary: ${JSON.stringify(payload.summary)}`);
-        } catch (e) {
+        } catch {
           console.log(`  - ID: ${anchorId} (Parse Error)`);
         }
       });
@@ -56,24 +103,21 @@ async function dumpMemory() {
   }
   console.log('');
 
-  // 3. Chroma
+  // Chroma details
   console.log('--- ChromaDB (lora_schemas) ---');
   try {
     const chroma = getChromaClient();
     await chroma.heartbeat();
     console.log('Status: OK');
-
     const collections = await chroma.listCollections();
-    console.log(`Collections: ${collections.map(c => c.name).join(', ')}`);
-
-    if (collections.some(c => c.name === 'lora_schemas')) {
+    console.log(`Collections: ${collections.map((c: { name: string }) => c.name).join(', ')}`);
+    if (collections.some((c: { name: string }) => c.name === 'lora_schemas')) {
       const collection = await chroma.getCollection({ name: 'lora_schemas' });
       const count = await collection.count();
       console.log(`Schema count: ${count}`);
-
       const samples = await collection.get({ limit: 10 });
       console.log('Samples:');
-      samples.ids.forEach((id, i) => {
+      samples.ids.forEach((id: string, i: number) => {
         console.log(`  - ID: ${id}`);
         console.log(`    Metadata: ${JSON.stringify(samples.metadatas?.[i])}`);
       });
@@ -83,25 +127,23 @@ async function dumpMemory() {
   }
   console.log('');
 
-  // 4. Bootstrap
+  // Bootstrap details
   console.log('--- Bootstrap Memory (.lora/bootstrap) ---');
   try {
     if (fs.existsSync(BOOTSTRAP_DIR)) {
       const files = fs.readdirSync(BOOTSTRAP_DIR).filter(f => f.endsWith('.json'));
       console.log(`User files: ${files.length}`);
-      
       files.forEach(file => {
         const userId = file.replace('.json', '');
         const filePath = path.join(BOOTSTRAP_DIR, file);
         const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-        
         console.log(`  - User: ${userId}`);
         console.log(`    Entries: ${content.entries?.length ?? 0}, Sessions: ${content.sessionCount}`);
         const recent = content.entries?.slice(-3) ?? [];
         if (recent.length > 0) {
           console.log('    Recent Themes:');
           recent.forEach((e: any) => {
-            console.log(`      [${e.role}] ${e.themes.join(', ')}`);
+            console.log(`      [${e.role}] ${(e.themes ?? []).join(', ')}`);
           });
         }
       });

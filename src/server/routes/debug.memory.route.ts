@@ -11,8 +11,13 @@ const BOOTSTRAP_DIR = '.lora/bootstrap';
 
 export function registerDebugMemoryRoute(app: Express) {
   app.get('/debug/memory', async (req: Request, res: Response) => {
+    let anchorCount = 0;
+    let schemaCount = 0;
+    let bootstrapThemeCount = 0;
+
     const debugData: any = {
       timestamp: new Date().toISOString(),
+      memorySummary: { anchorCount: 0, schemaCount: 0, bootstrapThemeCount: 0 },
       featureFlags,
       falkor: { status: 'unknown' },
       chroma: { status: 'unknown' },
@@ -32,12 +37,12 @@ export function registerDebugMemoryRoute(app: Express) {
       if (graphsRaw.includes('lora_anchors')) {
         // Count nodes in lora_anchors
         const countRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (n) RETURN count(n)');
-        debugData.falkor.nodeCount = countRaw[1][0][0];
+        anchorCount = Number(countRaw[1]?.[0]?.[0] ?? 0);
+        debugData.falkor.nodeCount = anchorCount;
 
         // Sample 10 nodes (sanitized)
         const sampleRaw: any = await falkor.call('GRAPH.QUERY', 'lora_anchors', 'MATCH (a:Anchor) RETURN a.anchorId, a.payloadJson LIMIT 10');
-        const header = sampleRaw[0];
-        const data = sampleRaw[1];
+        const data = sampleRaw[1] ?? [];
         
         debugData.falkor.samples = data.map((row: any) => {
           const anchorId = row[0];
@@ -75,8 +80,8 @@ export function registerDebugMemoryRoute(app: Express) {
 
       if (debugData.chroma.collections.includes('lora_schemas')) {
         const collection = await chroma.getCollection({ name: 'lora_schemas' });
-        const count = await collection.count();
-        debugData.chroma.schemaCount = count;
+        schemaCount = await collection.count();
+        debugData.chroma.schemaCount = schemaCount;
 
         // Sample 10 ids + metadatas
         const samples = await collection.get({ limit: 10 });
@@ -100,13 +105,15 @@ export function registerDebugMemoryRoute(app: Express) {
           const userId = file.replace('.json', '');
           const filePath = path.join(BOOTSTRAP_DIR, file);
           const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-          
+          const entries = content.entries ?? [];
+          const themeCount = entries.reduce((sum: number, e: any) => sum + (e.themes?.length ?? 0), 0);
+          bootstrapThemeCount += themeCount;
           return {
             userId,
-            entryCount: content.entries?.length ?? 0,
+            entryCount: entries.length,
             sessionCount: content.sessionCount,
             // Themes only, no raw text
-            recentThemes: content.entries?.slice(-5).map((e: any) => ({
+            recentThemes: entries.slice(-5).map((e: any) => ({
               themes: e.themes,
               role: e.role,
               timestamp: e.timestamp
@@ -121,6 +128,12 @@ export function registerDebugMemoryRoute(app: Express) {
       debugData.bootstrap.status = 'ERROR';
       debugData.bootstrap.error = err.message;
     }
+
+    debugData.memorySummary = {
+      anchorCount,
+      schemaCount,
+      bootstrapThemeCount,
+    };
 
     res.json(debugData);
   });

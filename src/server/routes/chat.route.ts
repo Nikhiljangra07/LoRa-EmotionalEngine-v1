@@ -357,7 +357,7 @@ export async function runStartupHealthChecks(): Promise<void> {
   }
   try {
     await getChromaClient().heartbeat();
-    console.log('[LoRa] Chroma OK');
+    console.log('[LoRa] Chroma ready (manual embedding mode)');
   } catch {
     console.log('[LoRa] Chroma: unreachable');
   }
