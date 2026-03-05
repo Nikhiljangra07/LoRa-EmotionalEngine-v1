@@ -1,6 +1,7 @@
 import { DEV_FEATURE_FLAGS } from '../../config/DevConfig';
 
 const isDev = process.env.NODE_ENV === 'development';
+const isTest = process.env.NODE_ENV === 'test';
 
 /**
  * Resolve a boolean feature flag.
@@ -14,7 +15,7 @@ function flag(envValue: string | undefined, key: string): boolean {
   return envValue === '1';
 }
 
-export const featureFlags = Object.freeze({
+const rawFlags = Object.freeze({
   appraisalBridgeEnabled: flag(process.env.LORA_APPRAISAL_BRIDGE, 'appraisalBridgeEnabled'),
   appraisalBridgeModeEnabled: flag(process.env.LORA_APPRAISAL_BRIDGE_MODE, 'appraisalBridgeModeEnabled'),
   appraisalPacingHintEnabled: flag(process.env.LORA_APPRAISAL_PACING_HINT, 'appraisalPacingHintEnabled'),
@@ -50,3 +51,21 @@ export const featureFlags = Object.freeze({
   bootstrapMemoryEnabled: flag(process.env.LORA_BOOTSTRAP_MEMORY, 'bootstrapMemoryEnabled'),
   bootstrapMemorySessionThreshold: parseInt(process.env.LORA_BOOTSTRAP_SESSIONS ?? '5', 10),
 });
+
+/**
+ * Export the final feature flags.
+ * In development, we apply the MVP runtime profile.
+ * In tests and production, we use the raw flags (env-driven).
+ */
+export const featureFlags = (() => {
+  if (isTest) {
+    return rawFlags;
+  }
+  if (isDev) {
+    // We import this dynamically to avoid circular dependencies if any
+    const { applyDevRuntimeProfile } = require('../../config/DevRuntimeProfile');
+    return Object.freeze(applyDevRuntimeProfile(rawFlags));
+  }
+  return rawFlags;
+})();
+

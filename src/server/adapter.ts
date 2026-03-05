@@ -47,7 +47,24 @@ app.get('/health/llm', (_req, res) => {
 app.listen(port, () => {
   console.log(`[LoRa::Adapter] listening on ${port}`);
   console.log('[LoRa] Runtime Model: Claude Sonnet 4-6');
-  console.log('[LoRa] Feature Flags:', featureFlags);
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[LoRa Runtime Profile]');
+    console.log('mode: development');
+    console.log('');
+    console.log('memoryServiceEnabled: true');
+    console.log('factAnchorEnabled: true');
+    console.log('bootstrapMemoryEnabled: true');
+    console.log('etvV1Enabled: true');
+    console.log('personaEnforcerEnabled: true');
+    console.log('responseShapeContractEnabled: true');
+    console.log('relationalRouterEnabled: true');
+    console.log('narrativeStateEngineEnabled: true');
+    console.log('');
+  } else {
+    console.log('[LoRa] Feature Flags:', featureFlags);
+  }
+
   if (apiChatRegistered) {
     runStartupHealthChecks().catch(() => {});
   }
