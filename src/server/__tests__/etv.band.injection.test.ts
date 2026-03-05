@@ -2,7 +2,8 @@ import http from 'http';
 import express from 'express';
 import { registerChatRoute } from '../routes/chat.route';
 import type { MemoryService } from '../../emotion-core/memory-v1/service/MemoryService';
-import { EtvBandBehaviorProfiles, coarsenBand } from '../behavior/EtvBandBehaviorProfile';
+import { coarsenBand } from '../behavior/EtvBandBehaviorProfile';
+import { getResponsePolicy, formatPolicyBlock } from '../../emotion-core/policy/ResponsePolicy';
 
 const MOCK_REPLY = 'band-test-reply';
 
@@ -63,7 +64,7 @@ function postApiChat(
   });
 }
 
-describe('ETV Band instruction injection', () => {
+describe('ResponsePolicy injection via responder wrapper', () => {
   let server: http.Server | null = null;
   let port = 0;
   let capturedPrompts: string[] = [];
@@ -115,70 +116,77 @@ describe('ETV Band instruction injection', () => {
     expect(coarsenBand('garbage')).toBe('B0');
   });
 
-  test('B0: prompt starts with B0 instruction, then tier, then base', async () => {
+  test('B0: prompt starts with [SYSTEM POLICY] block containing guarded tone', async () => {
     mockBandValue = 'BAND_0';
-    const res = await postApiChat(port, {
-      userId: 'band-b0',
-      sessionId: 'sess-b0',
-      text: 'hello',
-    });
+    const res = await postApiChat(port, { userId: 'pol-b0', sessionId: 'sess-b0', text: 'hello' });
     expect(res.status).toBe(200);
     expect(capturedPrompts.length).toBe(1);
     const prompt = capturedPrompts[0];
-    expect(prompt.startsWith(EtvBandBehaviorProfiles.B0.instruction)).toBe(true);
+    expect(prompt.startsWith('[SYSTEM POLICY]')).toBe(true);
+    expect(prompt).toContain('Tone: guarded');
+    expect(prompt).toContain('Maximum words: 60');
+    expect(prompt).toContain('Maximum questions: 1');
   });
 
-  test('B2: prompt starts with B2 instruction header', async () => {
+  test('B2: prompt contains neutral tone and 110 word limit', async () => {
     mockBandValue = 'BAND_2';
-    const res = await postApiChat(port, {
-      userId: 'band-b2',
-      sessionId: 'sess-b2',
-      text: 'hello',
-    });
+    const res = await postApiChat(port, { userId: 'pol-b2', sessionId: 'sess-b2', text: 'hello' });
     expect(res.status).toBe(200);
-    expect(capturedPrompts.length).toBe(1);
     const prompt = capturedPrompts[0];
-    expect(prompt.startsWith(EtvBandBehaviorProfiles.B2.instruction)).toBe(true);
+    expect(prompt).toContain('Tone: neutral');
+    expect(prompt).toContain('Maximum words: 110');
+    expect(prompt).toContain('Maximum questions: 2');
   });
 
-  test('B4: prompt starts with B4 instruction header', async () => {
+  test('B4: prompt contains collaborative tone and 170 word limit', async () => {
     mockBandValue = 'BAND_4';
-    const res = await postApiChat(port, {
-      userId: 'band-b4',
-      sessionId: 'sess-b4',
-      text: 'hello',
-    });
-    expect(res.status).toBe(200);
-    expect(capturedPrompts.length).toBe(1);
-    const prompt = capturedPrompts[0];
-    expect(prompt.startsWith(EtvBandBehaviorProfiles.B4.instruction)).toBe(true);
-  });
-
-  test('ordering: band instruction → tier instruction → base prompt', async () => {
-    mockBandValue = 'BAND_2';
-    const res = await postApiChat(port, {
-      userId: 'band-order',
-      sessionId: 'sess-order',
-      text: 'hello',
-    });
+    const res = await postApiChat(port, { userId: 'pol-b4', sessionId: 'sess-b4', text: 'hello' });
     expect(res.status).toBe(200);
     const prompt = capturedPrompts[0];
-    const bandIdx = prompt.indexOf('[ETV BAND:');
-    const tierIdx = prompt.indexOf('[BEHAVIORAL MODE');
-    expect(bandIdx).toBeGreaterThanOrEqual(0);
-    expect(tierIdx).toBeGreaterThan(bandIdx);
+    expect(prompt).toContain('Tone: collaborative');
+    expect(prompt).toContain('Maximum words: 170');
+    expect(prompt).toContain('Maximum questions: 3');
   });
 
-  test('debug.etvBand is present in response', async () => {
+  test('prompt contains assistant principles block', async () => {
+    mockBandValue = 'BAND_0';
+    const res = await postApiChat(port, { userId: 'pol-princ', sessionId: 'sess-princ', text: 'hello' });
+    expect(res.status).toBe(200);
+    const prompt = capturedPrompts[0];
+    expect(prompt).toContain('Prioritize clarity over validation');
+    expect(prompt).toContain('Do not endorse harmful intent');
+  });
+
+  test('debug contains etvBand and policy', async () => {
     mockBandValue = 'BAND_3';
-    const res = await postApiChat(port, {
-      userId: 'band-debug',
-      sessionId: 'sess-debug',
-      text: 'hello',
-    });
+    const res = await postApiChat(port, { userId: 'pol-dbg', sessionId: 'sess-dbg', text: 'hello' });
     expect(res.status).toBe(200);
     const debug = res.body.debug as Record<string, unknown>;
-    expect(debug).toHaveProperty('etvBand');
     expect(debug.etvBand).toBe('B4');
+    expect(debug).toHaveProperty('policy');
+    const pol = debug.policy as Record<string, unknown>;
+    expect(pol.maxWords).toBe(170);
+    expect(pol.maxQuestions).toBe(3);
+    expect(pol.tone).toBe('collaborative');
+    expect(pol.reasoningDepth).toBe('clarify');
+  });
+
+  test('getResponsePolicy merges tier depth with band constraints', () => {
+    const p1 = getResponsePolicy('TIER_1', 'B0');
+    expect(p1).toEqual({ maxWords: 60, maxQuestions: 1, reasoningDepth: 'clarify', tone: 'guarded' });
+
+    const p2 = getResponsePolicy('TIER_2', 'B2');
+    expect(p2).toEqual({ maxWords: 110, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'neutral' });
+
+    const p3 = getResponsePolicy('TIER_3', 'B4');
+    expect(p3).toEqual({ maxWords: 170, maxQuestions: 3, reasoningDepth: 'interpretive', tone: 'collaborative' });
+  });
+
+  test('formatPolicyBlock produces deterministic output', () => {
+    const block = formatPolicyBlock(getResponsePolicy('TIER_2', 'B2'));
+    expect(block).toContain('[SYSTEM POLICY]');
+    expect(block).toContain('Tone: neutral');
+    expect(block).toContain('Reasoning mode: contextual');
+    expect(block).toContain('Maximum words: 110');
   });
 });

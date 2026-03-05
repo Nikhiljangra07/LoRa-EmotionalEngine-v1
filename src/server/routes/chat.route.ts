@@ -12,10 +12,16 @@ import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { classifyRelationalIntent, RELATIONAL_CONFIDENCE_THRESHOLD } from '../../emotion-core/intent/relationalIntent';
 import { sharedTierService } from '../tier/TierService';
-import { TierBehaviorProfiles } from '../behavior/TierBehaviorProfile';
-import { coarsenBand, EtvBandBehaviorProfiles } from '../behavior/EtvBandBehaviorProfile';
+import { coarsenBand } from '../behavior/EtvBandBehaviorProfile';
 import type { EtvBand } from '../behavior/EtvBandBehaviorProfile';
 import { ETVEngineV1 } from '../../emotion-core/etv';
+import {
+  getResponsePolicy,
+  formatPolicyBlock,
+  enforceWordLimit,
+  enforceQuestionLimit,
+} from '../../emotion-core/policy/ResponsePolicy';
+import type { ResponsePolicy } from '../../emotion-core/policy/ResponsePolicy';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -78,6 +84,12 @@ export interface ApiChatResponse {
       intent?: string;
       confidence?: number;
       templateId?: string;
+    };
+    policy?: {
+      maxWords: number;
+      maxQuestions: number;
+      reasoningDepth: ResponsePolicy['reasoningDepth'];
+      tone: ResponsePolicy['tone'];
     };
   };
 }
@@ -176,7 +188,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
   }
 
-  function makeBehaviorAwareFactory(userId: string) {
+  function makePolicyAwareFactory(userId: string) {
     return () => {
       const base = baseResponderFactory();
       return {
@@ -186,17 +198,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           opts?: { signal?: AbortSignal; requestId?: string; sessionHistory?: Array<{ role: string; text: string; ts?: number }> },
         ) {
           const coarseBand = resolveBand(userId);
-          const bandProfile = EtvBandBehaviorProfiles[coarseBand];
-          if (isDev) console.log('[LoRa::ETVBand]', { userId, band: coarseBand });
-
           const currentTier = tierService.getTier(userId).tier;
-          const tierProfile = TierBehaviorProfiles[currentTier];
-          if (isDev) console.log('[LoRa::TierBehavior]', { tier: currentTier });
+          const policy = getResponsePolicy(currentTier, coarseBand);
+          if (isDev) console.log('[LoRa::ResponsePolicy]', { tier: currentTier, band: coarseBand, ...policy });
 
-          const augmentedPrompt =
-            bandProfile.instruction + '\n\n' +
-            tierProfile.instruction + '\n\n' +
-            systemPrompt;
+          const augmentedPrompt = formatPolicyBlock(policy) + '\n\n' + systemPrompt;
           return base.generateResponse(augmentedPrompt, userMessage, opts);
         },
       };
@@ -207,7 +213,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     let entry = sessions.get(key);
     if (!entry) {
       entry = {
-        engine: new EngineOrchestrator(DEFAULT_ETV, {}, makeBehaviorAwareFactory(userId), {
+        engine: new EngineOrchestrator(DEFAULT_ETV, {}, makePolicyAwareFactory(userId), {
           userId,
           memoryService,
         }),
@@ -237,6 +243,9 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
     const session = getSession(userId, sessionId, engineKey);
     const tierRecord = tierService.getTier(userId);
+    const etvBand = resolveBand(userId);
+    const policy = getResponsePolicy(tierRecord.tier, etvBand);
+    const policyDebug = { maxWords: policy.maxWords, maxQuestions: policy.maxQuestions, reasoningDepth: policy.reasoningDepth, tone: policy.tone };
 
     try {
       const userTurn: ChatTurn = {
@@ -263,7 +272,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             sessionCount: tierRecord.sessionCount,
             debug: {
               ...debug,
-              etvBand: resolveBand(userId),
+              etvBand,
+              policy: policyDebug,
               relational: { intent: classification.intent, confidence: classification.confidence },
             },
           });
@@ -284,11 +294,16 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         historyForPrompt,
       );
 
-      const assistantText = result.llmOutput ?? '';
-      if (assistantText) {
+      const debug = result.debug ?? emptyDebug();
+
+      let reply = result.llmOutput ?? '';
+      reply = enforceWordLimit(reply, policy.maxWords);
+      reply = enforceQuestionLimit(reply, policy.maxQuestions);
+
+      if (reply) {
         session.history.push({
           role: 'assistant',
-          text: truncateTurnText(assistantText),
+          text: truncateTurnText(reply),
           ts: Date.now(),
         });
       }
@@ -297,10 +312,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         session.history = session.history.slice(-STM_MAX_TURNS);
       }
 
-      const debug = result.debug ?? emptyDebug();
-      const etvBand = resolveBand(userId);
       res.status(200).json({
-        reply: result.llmOutput,
+        reply,
         tier: tierRecord.tier,
         sessionCount: tierRecord.sessionCount,
         debug: {
@@ -308,6 +321,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           etv: debug.etv ?? 0,
           band: debug.band ?? 'B0',
           etvBand,
+          policy: policyDebug,
           anchorsUsed: debug.anchorsUsed ?? 0,
           schemasUsed: debug.schemasUsed ?? 0,
           degraded: debug.degraded ?? { falkor: false, chroma: false },
@@ -319,7 +333,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[LoRa::Chat] engine error:', message);
-      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand: resolveBand(userId) }, error: 'engine_error', details: message });
+      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand, policy: policyDebug }, error: 'engine_error', details: message });
     }
   });
 
