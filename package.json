@@ -57,7 +57,8 @@
     "ab:appraisal": "ts-node src/tools/ab/ab-appraisal-harness.ts",
     "ab:wave": "ts-node src/tools/ab/ab-wave-harness.ts",
     "ab:wave:v2": "LORA_WAVE_SCRIPT=v2 ts-node src/tools/ab/ab-wave-harness.ts",
-    "ab:wave:v3": "LORA_WAVE_SCRIPT=v3 ts-node src/tools/ab/ab-wave-harness.ts"
+    "ab:wave:v3": "LORA_WAVE_SCRIPT=v3 ts-node src/tools/ab/ab-wave-harness.ts",
+    "memory:dump": "ts-node scripts/memory-dump.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

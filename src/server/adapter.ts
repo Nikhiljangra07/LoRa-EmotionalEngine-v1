@@ -7,9 +7,17 @@ import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 import { registerSessionLifecycleRoute } from './routes/session.lifecycle.route';
 import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
+import { registerDebugMemoryRoute } from './routes/debug.memory.route';
 
 const app = express();
 const port = 3000;
+
+const isDev = process.env.NODE_ENV === 'development';
+const isDebugMode = process.env.LORA_DEBUG_MODE === '1';
+
+if (isDev || isDebugMode) {
+  registerDebugMemoryRoute(app);
+}
 
 app.use(
   cors({
