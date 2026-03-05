@@ -1,49 +1,30 @@
 /**
  * Builds the BOOTSTRAP CONTEXT string from bootstrap entries.
  * Output is deterministic and bounded: max ~200 tokens (~800 chars).
+ * Uses only pre-extracted themes — no raw user text is accessed.
  */
 
 import type { BootstrapMemoryState, BootstrapMemoryEntry } from './bootstrapMemory';
 
 export const BOOTSTRAP_CONTEXT_MAX_CHARS = 800;
 
-const STOP_WORDS = new Set([
-  'i', 'me', 'my', 'we', 'you', 'your', 'the', 'a', 'an', 'is', 'are',
-  'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does',
-  'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall',
-  'can', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from',
-  'it', 'its', 'this', 'that', 'and', 'or', 'but', 'not', 'so', 'if',
-  'about', 'up', 'out', 'just', 'like', 'really', 'very', 'more', 'some',
-  'what', 'when', 'how', 'who', 'which', 'there', 'here', 'all', 'each',
-  'than', 'then', 'them', 'they', 'their', 'too', 'also', 'get',
-  'got', 'know', 'think', 'feel', 'want', 'need', 'going', 'thing',
-  'things', 'much', 'many', 'lot', 'make', 'way',
-]);
-
-function extractThemes(entries: BootstrapMemoryEntry[], topN: number): string[] {
-  const wordCounts = new Map<string, number>();
+function aggregateThemes(entries: BootstrapMemoryEntry[], topN: number): string[] {
+  const themeCounts = new Map<string, number>();
   const userEntries = entries.filter(e => e.role === 'user');
 
   for (const entry of userEntries) {
-    const words = entry.summary
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter(w => w.length > 2 && !STOP_WORDS.has(w));
-
     const seen = new Set<string>();
-    for (const word of words) {
-      if (seen.has(word)) continue;
-      seen.add(word);
-      wordCounts.set(word, (wordCounts.get(word) ?? 0) + 1);
+    for (const theme of entry.themes) {
+      if (seen.has(theme)) continue;
+      seen.add(theme);
+      themeCounts.set(theme, (themeCounts.get(theme) ?? 0) + 1);
     }
   }
 
-  return Array.from(wordCounts.entries())
-    .filter(([, count]) => count >= 2)
+  return Array.from(themeCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, topN)
-    .map(([word]) => word);
+    .map(([theme]) => theme);
 }
 
 type EmotionTrend = 'positive' | 'negative' | 'mixed' | 'neutral';
@@ -82,7 +63,7 @@ export function buildBootstrapContext(state: BootstrapMemoryState | null): strin
 
   const lines: string[] = [];
 
-  const themes = extractThemes(state.entries, 5);
+  const themes = aggregateThemes(state.entries, 5);
   if (themes.length > 0) {
     lines.push(`Themes noticed so far: ${themes.join(', ')}.`);
   }
@@ -95,9 +76,15 @@ export function buildBootstrapContext(state: BootstrapMemoryState | null): strin
     .slice(-4);
 
   if (recentUserEntries.length > 0) {
-    lines.push('Recent topics:');
+    const recentThemes = new Set<string>();
     for (const entry of recentUserEntries) {
-      lines.push(`- ${entry.summary}`);
+      for (const t of entry.themes) recentThemes.add(t);
+    }
+    if (recentThemes.size > 0) {
+      lines.push('Recent user themes:');
+      for (const t of recentThemes) {
+        lines.push(`- ${t}`);
+      }
     }
   }
 

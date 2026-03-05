@@ -1075,7 +1075,7 @@ export class EngineOrchestrator {
       ];
       this.bootstrapMemory!.addMessage(
         this.userId,
-        userMessage.slice(0, 120),
+        userMessage,
         'user',
         emotionVec,
         eivResult.value,
@@ -1114,7 +1114,7 @@ export class EngineOrchestrator {
         if (bootstrapActive && finalOverride) {
           this.bootstrapMemory!.addMessage(
             this.userId,
-            finalOverride.slice(0, 120),
+            finalOverride,
             'assistant',
             undefined,
             undefined,
@@ -1323,7 +1323,7 @@ export class EngineOrchestrator {
     if (bootstrapActive && llmOutput) {
       this.bootstrapMemory!.addMessage(
         this.userId,
-        llmOutput.slice(0, 120),
+        llmOutput,
         'assistant',
         undefined,
         undefined,

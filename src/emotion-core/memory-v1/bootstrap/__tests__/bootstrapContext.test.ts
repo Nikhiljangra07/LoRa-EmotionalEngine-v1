@@ -20,7 +20,7 @@ function makeState(entries: Partial<BootstrapMemoryEntry>[] = []): BootstrapMemo
     version: 1,
     userId: 'test-user',
     entries: entries.map((e, i) => ({
-      summary: e.summary ?? `entry ${i}`,
+      themes: e.themes ?? [`theme${i}`],
       role: e.role ?? 'user',
       emotionVec: e.emotionVec,
       eiv: e.eiv,
@@ -44,37 +44,48 @@ describe('buildBootstrapContext', () => {
 
   it('includes emotional pattern line', () => {
     const state = makeState([
-      { summary: 'feeling good today', emotionVec: [0.5, 0.4, 0.3, 0.9] },
+      { themes: ['good', 'today'], emotionVec: [0.5, 0.4, 0.3, 0.9] },
     ]);
     const result = buildBootstrapContext(state);
     expect(result).toContain('Recent emotional pattern:');
   });
 
-  it('includes themes when words repeat', () => {
+  it('includes aggregated themes from entries', () => {
     const state = makeState([
-      { summary: 'exercise is my goal this week' },
-      { summary: 'I want to exercise more often' },
-      { summary: 'running and exercise help me' },
+      { themes: ['exercise', 'goal'] },
+      { themes: ['exercise', 'fitness'] },
+      { themes: ['running', 'exercise'] },
     ]);
     const result = buildBootstrapContext(state);
     expect(result).toContain('Themes noticed so far:');
     expect(result).toMatch(/exercise/i);
   });
 
-  it('includes recent topics section', () => {
+  it('includes recent user themes section', () => {
     const state = makeState([
-      { summary: 'I had a tough day at work' },
+      { themes: ['tough', 'work'] },
     ]);
     const result = buildBootstrapContext(state);
-    expect(result).toContain('Recent topics:');
-    expect(result).toContain('tough day at work');
+    expect(result).toContain('Recent user themes:');
+    expect(result).toContain('tough');
+    expect(result).toContain('work');
+  });
+
+  it('does not contain raw user text', () => {
+    const state = makeState([
+      { themes: ['discipline', 'wake', 'earlier'] },
+      { themes: ['exercise', 'morning'] },
+    ]);
+    const result = buildBootstrapContext(state);
+    expect(result).not.toContain('I want to');
+    expect(result).not.toContain('my goal');
   });
 
   it('output is bounded by BOOTSTRAP_CONTEXT_MAX_CHARS', () => {
     const entries: Partial<BootstrapMemoryEntry>[] = [];
     for (let i = 0; i < 100; i++) {
       entries.push({
-        summary: `This is a reasonably long entry about topic number ${i} with plenty of words to fill up space and test truncation behavior`,
+        themes: [`topic${i}`, `subject${i}`, `area${i}`, `field${i}`, `domain${i}`],
       });
     }
     const result = buildBootstrapContext(makeState(entries));
@@ -83,8 +94,8 @@ describe('buildBootstrapContext', () => {
 
   it('does not contain forbidden recall phrases', () => {
     const state = makeState([
-      { summary: 'user talked about exercise goals' },
-      { summary: 'user mentioned feeling better after exercise' },
+      { themes: ['exercise', 'goals'] },
+      { themes: ['exercise', 'better'] },
     ]);
     const result = buildBootstrapContext(state);
     for (const phrase of FORBIDDEN_PHRASES) {
@@ -94,7 +105,7 @@ describe('buildBootstrapContext', () => {
 
   it('does not contain bracket markers', () => {
     const state = makeState([
-      { summary: 'testing output format' },
+      { themes: ['testing', 'output'] },
     ]);
     const result = buildBootstrapContext(state);
     expect(result).not.toMatch(MARKER_PATTERN);
@@ -102,9 +113,9 @@ describe('buildBootstrapContext', () => {
 
   it('derives positive trend from high-valence vectors', () => {
     const state = makeState([
-      { summary: 'great day', emotionVec: [0.6, 0.5, 0.3, 0.9] },
-      { summary: 'feeling happy', emotionVec: [0.7, 0.4, 0.3, 0.85] },
-      { summary: 'wonderful news', emotionVec: [0.8, 0.6, 0.4, 0.9] },
+      { themes: ['great', 'day'], emotionVec: [0.6, 0.5, 0.3, 0.9] },
+      { themes: ['happy'], emotionVec: [0.7, 0.4, 0.3, 0.85] },
+      { themes: ['wonderful', 'news'], emotionVec: [0.8, 0.6, 0.4, 0.9] },
     ]);
     const result = buildBootstrapContext(state);
     expect(result).toContain('generally upbeat');
@@ -112,9 +123,9 @@ describe('buildBootstrapContext', () => {
 
   it('derives negative trend from low-valence vectors', () => {
     const state = makeState([
-      { summary: 'bad day', emotionVec: [-0.5, 0.3, 0.3, 0.9] },
-      { summary: 'feeling down', emotionVec: [-0.6, 0.2, 0.2, 0.85] },
-      { summary: 'still sad', emotionVec: [-0.4, 0.3, 0.3, 0.8] },
+      { themes: ['bad', 'day'], emotionVec: [-0.5, 0.3, 0.3, 0.9] },
+      { themes: ['down'], emotionVec: [-0.6, 0.2, 0.2, 0.85] },
+      { themes: ['sad', 'still'], emotionVec: [-0.4, 0.3, 0.3, 0.8] },
     ]);
     const result = buildBootstrapContext(state);
     expect(result).toContain('tending toward low mood');
@@ -122,10 +133,10 @@ describe('buildBootstrapContext', () => {
 
   it('derives mixed trend from high-spread valence', () => {
     const state = makeState([
-      { summary: 'great day', emotionVec: [0.8, 0.5, 0.3, 0.9] },
-      { summary: 'terrible day', emotionVec: [-0.5, 0.5, 0.3, 0.9] },
-      { summary: 'great again', emotionVec: [0.7, 0.5, 0.3, 0.9] },
-      { summary: 'awful again', emotionVec: [-0.4, 0.3, 0.3, 0.85] },
+      { themes: ['great', 'day'], emotionVec: [0.8, 0.5, 0.3, 0.9] },
+      { themes: ['terrible', 'day'], emotionVec: [-0.5, 0.5, 0.3, 0.9] },
+      { themes: ['great', 'again'], emotionVec: [0.7, 0.5, 0.3, 0.9] },
+      { themes: ['awful', 'again'], emotionVec: [-0.4, 0.3, 0.3, 0.85] },
     ]);
     const result = buildBootstrapContext(state);
     expect(result).toContain('fluctuating');

@@ -1,7 +1,7 @@
 import {
   createBootstrapMemory,
-  truncateSummary,
-  MAX_SUMMARY_LENGTH,
+  extractMessageThemes,
+  MAX_THEMES_PER_MESSAGE,
   MAX_BOOTSTRAP_ENTRIES,
 } from '../bootstrapMemory';
 import type { BootstrapMemory, BootstrapMemoryState } from '../bootstrapMemory';
@@ -13,56 +13,77 @@ function makeMemory() {
   return { memory, storage };
 }
 
-describe('truncateSummary', () => {
-  it('returns short text unchanged', () => {
-    expect(truncateSummary('hello')).toBe('hello');
+describe('extractMessageThemes', () => {
+  it('extracts key tokens from text', () => {
+    const themes = extractMessageThemes('I want to improve my discipline and wake up earlier');
+    expect(themes).toContain('improve');
+    expect(themes).toContain('discipline');
+    expect(themes).toContain('wake');
+    expect(themes).toContain('earlier');
   });
 
-  it('truncates at MAX_SUMMARY_LENGTH', () => {
-    const long = 'a'.repeat(200);
-    const result = truncateSummary(long);
-    expect(result.length).toBe(MAX_SUMMARY_LENGTH);
-    expect(result.endsWith('\u2026')).toBe(true);
+  it('filters stopwords', () => {
+    const themes = extractMessageThemes('I want to be a better person');
+    expect(themes).not.toContain('want');
+    expect(themes).not.toContain('be');
+    expect(themes).toContain('better');
+    expect(themes).toContain('person');
   });
 
-  it('exact length passes through', () => {
-    const exact = 'x'.repeat(MAX_SUMMARY_LENGTH);
-    expect(truncateSummary(exact)).toBe(exact);
+  it('returns at most MAX_THEMES_PER_MESSAGE tokens', () => {
+    const themes = extractMessageThemes(
+      'discipline fitness productivity career education meditation strategy planning goals tracking',
+    );
+    expect(themes.length).toBeLessThanOrEqual(MAX_THEMES_PER_MESSAGE);
+  });
+
+  it('returns empty array for stopword-only input', () => {
+    const themes = extractMessageThemes('I am the way it is');
+    expect(themes).toHaveLength(0);
+  });
+
+  it('deduplicates tokens', () => {
+    const themes = extractMessageThemes('exercise exercise exercise running');
+    expect(themes.filter(t => t === 'exercise')).toHaveLength(1);
   });
 });
 
 describe('createBootstrapMemory', () => {
   describe('addMessage', () => {
-    it('stores a user message', () => {
+    it('stores extracted themes instead of raw text', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'hello world', 'user', [0.1, 0.2, 0.3, 0.9], 0.5, 0, Date.now());
+      memory.addMessage('u1', 'hello world test message', 'user', [0.1, 0.2, 0.3, 0.9], 0.5, 0, Date.now());
       const state = memory.getState('u1');
       expect(state).not.toBeNull();
       expect(state!.entries).toHaveLength(1);
       expect(state!.entries[0].role).toBe('user');
-      expect(state!.entries[0].summary).toBe('hello world');
+      expect(state!.entries[0].themes).toBeInstanceOf(Array);
+      expect(state!.entries[0]).not.toHaveProperty('summary');
     });
 
-    it('truncates summary to MAX_SUMMARY_LENGTH', () => {
+    it('does not store raw message text', () => {
       const { memory } = makeMemory();
-      const long = 'b'.repeat(200);
-      memory.addMessage('u1', long, 'user', undefined, undefined, 0, Date.now());
+      const rawMessage = 'I want to improve my discipline and wake up earlier every morning';
+      memory.addMessage('u1', rawMessage, 'user', undefined, undefined, 0, Date.now());
       const state = memory.getState('u1');
-      expect(state!.entries[0].summary.length).toBeLessThanOrEqual(MAX_SUMMARY_LENGTH);
+      const serialized = JSON.stringify(state);
+      expect(serialized).not.toContain(rawMessage);
+      expect(serialized).not.toContain('I want to improve');
     });
 
-    it('stores assistant messages', () => {
+    it('stores assistant message themes', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'reply text', 'assistant', undefined, undefined, 0, Date.now());
+      memory.addMessage('u1', 'consider your strategy carefully', 'assistant', undefined, undefined, 0, Date.now());
       const state = memory.getState('u1');
       expect(state!.entries[0].role).toBe('assistant');
+      expect(state!.entries[0].themes).toBeInstanceOf(Array);
     });
 
     it('enforces MAX_BOOTSTRAP_ENTRIES cap', () => {
       const { memory } = makeMemory();
       const now = Date.now();
       for (let i = 0; i < MAX_BOOTSTRAP_ENTRIES + 20; i++) {
-        memory.addMessage('u1', `msg ${i}`, 'user', undefined, undefined, 0, now + i);
+        memory.addMessage('u1', `topic number ${i} discussion`, 'user', undefined, undefined, 0, now + i);
       }
       const state = memory.getState('u1');
       expect(state!.entries.length).toBeLessThanOrEqual(MAX_BOOTSTRAP_ENTRIES);
@@ -72,7 +93,7 @@ describe('createBootstrapMemory', () => {
   describe('incrementSession', () => {
     it('increments session count', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'hello', 'user', undefined, undefined, 0, Date.now());
+      memory.addMessage('u1', 'hello world', 'user', undefined, undefined, 0, Date.now());
       const count = memory.incrementSession('u1', Date.now());
       expect(count).toBe(1);
       const count2 = memory.incrementSession('u1', Date.now());
@@ -89,14 +110,14 @@ describe('createBootstrapMemory', () => {
   describe('shouldGraduate', () => {
     it('returns false below threshold', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'hi', 'user', undefined, undefined, 0, Date.now());
+      memory.addMessage('u1', 'hello there', 'user', undefined, undefined, 0, Date.now());
       memory.incrementSession('u1', Date.now());
       expect(memory.shouldGraduate('u1', 5)).toBe(false);
     });
 
     it('returns true at threshold', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'hi', 'user', undefined, undefined, 0, Date.now());
+      memory.addMessage('u1', 'hello there', 'user', undefined, undefined, 0, Date.now());
       for (let i = 0; i < 5; i++) {
         memory.incrementSession('u1', Date.now());
       }
@@ -122,14 +143,14 @@ describe('createBootstrapMemory', () => {
       expect(result.anchorCandidates.length).toBeGreaterThan(0);
       expect(result.purged).toBe(true);
 
-      const hasExercise = result.anchorCandidates.some(c => c.summary.toLowerCase().includes('exercise'));
-      expect(hasExercise).toBe(true);
+      const allThemes = result.anchorCandidates.flatMap(c => c.themes);
+      expect(allThemes).toContain('exercise');
     });
 
     it('purges state after graduation', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'hello world hello', 'user', undefined, undefined, 0, Date.now());
-      memory.addMessage('u1', 'hello again', 'user', undefined, undefined, 1, Date.now());
+      memory.addMessage('u1', 'exercise running fitness', 'user', undefined, undefined, 0, Date.now());
+      memory.addMessage('u1', 'exercise running daily', 'user', undefined, undefined, 1, Date.now());
       memory.graduate('u1');
       expect(memory.getState('u1')).toBeNull();
     });
@@ -145,7 +166,7 @@ describe('createBootstrapMemory', () => {
   describe('purge', () => {
     it('removes user state', () => {
       const { memory } = makeMemory();
-      memory.addMessage('u1', 'data', 'user', undefined, undefined, 0, Date.now());
+      memory.addMessage('u1', 'some data here', 'user', undefined, undefined, 0, Date.now());
       expect(memory.getState('u1')).not.toBeNull();
       memory.purge('u1');
       expect(memory.getState('u1')).toBeNull();
@@ -185,13 +206,13 @@ describe('bootstrapStorage (in-memory)', () => {
     const state: BootstrapMemoryState = {
       version: 1,
       userId: 'u1',
-      entries: [{ summary: 'test', role: 'user', sessionIndex: 0, timestamp: Date.now() }],
+      entries: [{ themes: ['test'], role: 'user', sessionIndex: 0, timestamp: Date.now() }],
       sessionCount: 0,
       createdAt: Date.now(),
       lastUpdatedAt: Date.now(),
     };
     storage.save(state);
-    state.entries.push({ summary: 'mutated', role: 'user', sessionIndex: 1, timestamp: Date.now() });
+    state.entries.push({ themes: ['mutated'], role: 'user', sessionIndex: 1, timestamp: Date.now() });
     const loaded = storage.load('u1');
     expect(loaded!.entries).toHaveLength(1);
   });

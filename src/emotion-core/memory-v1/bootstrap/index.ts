@@ -9,7 +9,7 @@
  *   bootstrapMemory.purge(userId) to remove bootstrap state.
  */
 
-export { createBootstrapMemory, truncateSummary } from './bootstrapMemory';
+export { createBootstrapMemory, extractMessageThemes } from './bootstrapMemory';
 export type {
   BootstrapMemory,
   BootstrapMemoryEntry,
@@ -19,7 +19,7 @@ export type {
   AnchorCandidate,
 } from './bootstrapMemory';
 export {
-  MAX_SUMMARY_LENGTH,
+  MAX_THEMES_PER_MESSAGE,
   MAX_BOOTSTRAP_ENTRIES,
   BOOTSTRAP_TTL_MS,
 } from './bootstrapMemory';
