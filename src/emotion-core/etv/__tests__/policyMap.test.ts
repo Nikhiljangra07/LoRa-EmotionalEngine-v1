@@ -17,14 +17,14 @@ describe('computeBand', () => {
   test('thresholds map correctly', () => {
     expect(computeBand(-0.1)).toBe('BAND_0');
     expect(computeBand(0.0)).toBe('BAND_0');
-    expect(computeBand(0.24)).toBe('BAND_0');
-    expect(computeBand(0.25)).toBe('BAND_1');
-    expect(computeBand(0.39)).toBe('BAND_1');
-    expect(computeBand(0.40)).toBe('BAND_2');
-    expect(computeBand(0.54)).toBe('BAND_2');
-    expect(computeBand(0.55)).toBe('BAND_3');
-    expect(computeBand(0.69)).toBe('BAND_3');
-    expect(computeBand(0.70)).toBe('BAND_4');
+    expect(computeBand(0.05)).toBe('BAND_0');
+    expect(computeBand(0.06)).toBe('BAND_1');
+    expect(computeBand(0.069)).toBe('BAND_1');
+    expect(computeBand(0.07)).toBe('BAND_2');
+    expect(computeBand(0.17)).toBe('BAND_2');
+    expect(computeBand(0.18)).toBe('BAND_3');
+    expect(computeBand(0.34)).toBe('BAND_3');
+    expect(computeBand(0.35)).toBe('BAND_4');
     expect(computeBand(1.0)).toBe('BAND_4');
   });
 });

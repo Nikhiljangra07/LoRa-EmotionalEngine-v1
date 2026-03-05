@@ -36,9 +36,9 @@ beforeEach(cleanStorage);
 afterAll(cleanStorage);
 
 describe('ETVEngineV1 integration', () => {
-  test('cold start → BAND_0', () => {
+  test('cold start → first session lands in BAND_2', () => {
     const { policy, state } = ETVEngineV1.updateFromSession(makeSummary());
-    expect(policy.band).toBe('BAND_0');
+    expect(policy.band).toBe('BAND_2');
     expect(state.r).toBeGreaterThan(ETV_CONFIG.initR);
     expect(state.s).toBeGreaterThan(0);
   });

@@ -843,9 +843,9 @@ const EIV_CONSTANTS = {
     highMaxExclusive: 1.01, // high upper bound (extreme unreachable with clamped EIV)
   },
   enhancedWeights: {
-    semanticScore: 0.4,
-    arousalScore: 0.3,
-    repetitionWeight: 0.2,
+    semanticScore: 0.6,
+    arousalScore: 0.2,
+    repetitionWeight: 0.1,
     capsWeight: 0.1,
   },
   enhancedArousalThresholds: {

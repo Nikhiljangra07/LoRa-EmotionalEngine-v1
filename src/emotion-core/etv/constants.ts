@@ -26,10 +26,10 @@ export const ETV_EVIDENCE_WEIGHTS = Object.freeze({
 // ── Band thresholds (on risk-adjusted mean) ───────────────────────
 
 export const ETV_BAND_THRESHOLDS = Object.freeze({
-  band1Min: 0.25,
-  band2Min: 0.40,
-  band3Min: 0.55,
-  band4Min: 0.70,
+  band1Min: 0.06,
+  band2Min: 0.07,
+  band3Min: 0.18,
+  band4Min: 0.35,
 });
 
 // ── Policy knob coefficients ──────────────────────────────────────

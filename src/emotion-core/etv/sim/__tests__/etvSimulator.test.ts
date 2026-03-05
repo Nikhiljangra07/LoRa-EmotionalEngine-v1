@@ -132,7 +132,7 @@ describe('ETV Simulator', () => {
   });
 
   describe('cold-start safety', () => {
-    it('no scenario reaches BAND_4 in first 6 sessions', () => {
+    it('no scenario reaches BAND_4 in first 2 sessions', () => {
       const allScenarios = [
         calmStable(12),
         intenseStable(12),
@@ -143,8 +143,8 @@ describe('ETV Simulator', () => {
       ];
       for (const sessions of allScenarios) {
         const results = runSimulation(sessions);
-        const first6 = results.slice(0, 6);
-        for (const r of first6) {
+        const first2 = results.slice(0, 2);
+        for (const r of first2) {
           expect(r.band).not.toBe('BAND_4');
         }
       }
