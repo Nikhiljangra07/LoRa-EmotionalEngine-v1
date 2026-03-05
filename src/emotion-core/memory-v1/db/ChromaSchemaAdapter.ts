@@ -48,8 +48,8 @@ export class ChromaSchemaAdapter {
         });
       }
 
-      if (!embeddings.length) {
-        throw new Error('Chroma write attempted without embeddings');
+      if (!embeddings || embeddings.length === 0) {
+        throw new Error('Manual embedding required for Chroma upsert');
       }
 
       await collection.upsert({ ids, embeddings, metadatas });

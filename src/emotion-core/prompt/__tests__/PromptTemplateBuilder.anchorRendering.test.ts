@@ -73,6 +73,7 @@ function makeAnchor(overrides: Partial<AnchorRecord> & { band?: EmotionBand } = 
   return {
     anchorId: overrides.anchorId ?? 'anchor-1',
     contentSummary: overrides.contentSummary ?? 'User mentioned a job interview next week',
+    slotValue: overrides.slotValue,
     timestamp: overrides.timestamp ?? 1700000000000,
     emotion: overrides.emotion ?? { valence: 0.3, arousal: 0.4, expressionStrength: 0.5, inferenceReliability: 0.8 },
     metrics: overrides.metrics ?? { etv: 45, eiv: 30, band: overrides.band ?? 'B3' },
@@ -340,6 +341,26 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
       for (const f of FORBIDDEN) {
         expect(lower).not.toContain(f);
       }
+    });
+  });
+
+  describe('Known facts (structured anchors with slotValue)', () => {
+    it('includes Known facts section when anchors have slotValue', () => {
+      const prompt = PromptTemplateBuilder.build(
+        makeEmotionalState(),
+        makeETVState(),
+        {
+          relevantAnchors: [
+            makeAnchor({
+              contentSummary: 'launch_date = 2026-03-23',
+              slotValue: 'launch_date = 2026-03-23',
+              metrics: { etv: 50, eiv: 40, band: 'B4' },
+            }),
+          ],
+        },
+      );
+      expect(prompt).toContain('Known facts:');
+      expect(prompt).toContain('launch_date = 2026-03-23');
     });
   });
 

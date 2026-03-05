@@ -56,22 +56,39 @@ function escapeCypherString(value: string): string {
   return value.replace(/'/g, "''");
 }
 
-const ALLOWED_PARAM_KEYS = ['userId', 'anchorId', 'payloadJson'] as const;
+const ALLOWED_PARAM_KEYS = [
+  'userId',
+  'anchorId',
+  'payloadJson',
+  'type',
+  'slot',
+  'createdAt',
+  'reinforceCount',
+  'value',
+] as const;
 
 /**
- * Safe parameter binder for Cypher: only supports string params userId, anchorId, payloadJson.
- * Replaces $key in the query with escaped string literals. No raw interpolation.
+ * Safe parameter binder for Cypher. Replaces $key with Cypher literals:
+ * string -> quoted escaped, number -> literal, null -> null.
  */
 function bindParams(query: string, params?: Record<string, unknown>): string {
   if (!params) return query;
   let out = query;
   for (const key of ALLOWED_PARAM_KEYS) {
     const value = params[key];
-    if (typeof value === 'string') {
-      const lit = "'" + escapeCypherString(value) + "'";
-      const pattern = new RegExp('\\$' + key, 'g');
-      out = out.replace(pattern, lit);
+    if (value === undefined) continue;
+    let lit: string;
+    if (value === null) {
+      lit = 'null';
+    } else if (typeof value === 'number') {
+      lit = String(value);
+    } else if (typeof value === 'string') {
+      lit = "'" + escapeCypherString(value) + "'";
+    } else {
+      continue;
     }
+    const pattern = new RegExp('\\$' + key + '\\b', 'g');
+    out = out.replace(pattern, lit);
   }
   return out;
 }

@@ -33,6 +33,8 @@ export interface RetrieveContextOpts {
 export interface AnchorRecord {
   anchorId: string;
   contentSummary: string;
+  /** When set, anchor has a structured value (e.g. launch_date = 2026-03-23). Used for "Known facts" in prompt. */
+  slotValue?: string;
   timestamp: number;
   emotion: EmotionSignal;
   metrics: EmotionalMetrics;
@@ -94,6 +96,10 @@ const TEMPLATE_LABELS: Record<string, string> = {
   preference_negative: 'Preference (negative)',
   goal_active: 'Active goal',
   goal_completed: 'Completed goal',
+  goal_objective: 'Goal',
+  deployment_plan: 'Deployment plan',
+  financial_commitment: 'Financial',
+  project_stage: 'Project stage',
 };
 
 const SLOT_LABELS: Record<string, string> = {
@@ -122,6 +128,10 @@ const SLOT_LABELS: Record<string, string> = {
   hobby: 'hobby',
   general_positive: 'general (positive)',
   general_negative: 'general (negative)',
+  launch_date: 'launch date',
+  money_amount: 'amount',
+  stage: 'stage',
+  objective: 'objective',
 };
 
 export function anchorSummaryLabel(template: string, slot: string): string {

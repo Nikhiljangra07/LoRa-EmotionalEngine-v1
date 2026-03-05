@@ -751,15 +751,24 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 
     if (eligible.length === 0) return '';
 
-    const lines: string[] = [
-      '',
-      '',
-      'FACT CONTEXT (possible anchors)',
-      '-------------------------------',
-      'Possible context:',
-    ];
+    const knownFacts = eligible.filter((a) => a.slotValue);
+    const otherAnchors = eligible.filter((a) => !a.slotValue);
 
-    for (const a of eligible) {
+    const lines: string[] = ['', ''];
+
+    if (knownFacts.length > 0) {
+      lines.push('Known facts:');
+      for (const a of knownFacts) {
+        if (a.slotValue) lines.push(`- ${a.slotValue}`);
+      }
+      lines.push('');
+    }
+
+    lines.push('FACT CONTEXT (possible anchors)');
+    lines.push('-------------------------------');
+    lines.push('Possible context:');
+
+    for (const a of otherAnchors) {
       const ts = a.timestamp > 0
         ? new Date(a.timestamp).toISOString().slice(0, 16).replace('T', ' ')
         : 'unknown time';

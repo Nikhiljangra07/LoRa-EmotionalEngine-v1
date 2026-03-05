@@ -5,6 +5,7 @@ import type {
   AnchorSlot,
 } from './factAnchorTypes';
 import { QUARANTINE_THRESHOLD } from './factAnchorTypes';
+import { extractStructuredFact } from './factTemplates';
 
 const SESSION_ANCHOR_CAP = 3;
 
@@ -74,6 +75,9 @@ const BASE_CONFIDENCE: Record<AnchorType, number> = {
   preference: 0.70,
   date_event: 0.80,
   person: 0.65,
+  deployment_plan: 0.80,
+  financial_commitment: 0.80,
+  project_stage: 0.70,
 };
 
 // ---------------------------------------------------------------------------
@@ -120,9 +124,12 @@ function tryPersonRole(message: string): { template: AnchorTemplate; slot: Ancho
 }
 
 function anchorTypeFromTemplate(template: AnchorTemplate): AnchorType {
-  if (template === 'goal_active' || template === 'goal_completed') return 'goal';
+  if (template === 'goal_active' || template === 'goal_completed' || template === 'goal_objective') return 'goal';
   if (template === 'preference_positive' || template === 'preference_negative') return 'preference';
   if (template === 'person_role') return 'person';
+  if (template === 'deployment_plan') return 'deployment_plan';
+  if (template === 'financial_commitment') return 'financial_commitment';
+  if (template === 'project_stage') return 'project_stage';
   return 'date_event';
 }
 
@@ -139,6 +146,33 @@ export function extractFactAnchor(
   sessionAnchorCount: number,
 ): FactAnchor | null {
   if (sessionAnchorCount >= SESSION_ANCHOR_CAP) return null;
+
+  const structured = extractStructuredFact(message);
+  // Use structured extraction unless it's goal/objective and legacy tryGoal would give a more specific slot
+  if (structured && !(structured.type === 'goal' && structured.slot === 'objective' && tryGoal(message))) {
+      const template: AnchorTemplate =
+        structured.type === 'goal' ? 'goal_objective' : structured.type;
+      const type = anchorTypeFromTemplate(template);
+      const confidence = BASE_CONFIDENCE[type];
+      const status = confidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
+      const anchor: FactAnchor = {
+        anchorId: `${userId}-${sessionId}-${timestamp}`,
+        userId,
+        type,
+        summary: { template, slot: structured.slot as AnchorSlot },
+        value: structured.value,
+        salience: confidence,
+        extractionConfidence: confidence,
+        status,
+        emotionVecAtCreation: [...emotionVec],
+        sessionId,
+        createdAt: timestamp,
+        reinforceCount: 1,
+        appearsInSessions: 1,
+        lastSeenSessionId: sessionId,
+      };
+      return anchor;
+  }
 
   const hasRememberIntent = REMEMBER_INTENT_RE.test(message);
 

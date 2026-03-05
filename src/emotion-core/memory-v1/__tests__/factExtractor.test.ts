@@ -32,9 +32,13 @@ describe('factExtractor', () => {
       expect(a!.summary.slot).toBe('career_change');
     });
 
-    it('returns null for unmapped goal slot', () => {
+    it('extracts goal_objective with value for unmapped goal phrase', () => {
       const a = extractFactAnchor(USER, 'my goal is to be happy', SESSION, VEC, TS, 0);
-      expect(a).toBeNull();
+      expect(a).not.toBeNull();
+      expect(a!.type).toBe('goal');
+      expect(a!.summary.template).toBe('goal_objective');
+      expect(a!.summary.slot).toBe('objective');
+      expect(a!.value).toBe('be happy');
     });
 
     it('goal has confidence 0.75', () => {
@@ -230,6 +234,59 @@ describe('factExtractor', () => {
   // -----------------------------------------------------------------------
   // Initialization fields
   // -----------------------------------------------------------------------
+
+  // -----------------------------------------------------------------------
+  // Structured extraction (dates, money, goals)
+  // -----------------------------------------------------------------------
+
+  describe('structured extraction', () => {
+    it('extracts deployment_plan anchor with normalized launch_date', () => {
+      const a = extractFactAnchor(
+        USER,
+        'I will deploy on March 23 2026',
+        SESSION,
+        VEC,
+        TS,
+        0,
+      );
+      expect(a).not.toBeNull();
+      expect(a!.type).toBe('deployment_plan');
+      expect(a!.summary.slot).toBe('launch_date');
+      expect(a!.value).toBe('2026-03-23');
+    });
+
+    it('extracts financial_commitment anchor with money_amount', () => {
+      const a = extractFactAnchor(
+        USER,
+        'Should I borrow $2000?',
+        SESSION,
+        VEC,
+        TS,
+        0,
+      );
+      expect(a).not.toBeNull();
+      expect(a!.type).toBe('financial_commitment');
+      expect(a!.summary.slot).toBe('money_amount');
+      expect(a!.value).toBe(2000);
+    });
+
+    it('structured anchors do not contain transcript fields', () => {
+      const forbidden = ['message', 'content', 'text', 'transcript', 'userText'];
+      const a = extractFactAnchor(
+        USER,
+        'I will deploy on March 23 2026',
+        SESSION,
+        VEC,
+        TS,
+        0,
+      );
+      expect(a).not.toBeNull();
+      const keys = Object.keys(a!);
+      for (const k of forbidden) {
+        expect(keys).not.toContain(k);
+      }
+    });
+  });
 
   describe('anchor initialization', () => {
     it('sets reinforceCount=1, appearsInSessions=1, lastSeenSessionId=sessionId', () => {

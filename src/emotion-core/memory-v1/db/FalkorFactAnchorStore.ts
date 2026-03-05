@@ -160,11 +160,28 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
       for (const anchor of allAnchors) {
         const payload = JSON.stringify(anchor);
         if (payload.length > MAX_PAYLOAD_BYTES) continue;
+        const type = anchor.type;
+        const slot = anchor.summary.slot;
+        const createdAt = anchor.createdAt;
+        const reinforceCount = anchor.reinforceCount;
+        const value =
+          anchor.value !== undefined ? String(anchor.value) : null;
         await graphQuery(
           GRAPH_NAME,
           `MERGE (a:Anchor { userId: $userId, anchorId: $anchorId })
-           SET a.payloadJson = $payloadJson`,
-          { userId, anchorId: anchor.anchorId, payloadJson: payload },
+           SET a.payloadJson = $payloadJson, a.type = $type, a.slot = $slot,
+               a.createdAt = $createdAt, a.reinforceCount = $reinforceCount,
+               a.value = $value`,
+          {
+            userId,
+            anchorId: anchor.anchorId,
+            payloadJson: payload,
+            type,
+            slot,
+            createdAt,
+            reinforceCount,
+            value,
+          },
         );
       }
 

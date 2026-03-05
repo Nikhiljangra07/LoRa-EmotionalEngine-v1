@@ -185,9 +185,14 @@ function factAnchorToRecord(
   band: string,
 ): AnchorRecord {
   const vec = fa.emotionVecAtCreation;
+  const slotValue =
+    fa.value !== undefined
+      ? `${fa.summary.slot} = ${fa.value}`
+      : undefined;
   return {
     anchorId: fa.anchorId,
-    contentSummary: anchorSummaryLabel(fa.summary.template, fa.summary.slot),
+    contentSummary: slotValue ?? anchorSummaryLabel(fa.summary.template, fa.summary.slot),
+    slotValue,
     timestamp: fa.createdAt,
     emotion: {
       valence: vec[0] ?? 0,

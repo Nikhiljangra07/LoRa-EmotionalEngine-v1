@@ -22,7 +22,8 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 // ---------------------------------------------------------------------------
 
 function anchorKey(a: FactAnchor): string {
-  return `${a.type}|${a.summary.template}|${a.summary.slot}|${a.date ?? 'na'}`;
+  const valuePart = a.date ?? a.value ?? 'na';
+  return `${a.type}|${a.summary.template}|${a.summary.slot}|${valuePart}`;
 }
 
 function isUpcomingWithin7Days(a: FactAnchor, nowMs: number): boolean {

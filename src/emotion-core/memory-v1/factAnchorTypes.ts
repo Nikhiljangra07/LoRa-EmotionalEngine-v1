@@ -2,7 +2,10 @@ export type AnchorType =
   | 'date_event'
   | 'person'
   | 'preference'
-  | 'goal';
+  | 'goal'
+  | 'deployment_plan'
+  | 'financial_commitment'
+  | 'project_stage';
 
 export type AnchorTemplate =
   | 'upcoming_event'
@@ -12,7 +15,11 @@ export type AnchorTemplate =
   | 'preference_positive'
   | 'preference_negative'
   | 'goal_active'
-  | 'goal_completed';
+  | 'goal_completed'
+  | 'deployment_plan'
+  | 'financial_commitment'
+  | 'project_stage'
+  | 'goal_objective';
 
 export type AnchorSlot =
   | 'job_interview'
@@ -39,7 +46,11 @@ export type AnchorSlot =
   | 'learning'
   | 'hobby'
   | 'general_positive'
-  | 'general_negative';
+  | 'general_negative'
+  | 'launch_date'
+  | 'money_amount'
+  | 'stage'
+  | 'objective';
 
 export type AnchorSummaryTemplate = {
   template: AnchorTemplate;
@@ -56,6 +67,9 @@ export interface FactAnchor {
   type: AnchorType;
 
   summary: AnchorSummaryTemplate;
+
+  /** Normalized value for structured anchors (e.g. launch_date, money_amount). No raw transcript. */
+  value?: string | number;
 
   date?: string;
 
