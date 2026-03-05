@@ -32,6 +32,22 @@ export type { EmotionSignal, EmotionalMetrics, EmotionBand } from './memoryTypes
 
 const STUB_VECTOR_DIM = 5;
 
+/** High-value factual anchors outrank vague ones (e.g. deployment_plan over goal). */
+const ANCHOR_PRIORITY: Record<string, number> = {
+  deployment_plan: 100,
+  deadline: 95,
+  schedule: 90,
+  date_event: 95,
+  financial_commitment: 85,
+  person: 80,
+  location: 70,
+  project: 60,
+  project_stage: 60,
+  goal: 40,
+  preference: 10,
+  misc: 10,
+};
+
 export class MemoryService {
   private readonly factStore: AsyncFactAnchorStore;
   private lastMaintainKey: string | null = null;
@@ -139,7 +155,18 @@ export class MemoryService {
     let relevantAnchors: AnchorRecord[] = [];
     if (!falkorDown && rawCandidates.length > 0) {
       const scored: AnchorScore[] = scoreAnchors(rawCandidates, emotionVec, nowMs, band);
-      relevantAnchors = scored.map((s) => factAnchorToRecord(s.anchor, band));
+      const byPriority = [...scored].sort((a, b) => {
+        const pa = ANCHOR_PRIORITY[a.anchor.type] ?? 10;
+        const pb = ANCHOR_PRIORITY[b.anchor.type] ?? 10;
+        if (pa !== pb) return pb - pa;
+        return b.anchor.createdAt - a.anchor.createdAt;
+      });
+      const selectedAnchors = byPriority.slice(0, 3);
+      relevantAnchors = selectedAnchors.map((s) => factAnchorToRecord(s.anchor, band));
+      console.log(
+        '[LoRa::AnchorRanking]',
+        selectedAnchors.map((s) => ({ type: s.anchor.type, slot: s.anchor.summary.slot, value: s.anchor.value })),
+      );
     }
 
     return {
