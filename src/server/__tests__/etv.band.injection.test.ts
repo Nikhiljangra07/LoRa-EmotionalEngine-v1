@@ -116,13 +116,14 @@ describe('ResponsePolicy injection via responder wrapper', () => {
     expect(coarsenBand('garbage')).toBe('B0');
   });
 
-  test('B0: prompt starts with [SYSTEM POLICY] block containing guarded tone', async () => {
+  test('B0: prompt starts with [SYSTEM IDENTITY] then contains [SYSTEM POLICY]', async () => {
     mockBandValue = 'BAND_0';
     const res = await postApiChat(port, { userId: 'pol-b0', sessionId: 'sess-b0', text: 'hello' });
     expect(res.status).toBe(200);
     expect(capturedPrompts.length).toBe(1);
     const prompt = capturedPrompts[0];
-    expect(prompt.startsWith('[SYSTEM POLICY]')).toBe(true);
+    expect(prompt.startsWith('[SYSTEM IDENTITY')).toBe(true);
+    expect(prompt).toContain('[SYSTEM POLICY]');
     expect(prompt).toContain('Tone: guarded');
     expect(prompt).toContain('Maximum words: 60');
     expect(prompt).toContain('Maximum questions: 1');
@@ -176,7 +177,8 @@ describe('ResponsePolicy injection via responder wrapper', () => {
     expect(p1).toEqual({ maxWords: 60, maxQuestions: 1, reasoningDepth: 'clarify', tone: 'guarded' });
 
     const p2 = getResponsePolicy('TIER_2', 'B2');
-    expect(p2).toEqual({ maxWords: 110, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'neutral' });
+    expect(p2).toMatchObject({ maxWords: 110, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'direct' });
+    expect(p2.personality?.analytical).toBe(true);
 
     const p3 = getResponsePolicy('TIER_3', 'B4');
     expect(p3).toMatchObject({ maxWords: 170, maxQuestions: 3, reasoningDepth: 'interpretive', tone: 'direct' });
@@ -186,8 +188,9 @@ describe('ResponsePolicy injection via responder wrapper', () => {
   test('formatPolicyBlock produces deterministic output', () => {
     const block = formatPolicyBlock(getResponsePolicy('TIER_2', 'B2'));
     expect(block).toContain('[SYSTEM POLICY]');
-    expect(block).toContain('Tone: neutral');
+    expect(block).toContain('Tone: direct');
     expect(block).toContain('Reasoning mode: contextual');
     expect(block).toContain('Maximum words: 110');
+    expect(block).toContain('analytical reasoning partner');
   });
 });

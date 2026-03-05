@@ -22,6 +22,7 @@ import {
   enforceQuestionLimit,
 } from '../../emotion-core/policy/ResponsePolicy';
 import type { ResponsePolicy } from '../../emotion-core/policy/ResponsePolicy';
+import { enforceIdentity } from '../../emotion-core/policy/IdentityGuard';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -297,6 +298,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       const debug = result.debug ?? emptyDebug();
 
       let reply = result.llmOutput ?? '';
+      reply = enforceIdentity(reply);
       reply = enforceWordLimit(reply, policy.maxWords);
       reply = enforceQuestionLimit(reply, policy.maxQuestions);
 

@@ -77,12 +77,14 @@ describe('ResponsePolicy — unit tests', () => {
     expect(p.maxQuestions).toBe(1);
   });
 
-  test('Tier2/Band2 → contextual, neutral, 110 words, 2 questions', () => {
+  test('Tier2/Band2 → contextual, direct, 110 words, 2 questions, analytical personality', () => {
     const p = getResponsePolicy('TIER_2', 'B2');
     expect(p.reasoningDepth).toBe('contextual');
-    expect(p.tone).toBe('neutral');
+    expect(p.tone).toBe('direct');
     expect(p.maxWords).toBe(110);
     expect(p.maxQuestions).toBe(2);
+    expect(p.personality?.analytical).toBe(true);
+    expect(p.personality?.factualFraming).toBe(true);
   });
 
   test('Tier3/Band4 → interpretive, direct tone, 170 words, 3 questions', () => {
@@ -92,11 +94,14 @@ describe('ResponsePolicy — unit tests', () => {
     expect(p.maxWords).toBe(170);
     expect(p.maxQuestions).toBe(3);
     expect(p.personality).toEqual({
+      analytical: true,
       blunt: true,
       clarityFirst: true,
       avoidOverValidation: true,
       avoidTherapyTone: true,
+      avoidNarrativeFiller: true,
       challengeAssumptions: true,
+      factualFraming: true,
     });
   });
 
@@ -106,6 +111,7 @@ describe('ResponsePolicy — unit tests', () => {
     expect(p.tone).toBe('direct');
     expect(p.maxWords).toBe(60);
     expect(p.personality?.blunt).toBe(true);
+    expect(p.personality?.analytical).toBe(true);
   });
 
   test('unknown tier/band falls back to TIER_1/B0 defaults', () => {
@@ -227,12 +233,13 @@ describe('ResponsePolicy — integration (mock LLM)', () => {
     });
   });
 
-  test('prompt contains [SYSTEM POLICY] header with correct tier reasoning', async () => {
+  test('prompt starts with [SYSTEM IDENTITY] and contains [SYSTEM POLICY]', async () => {
     mockBandValue = 'BAND_2';
     mockReply = 'ok';
     const res = await postApiChat(port, { userId: 'hdr-u', sessionId: 'hdr-s', text: 'hi' });
     expect(res.status).toBe(200);
-    expect(capturedPrompt.startsWith('[SYSTEM POLICY]')).toBe(true);
+    expect(capturedPrompt.startsWith('[SYSTEM IDENTITY')).toBe(true);
+    expect(capturedPrompt).toContain('[SYSTEM POLICY]');
     expect(capturedPrompt).toContain('Reasoning mode: clarify');
     expect(capturedPrompt).toContain('Tone: neutral');
   });

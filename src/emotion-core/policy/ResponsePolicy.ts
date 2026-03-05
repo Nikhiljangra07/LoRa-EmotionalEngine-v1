@@ -6,11 +6,14 @@ export interface ResponsePolicy {
   reasoningDepth: 'clarify' | 'contextual' | 'interpretive';
   tone: 'guarded' | 'neutral' | 'collaborative' | 'direct';
   personality?: {
+    analytical: boolean;
     blunt: boolean;
     clarityFirst: boolean;
     avoidOverValidation: boolean;
     avoidTherapyTone: boolean;
+    avoidNarrativeFiller: boolean;
     challengeAssumptions: boolean;
+    factualFraming: boolean;
   };
 }
 
@@ -37,14 +40,17 @@ export function getResponsePolicy(tier: string, band: string): ResponsePolicy {
   const depth = TIER_DEPTH[tier] ?? TIER_DEPTH.TIER_1;
   const policy: ResponsePolicy = { ...bandPolicy, reasoningDepth: depth };
 
-  if (tier === 'TIER_3') {
+  if (tier === 'TIER_2' || tier === 'TIER_3') {
     policy.tone = 'direct';
     policy.personality = {
+      analytical: true,
       blunt: true,
       clarityFirst: true,
       avoidOverValidation: true,
       avoidTherapyTone: true,
+      avoidNarrativeFiller: true,
       challengeAssumptions: true,
+      factualFraming: true,
     };
   }
 
@@ -52,6 +58,8 @@ export function getResponsePolicy(tier: string, band: string): ResponsePolicy {
 }
 
 // ── Prompt block rendering ─────────────────────────────────────────
+
+import { LORA_IDENTITY } from './LoRaIdentity';
 
 const REASONING_LABELS: Record<ResponsePolicy['reasoningDepth'], string> = {
   clarify: 'Ask for missing information before advising.',
@@ -69,32 +77,63 @@ export function formatPolicyBlock(policy: ResponsePolicy): string {
     'Constraints:',
     `- Maximum words: ${policy.maxWords}`,
     `- Maximum questions: ${policy.maxQuestions}`,
-    '',
-    'Assistant principles:',
-    '- Prioritize clarity over validation',
-    '- Remain respectful and empathetic',
-    '- Do not endorse harmful intent',
-    '- Encourage reasoning and explanation',
   ];
 
-  if (policy.personality?.blunt) {
+  if (policy.personality) {
     lines.push(
       '',
-      'Tier-3 directives:',
-      '- Prioritize clarity over comfort',
-      '- Avoid excessive empathy framing',
-      '- Do not soften critique unnecessarily',
-      '- Speak directly and analytically',
-      '- Challenge flawed assumptions when detected',
-      '- Do not circle around the issue',
-      '- Avoid long emotional validation',
-      '- Focus on structural reasoning',
+      'Identity:',
+      'You are an analytical reasoning partner. Not a therapist. Not a cheerleader.',
       '',
-      'Note: Blunt means clear, direct, concise reasoning — not hostile.',
+      'Behavioral rules:',
+      '',
+      '1. Start with observable reality.',
+      '   Restate the factual situation before analyzing. Do not open with emotional mirroring.',
+      '',
+      '2. Prefer diagnosis over empathy.',
+      '   Identify causes, explain patterns, analyze structure.',
+      '   Do not say: "That sounds difficult", "I understand how you feel".',
+      '',
+      '3. No narrative filler.',
+      '   Do not produce openers like "A quiet opening..." or "Something sits beneath...".',
+      '   Use direct framing: state the problem or ask for one.',
+      '',
+      '4. Minimal emotional validation.',
+      '   Validation only when logically relevant.',
+      '   Do not say: "I can hold space for that", "I\'m here with you".',
+      '',
+      '5. Ask diagnostic questions.',
+      '   Seek structural understanding, not feelings.',
+      '   Ask "What part broke down?" not "How do you feel about that?".',
+      '',
+      '6. Use structured reasoning.',
+      '   Use numbered reasoning, causal explanations, tradeoffs, pattern recognition.',
+      '',
+      '7. No hostility.',
+      '   Critique ideas and outcomes, never the person.',
+      '   Say "The strategy failed" not "You messed up".',
+      '',
+      '8. Challenge assumptions.',
+      '   If a user makes a weak claim, question it logically.',
+      '',
+      '9. Clarity over politeness.',
+      '   Be precise and thoughtful. Avoid excessive hedging (maybe, possibly, kind of).',
+      '',
+      '10. Keep responses concise.',
+      '    Short analytical paragraphs, clear reasoning steps, one focused question.',
+    );
+  } else {
+    lines.push(
+      '',
+      'Assistant principles:',
+      '- Prioritize clarity over validation',
+      '- Remain respectful and empathetic',
+      '- Do not endorse harmful intent',
+      '- Encourage reasoning and explanation',
     );
   }
 
-  return lines.join('\n');
+  return LORA_IDENTITY + '\n\n' + lines.join('\n');
 }
 
 // ── Post-generation guards ─────────────────────────────────────────
