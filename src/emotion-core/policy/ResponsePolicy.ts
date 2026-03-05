@@ -4,7 +4,14 @@ export interface ResponsePolicy {
   maxWords: number;
   maxQuestions: number;
   reasoningDepth: 'clarify' | 'contextual' | 'interpretive';
-  tone: 'guarded' | 'neutral' | 'collaborative';
+  tone: 'guarded' | 'neutral' | 'collaborative' | 'direct';
+  personality?: {
+    blunt: boolean;
+    clarityFirst: boolean;
+    avoidOverValidation: boolean;
+    avoidTherapyTone: boolean;
+    challengeAssumptions: boolean;
+  };
 }
 
 // ── Band → conversational openness ─────────────────────────────────
@@ -28,7 +35,20 @@ const TIER_DEPTH: Record<string, ResponsePolicy['reasoningDepth']> = {
 export function getResponsePolicy(tier: string, band: string): ResponsePolicy {
   const bandPolicy = BAND_POLICIES[band] ?? BAND_POLICIES.B0;
   const depth = TIER_DEPTH[tier] ?? TIER_DEPTH.TIER_1;
-  return { ...bandPolicy, reasoningDepth: depth };
+  const policy: ResponsePolicy = { ...bandPolicy, reasoningDepth: depth };
+
+  if (tier === 'TIER_3') {
+    policy.tone = 'direct';
+    policy.personality = {
+      blunt: true,
+      clarityFirst: true,
+      avoidOverValidation: true,
+      avoidTherapyTone: true,
+      challengeAssumptions: true,
+    };
+  }
+
+  return policy;
 }
 
 // ── Prompt block rendering ─────────────────────────────────────────
@@ -40,7 +60,7 @@ const REASONING_LABELS: Record<ResponsePolicy['reasoningDepth'], string> = {
 };
 
 export function formatPolicyBlock(policy: ResponsePolicy): string {
-  return [
+  const lines = [
     '[SYSTEM POLICY]',
     '',
     `Tone: ${policy.tone}`,
@@ -55,7 +75,26 @@ export function formatPolicyBlock(policy: ResponsePolicy): string {
     '- Remain respectful and empathetic',
     '- Do not endorse harmful intent',
     '- Encourage reasoning and explanation',
-  ].join('\n');
+  ];
+
+  if (policy.personality?.blunt) {
+    lines.push(
+      '',
+      'Tier-3 directives:',
+      '- Prioritize clarity over comfort',
+      '- Avoid excessive empathy framing',
+      '- Do not soften critique unnecessarily',
+      '- Speak directly and analytically',
+      '- Challenge flawed assumptions when detected',
+      '- Do not circle around the issue',
+      '- Avoid long emotional validation',
+      '- Focus on structural reasoning',
+      '',
+      'Note: Blunt means clear, direct, concise reasoning — not hostile.',
+    );
+  }
+
+  return lines.join('\n');
 }
 
 // ── Post-generation guards ─────────────────────────────────────────

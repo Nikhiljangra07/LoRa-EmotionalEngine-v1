@@ -179,7 +179,8 @@ describe('ResponsePolicy injection via responder wrapper', () => {
     expect(p2).toEqual({ maxWords: 110, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'neutral' });
 
     const p3 = getResponsePolicy('TIER_3', 'B4');
-    expect(p3).toEqual({ maxWords: 170, maxQuestions: 3, reasoningDepth: 'interpretive', tone: 'collaborative' });
+    expect(p3).toMatchObject({ maxWords: 170, maxQuestions: 3, reasoningDepth: 'interpretive', tone: 'direct' });
+    expect(p3.personality?.blunt).toBe(true);
   });
 
   test('formatPolicyBlock produces deterministic output', () => {

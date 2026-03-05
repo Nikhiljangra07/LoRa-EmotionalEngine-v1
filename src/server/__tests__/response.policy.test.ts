@@ -85,19 +85,27 @@ describe('ResponsePolicy — unit tests', () => {
     expect(p.maxQuestions).toBe(2);
   });
 
-  test('Tier3/Band4 → interpretive, collaborative, 170 words, 3 questions', () => {
+  test('Tier3/Band4 → interpretive, direct tone, 170 words, 3 questions', () => {
     const p = getResponsePolicy('TIER_3', 'B4');
     expect(p.reasoningDepth).toBe('interpretive');
-    expect(p.tone).toBe('collaborative');
+    expect(p.tone).toBe('direct');
     expect(p.maxWords).toBe(170);
     expect(p.maxQuestions).toBe(3);
+    expect(p.personality).toEqual({
+      blunt: true,
+      clarityFirst: true,
+      avoidOverValidation: true,
+      avoidTherapyTone: true,
+      challengeAssumptions: true,
+    });
   });
 
-  test('cross-product: Tier3 + Band0 → interpretive reasoning, guarded tone', () => {
+  test('cross-product: Tier3 + Band0 → interpretive reasoning, direct tone', () => {
     const p = getResponsePolicy('TIER_3', 'B0');
     expect(p.reasoningDepth).toBe('interpretive');
-    expect(p.tone).toBe('guarded');
+    expect(p.tone).toBe('direct');
     expect(p.maxWords).toBe(60);
+    expect(p.personality?.blunt).toBe(true);
   });
 
   test('unknown tier/band falls back to TIER_1/B0 defaults', () => {

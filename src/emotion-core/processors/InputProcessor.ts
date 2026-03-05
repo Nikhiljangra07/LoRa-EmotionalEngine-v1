@@ -9,6 +9,7 @@ import type { AnalyzerOutputs, EnhancedEIVSignals } from './EIVComponentAssemble
 import type { SignalPacket } from '../types/SignalPacket.types';
 import { logAnalyzerProbe } from '../debug/AnalyzerProbe';
 import { debugEnabled } from '../debug/debugGate';
+import { injectSignal } from '../signal/signalInjector';
 
 /* ============================================================================
  * Input Processor
@@ -112,7 +113,7 @@ export class InputProcessor {
 
     const hasStrongKw = textHasStrongKeyword(text);
     const hasViolentIntent = textHasViolentIntent(text);
-    const enhancedArousal = computeEnhancedArousal(
+    let enhancedArousal = computeEnhancedArousal(
       esFeatures.capsRatio,
       esFeatures.expressiveLengtheningCount > 0,
       hasStrongKw,
@@ -124,9 +125,23 @@ export class InputProcessor {
     // Violent-intent boost: ensure semantic path contributes meaningfully to EIV
     // even when the polarity lexicon produces a weak score independently.
     const rawSemantic = valenceResult.semanticScore;
-    const semanticScore = hasViolentIntent
+    let semanticScore = hasViolentIntent
       ? Math.min(1.0, Math.abs(rawSemantic) + VIOLENT_INTENT_SEMANTIC_BOOST)
       : rawSemantic;
+
+    if (semanticScore === 0) {
+      const injected = injectSignal(text);
+      if (injected) {
+        semanticScore = injected.semanticScore;
+        enhancedArousal = Math.max(enhancedArousal, injected.arousalScore);
+        if (debugEnabled) {
+          console.log('[LoRa::SignalInjector] keyword triggered', {
+            semanticScore: injected.semanticScore,
+            arousalScore: injected.arousalScore,
+          });
+        }
+      }
+    }
 
     const enhanced: EnhancedEIVSignals = {
       semanticScore,
