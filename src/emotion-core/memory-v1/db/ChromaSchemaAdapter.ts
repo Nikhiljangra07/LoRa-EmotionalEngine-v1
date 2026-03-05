@@ -7,36 +7,61 @@ const COLLECTION_NAME = 'lora_schemas';
 const ROUND_DECIMALS = 6;
 const isDev = process.env.NODE_ENV === 'development';
 
+/** Manual-embedding-only: name, metadata, and explicit null embedding function (no DefaultEmbeddingFunction). */
+const GET_OR_CREATE_OPTS = {
+  name: COLLECTION_NAME,
+  metadata: { 'hnsw:space': 'cosine' },
+  embeddingFunction: null as any,
+};
+
+/**
+ * Run a function while suppressing console.warn (e.g. Chroma's embedding-function / deserialization warnings).
+ */
+function suppressWarn<T>(fn: () => Promise<T>): Promise<T> {
+  const orig = console.warn;
+  console.warn = () => {};
+  return fn().finally(() => {
+    console.warn = orig;
+  });
+}
+
 /**
  * Chroma runs in manual embedding mode: we always pass embeddings explicitly.
- * No embedding function is registered; collection is created without one.
- * If the existing collection has an embedding function (legacy), in dev we
- * delete and recreate; in prod we throw and instruct to run npm run reset:chroma.
+ * getOrCreateCollection is called with GET_OR_CREATE_OPTS only; no DefaultEmbeddingFunction.
+ * Schema deserialization warnings are suppressed; on error we fall back to delete+recreate in dev.
  */
 export class ChromaSchemaAdapter {
   private async getCollection() {
     const client = getChromaClient();
-    const collection = await client.getOrCreateCollection({
-      name: COLLECTION_NAME,
-      metadata: { 'hnsw:space': 'cosine' },
-    });
 
-    const hasEmbeddingFunction = !!(collection as { embeddingFunction?: unknown }).embeddingFunction;
-    if (hasEmbeddingFunction) {
-      if (isDev) {
+    const tryGetOrCreate = () => client.getOrCreateCollection(GET_OR_CREATE_OPTS);
+
+    try {
+      const collection = await suppressWarn(tryGetOrCreate);
+      const hasEmbeddingFunction = !!(collection as { embeddingFunction?: unknown }).embeddingFunction;
+      if (hasEmbeddingFunction && isDev) {
         await client.deleteCollection({ name: COLLECTION_NAME });
-        const recreated = await client.getOrCreateCollection({
-          name: COLLECTION_NAME,
-          metadata: { 'hnsw:space': 'cosine' },
-        });
+        const recreated = await suppressWarn(tryGetOrCreate);
         console.log('[LoRa] Chroma collection recreated in manual-embedding mode');
         return recreated;
       }
-      throw new Error(
-        'Chroma collection lora_schemas was created with an embedding function. Run: npm run reset:chroma',
-      );
+      if (hasEmbeddingFunction && !isDev) {
+        throw new Error(
+          'Chroma collection lora_schemas was created with an embedding function. Run: npm run reset:chroma',
+        );
+      }
+      return collection;
+    } catch (err) {
+      if (!isDev) throw err;
+      try {
+        await client.deleteCollection({ name: COLLECTION_NAME });
+      } catch {
+        // ignore
+      }
+      const recreated = await suppressWarn(tryGetOrCreate);
+      console.log('[LoRa] Chroma collection recreated after error (manual-embedding mode)');
+      return recreated;
     }
-    return collection;
   }
 
   async saveSchemas(

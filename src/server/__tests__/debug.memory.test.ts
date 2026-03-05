@@ -214,14 +214,16 @@ describe('GET /debug/memory', () => {
   });
 });
 
-describe('ChromaSchemaAdapter (no embedding function)', () => {
-  it('getOrCreateCollection is called without embeddingFunction in options', () => {
+describe('ChromaSchemaAdapter (manual embedding only)', () => {
+  it('getOrCreateCollection uses only name, metadata, and explicit null embedding (no DefaultEmbeddingFunction)', () => {
     const adapterSource = require('fs').readFileSync(
       require('path').join(__dirname, '../../emotion-core/memory-v1/db/ChromaSchemaAdapter.ts'),
       'utf-8'
     );
-    expect(adapterSource).not.toMatch(/getOrCreateCollection\s*\(\s*\{[^}]*embeddingFunction\s*:/s);
     expect(adapterSource).not.toMatch(/lora-schema-stub/);
     expect(adapterSource).not.toMatch(/registerEmbeddingFunction/);
+    expect(adapterSource).toMatch(/lora_schemas/);
+    expect(adapterSource).toMatch(/hnsw:space.*cosine/);
+    expect(adapterSource).toMatch(/embeddingFunction\s*:\s*null/);
   });
 });
