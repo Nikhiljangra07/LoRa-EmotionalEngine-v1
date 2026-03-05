@@ -24,6 +24,13 @@ export interface MemorySaveInput {
   emotionVec?: number[];
 }
 
+export interface MemorySaveResult {
+  ok: boolean;
+  wroteFalkor: boolean;
+  wroteChroma: boolean;
+  degraded: { falkor: boolean; chroma: boolean };
+}
+
 export interface RetrieveContextOpts {
   emotionVec?: number[];
   nowMs?: number;

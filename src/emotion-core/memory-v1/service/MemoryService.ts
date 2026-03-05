@@ -8,6 +8,7 @@ import type { SchemaRecord } from '../schemaStore';
 import type { MaintainReport, AsyncFactAnchorStore } from '../factAnchorStoreTypes';
 import {
   type MemorySaveInput,
+  type MemorySaveResult,
   type AnchorRecord,
   type SemanticRecord,
   type MemoryContextResult,
@@ -21,6 +22,7 @@ import {
 
 export type {
   MemorySaveInput,
+  MemorySaveResult,
   AnchorRecord,
   SemanticRecord,
   MemoryContextResult,
@@ -43,25 +45,26 @@ export class MemoryService {
   }
 
   /**
-   * Process an incoming message: extract a fact anchor candidate (if any) and
-   * upsert it into Falkor, then persist the schema embedding to Chroma.
-   * Returns false if BOTH writes fail; partial writes still return true.
+   * Two-phase save: Falkor first (facts are MVP), then Chroma.
+   * Falkor failure → ok=false. Chroma failure never blocks Falkor; degraded.chroma=true.
    */
-  async saveMessage(input: MemorySaveInput): Promise<boolean> {
+  async saveMessage(input: MemorySaveInput): Promise<MemorySaveResult> {
+    const { userId, messageId, content, timestamp } = input;
+    const emotion = validateEmotionSignal(input.emotion);
+    const metrics = validateMetrics(input.metrics);
+    const sessionId = input.sessionId ?? messageId;
+    const emotionVec = input.emotionVec ?? [
+      emotion.valence,
+      emotion.arousal,
+      emotion.expressionStrength,
+      emotion.inferenceReliability,
+    ];
+
+    let wroteFalkor = false;
+    let wroteChroma = false;
+
+    // Phase 1: Falkor anchor upsert
     try {
-      const { userId, messageId, content, timestamp } = input;
-      const emotion = validateEmotionSignal(input.emotion);
-      const metrics = validateMetrics(input.metrics);
-
-      const sessionId = input.sessionId ?? messageId;
-      const emotionVec = input.emotionVec ?? [
-        emotion.valence,
-        emotion.arousal,
-        emotion.expressionStrength,
-        emotion.inferenceReliability,
-      ];
-
-      let anchorOk = true;
       const candidate = extractFactAnchor(
         userId,
         content,
@@ -70,7 +73,6 @@ export class MemoryService {
         timestamp,
         0,
       );
-
       if (candidate) {
         const upsertResult = await this.factStore.upsertFromExtraction(userId, {
           userId,
@@ -78,9 +80,16 @@ export class MemoryService {
           nowMs: timestamp,
           extracted: [candidate],
         });
-        anchorOk = upsertResult !== null;
+        wroteFalkor = upsertResult !== null;
+      } else {
+        wroteFalkor = true; // no anchor to write is success
       }
+    } catch (err) {
+      console.warn('[LoRa::MemoryServiceSave] Falkor upsert failed', err);
+    }
 
+    // Phase 2: Chroma schema upsert (never blocks Falkor)
+    try {
       const schema: SchemaRecord = {
         schemaId: messageId,
         centroid: deterministicVector(hashString(content), STUB_VECTOR_DIM),
@@ -90,13 +99,19 @@ export class MemoryService {
         createdAt: timestamp,
         lastUpdatedAt: timestamp,
       };
-
-      const vectorOk = await this.vectorAdapter.saveSchemas(userId, [schema]);
-
-      return anchorOk || vectorOk;
-    } catch {
-      return false;
+      wroteChroma = await this.vectorAdapter.saveSchemas(userId, [schema]);
+    } catch (err) {
+      console.warn('[LoRa::MemoryServiceSave] Chroma upsert failed', err);
     }
+
+    const degraded = { falkor: !wroteFalkor, chroma: !wroteChroma };
+    const ok = wroteFalkor; // facts are MVP; ok=false only if Falkor failed
+    const result: MemorySaveResult = { ok, wroteFalkor, wroteChroma, degraded };
+    console.log(
+      '[LoRa::MemoryServiceSave]',
+      { wroteFalkor, wroteChroma, ok },
+    );
+    return result;
   }
 
   /**

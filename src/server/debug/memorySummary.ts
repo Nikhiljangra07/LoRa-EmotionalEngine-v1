@@ -11,16 +11,24 @@ export interface BootstrapEntryForSummary {
   themes?: string[];
 }
 
+export interface LastFact {
+  type: string;
+  slot: string;
+  value: string | number;
+}
+
 export interface MemorySummary {
   anchorCount: number;
   schemaCount: number;
   bootstrapThemeCount: number;
+  lastFact?: LastFact | null;
 }
 
 export function computeMemorySummary(options: {
   anchorCount: number;
   schemaCount: number;
   bootstrapEntries: BootstrapEntryForSummary[];
+  lastFact?: LastFact | null;
 }): MemorySummary {
   const uniqueThemes = new Set<string>();
   for (const entry of options.bootstrapEntries) {
@@ -33,5 +41,6 @@ export function computeMemorySummary(options: {
     anchorCount: options.anchorCount,
     schemaCount: options.schemaCount,
     bootstrapThemeCount: uniqueThemes.size,
+    lastFact: options.lastFact ?? null,
   };
 }

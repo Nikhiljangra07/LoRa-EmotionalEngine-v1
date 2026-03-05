@@ -1492,14 +1492,17 @@ export class EngineOrchestrator {
       };
 
       const sessionIdCapture = this.currentSessionId;
-      this.memoryService.saveMessage(saveInput).then((ok) => {
+      this.memoryService.saveMessage(saveInput).then((result) => {
         if (decisionLogEnabled) {
           const log = makeMemoryServiceSaveLog({
             userId: this.userId,
             sessionId: sessionIdCapture ?? undefined,
             messageId: saveInput.messageId,
             tsMs: Date.now(),
-            ok,
+            ok: result.ok,
+            wroteFalkor: result.wroteFalkor,
+            wroteChroma: result.wroteChroma,
+            degraded: result.degraded,
           });
           console.log('[LoRa::MemoryServiceSave]', JSON.stringify(log));
         }

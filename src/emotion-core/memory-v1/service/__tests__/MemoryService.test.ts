@@ -122,8 +122,8 @@ function makeInput(
     const input = makeInput('msg-1', 'test-user-1', {
       content: 'Hello, how are you today?',
     });
-    const ok = await service.saveMessage(input);
-    expect(ok).toBe(true);
+    const result = await service.saveMessage(input);
+    expect(result.ok).toBe(true);
 
     const ctx = await service.retrieveContext('test-user-1', '', {
       emotionVec: [0.6, 0.4, 0.8, 0.9],
@@ -138,8 +138,8 @@ function makeInput(
     const input = makeInput('msg-goal', 'test-user-1', {
       content: 'My goal is to start exercise and get fit',
     });
-    const ok = await service.saveMessage(input);
-    expect(ok).toBe(true);
+    const result = await service.saveMessage(input);
+    expect(result.ok).toBe(true);
 
     const exported = await factStore.exportAll('test-user-1');
     expect(exported).not.toBeNull();
@@ -359,5 +359,34 @@ function makeInput(
 
     process.env.LORA_CHROMA_URL = origUrl;
     resetChromaClient();
+  });
+});
+
+describe('MemoryService saveMessage resilience', () => {
+  it('when Chroma throws, Falkor still writes and ok=true, wroteChroma=false', async () => {
+    const mockFactStore = {
+      upsertFromExtraction: jest.fn().mockResolvedValue({
+        nextState: {},
+        results: { createdConfirmed: 1, createdQuarantined: 0, reinforcedConfirmed: 0, reinforcedQuarantined: 0, promotedToConfirmed: 0, evictedConfirmed: 0, evictedQuarantined: 0, rejectedByCap: 0, rejectedByTemplate: 0, rejectedByType: 0 },
+      }),
+    };
+    const mockVectorAdapter = {
+      saveSchemas: jest.fn().mockRejectedValue(new Error('Chroma down')),
+    };
+    const service = new MemoryService(
+      {} as FalkorAnchorAdapter,
+      mockVectorAdapter as unknown as ChromaSchemaAdapter,
+      mockFactStore as any,
+    );
+
+    const result = await service.saveMessage(
+      makeInput('msg-1', 'u1', { content: 'My goal is to start exercise', sessionId: 's1' }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.wroteFalkor).toBe(true);
+    expect(result.wroteChroma).toBe(false);
+    expect(result.degraded.chroma).toBe(true);
+    expect(result.degraded.falkor).toBe(false);
   });
 });

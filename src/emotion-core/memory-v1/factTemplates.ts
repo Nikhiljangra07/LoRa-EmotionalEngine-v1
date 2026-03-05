@@ -17,11 +17,15 @@ export const FACT_TEMPLATES: FactTemplateRule[] = [
     type: 'deployment_plan',
     slot: 'launch_date',
     patterns: [
-      /deploy(?:ing)?\s+(?:.*?\s+)?on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /launch\s+(?:.*?\s+)?on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /planning\s+to\s+deploy\s+(?:.*?\s+)?on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /will\s+deploy\s+(?:.*?\s+)?on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
-      /deploy\s+(?:.*?\s+)?(?:on\s+)?([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
+      // Day-first: "on 23rd march 2026", "on 23 march 2026"
+      /(?:deploy|launch|planning\s+to\s+deploy|will\s+deploy)\s+(?:.*?\s+)?on\s+(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4})/i,
+      /on\s+(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4})/i,
+      /(?:deploy|launch|planning\s+to\s+deploy|will\s+deploy)\s+(?:.*?\s+)?on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})/i,
+      /on\s+(\d{1,2}\s+[A-Za-z]+\s+\d{4})/i,
+      // Month-first: "on March 23 2026", "on March 23, 2026", "on 23 March, 2026"
+      /(?:deploy|launch|planning\s+to\s+deploy|will\s+deploy)\s+(?:.*?\s+)?on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
+      /on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
+      /on\s+(\d{1,2}\s+[A-Za-z]+,?\s+\d{4})/i,
     ],
   },
   {

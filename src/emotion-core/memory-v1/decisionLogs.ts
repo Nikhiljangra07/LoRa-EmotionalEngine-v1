@@ -141,6 +141,9 @@ export function makeMemoryServiceSaveLog(params: {
   messageId?: string;
   tsMs: number;
   ok: boolean;
+  wroteFalkor?: boolean;
+  wroteChroma?: boolean;
+  degraded?: { falkor: boolean; chroma: boolean };
 }): MemoryLogEvent {
   return {
     tag: 'memoryService:save',
@@ -150,6 +153,9 @@ export function makeMemoryServiceSaveLog(params: {
       messageId: params.messageId ?? null,
       tsMs: params.tsMs,
       ok: params.ok,
+      wroteFalkor: params.wroteFalkor ?? null,
+      wroteChroma: params.wroteChroma ?? null,
+      degraded: params.degraded ?? null,
     },
   };
 }

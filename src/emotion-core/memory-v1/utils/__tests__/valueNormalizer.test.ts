@@ -8,6 +8,11 @@ describe('valueNormalizer', () => {
       expect(normalizeDate('2026-03-23')).toBe('2026-03-23');
     });
 
+    it('parses day-first formats: 23 March 2026, 23rd March 2026', () => {
+      expect(normalizeDate('23 March 2026')).toBe('2026-03-23');
+      expect(normalizeDate('23rd March 2026')).toBe('2026-03-23');
+    });
+
     it('returns null for invalid date', () => {
       expect(normalizeDate('not a date')).toBeNull();
       expect(normalizeDate('')).toBeNull();

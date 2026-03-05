@@ -8,7 +8,7 @@ const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.
 
 function createMockMemoryService(): MemoryService {
   return {
-    saveMessage: jest.fn().mockResolvedValue(true),
+    saveMessage: jest.fn().mockResolvedValue({ ok: true, wroteFalkor: true, wroteChroma: true, degraded: { falkor: false, chroma: false } }),
     retrieveContext: jest.fn().mockResolvedValue({
       anchors: [],
       semantic: [],

@@ -44,6 +44,15 @@ jest.mock('../../emotion-core/memory-v1/db/falkorClient', () => ({
       return [[], []];
     }),
   }),
+  graphQuery: jest.fn().mockImplementation((_graph: string, query: string) => {
+    if (typeof query === 'string' && query.includes('RETURN a.type AS type')) {
+      return Promise.resolve([
+        ['type', 'slot', 'value', 'createdAt'],
+        [['deployment_plan', 'launch_date', '2026-03-23', 1700000000000]],
+      ]);
+    }
+    return Promise.resolve([[], []]);
+  }),
 }));
 
 jest.mock('../../emotion-core/memory-v1/db/chromaClient', () => ({
@@ -139,6 +148,33 @@ describe('GET /debug/memory', () => {
     });
   });
 
+  it('includes facts.recent and memorySummary.lastFact from Falkor', async () => {
+    const res = await getDebugMemory(port);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('facts');
+    expect(res.body.facts).toHaveProperty('recent');
+    expect(Array.isArray(res.body.facts.recent)).toBe(true);
+    expect(res.body.facts.recent.length).toBeGreaterThan(0);
+    expect(res.body.facts.recent[0]).toMatchObject({
+      type: 'deployment_plan',
+      slot: 'launch_date',
+      value: '2026-03-23',
+    });
+    expect(res.body.memorySummary).toHaveProperty('lastFact');
+    expect(res.body.memorySummary.lastFact).toMatchObject({
+      type: 'deployment_plan',
+      slot: 'launch_date',
+      value: '2026-03-23',
+    });
+  });
+
+  it('facts and lastFact have no forbidden keys (content, message, text, transcript)', async () => {
+    const res = await getDebugMemory(port);
+    expect(res.status).toBe(200);
+    expect(hasForbiddenKey(res.body.facts)).toBe(false);
+    expect(hasForbiddenKey(res.body.memorySummary)).toBe(false);
+  });
+
   it('anchor count uses label filtering (Anchor nodes only)', async () => {
     const res = await getDebugMemory(port);
     expect(res.status).toBe(200);
@@ -179,12 +215,12 @@ describe('GET /debug/memory', () => {
 });
 
 describe('ChromaSchemaAdapter (no embedding function)', () => {
-  it('getOrCreateCollection is called without embeddingFunction', () => {
+  it('getOrCreateCollection is called without embeddingFunction in options', () => {
     const adapterSource = require('fs').readFileSync(
       require('path').join(__dirname, '../../emotion-core/memory-v1/db/ChromaSchemaAdapter.ts'),
       'utf-8'
     );
-    expect(adapterSource).not.toMatch(/embeddingFunction/);
+    expect(adapterSource).not.toMatch(/getOrCreateCollection\s*\(\s*\{[^}]*embeddingFunction\s*:/s);
     expect(adapterSource).not.toMatch(/lora-schema-stub/);
     expect(adapterSource).not.toMatch(/registerEmbeddingFunction/);
   });

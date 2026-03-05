@@ -184,13 +184,13 @@ const FORBIDDEN_PHRASES = [
     const ok1 = await service.saveMessage(
       makeInput('msg-s1', 'My goal is to start exercise', 'sess-1'),
     );
-    expect(ok1).toBe(true);
+    expect(ok1.ok).toBe(true);
 
     // 2. Session 2: same slot → reinforcement (reinforceCount = 2)
     const ok2 = await service.saveMessage(
       makeInput('msg-s2', 'My goal is exercise every day', 'sess-2'),
     );
-    expect(ok2).toBe(true);
+    expect(ok2.ok).toBe(true);
 
     // 3. Maintain at session boundary
     const report = await service.maintainAnchors(TEST_USER, 'sess-2', 1700000020000);

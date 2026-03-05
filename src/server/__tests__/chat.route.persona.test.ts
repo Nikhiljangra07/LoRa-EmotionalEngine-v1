@@ -6,7 +6,7 @@ const GENERIC_REPLY = "I'm here to help, what's on your mind?";
 
 function createMockMemoryService(): MemoryService {
   return {
-    saveMessage: jest.fn().mockResolvedValue(true),
+    saveMessage: jest.fn().mockResolvedValue({ ok: true, wroteFalkor: true, wroteChroma: true, degraded: { falkor: false, chroma: false } }),
     retrieveContext: jest.fn().mockResolvedValue({
       anchors: [],
       semantic: [],

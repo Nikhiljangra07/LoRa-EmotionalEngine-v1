@@ -10,6 +10,21 @@ describe('factTemplates', () => {
       expect(r!.value).toBe('2026-03-23');
     });
 
+    it('parses "deploy on 23rd march 2026" → value 2026-03-23', () => {
+      const r = extractStructuredFact('deploy on 23rd march 2026');
+      expect(r).not.toBeNull();
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toBe('2026-03-23');
+    });
+
+    it('parses Nikhil fixture: "app is almost ready and i am planning to deploy on 23rd march 2026"', () => {
+      const r = extractStructuredFact('app is almost ready and i am planning to deploy on 23rd march 2026');
+      expect(r).not.toBeNull();
+      expect(r!.type).toBe('deployment_plan');
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toBe('2026-03-23');
+    });
+
     it('extracts from "deploying X on Date"', () => {
       const r = extractStructuredFact('We are deploying the app on April 15, 2026');
       expect(r).not.toBeNull();

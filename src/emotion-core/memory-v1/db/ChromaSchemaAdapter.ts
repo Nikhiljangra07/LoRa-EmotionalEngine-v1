@@ -5,18 +5,38 @@ import type { SchemaRecord } from '../schemaStore';
 
 const COLLECTION_NAME = 'lora_schemas';
 const ROUND_DECIMALS = 6;
+const isDev = process.env.NODE_ENV === 'development';
 
 /**
  * Chroma runs in manual embedding mode: we always pass embeddings explicitly.
  * No embedding function is registered; collection is created without one.
+ * If the existing collection has an embedding function (legacy), in dev we
+ * delete and recreate; in prod we throw and instruct to run npm run reset:chroma.
  */
 export class ChromaSchemaAdapter {
   private async getCollection() {
     const client = getChromaClient();
-    return client.getOrCreateCollection({
+    const collection = await client.getOrCreateCollection({
       name: COLLECTION_NAME,
       metadata: { 'hnsw:space': 'cosine' },
     });
+
+    const hasEmbeddingFunction = !!(collection as { embeddingFunction?: unknown }).embeddingFunction;
+    if (hasEmbeddingFunction) {
+      if (isDev) {
+        await client.deleteCollection({ name: COLLECTION_NAME });
+        const recreated = await client.getOrCreateCollection({
+          name: COLLECTION_NAME,
+          metadata: { 'hnsw:space': 'cosine' },
+        });
+        console.log('[LoRa] Chroma collection recreated in manual-embedding mode');
+        return recreated;
+      }
+      throw new Error(
+        'Chroma collection lora_schemas was created with an embedding function. Run: npm run reset:chroma',
+      );
+    }
+    return collection;
   }
 
   async saveSchemas(
