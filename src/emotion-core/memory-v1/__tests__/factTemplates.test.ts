@@ -31,6 +31,61 @@ describe('factTemplates', () => {
       expect(r!.slot).toBe('launch_date');
       expect(r!.value).toBe('2026-04-15');
     });
+
+    it('extracts "I will deploy March 13 2026" (no "on") → 2026-03-13', () => {
+      const r = extractStructuredFact('I will deploy March 13 2026');
+      expect(r).not.toBeNull();
+      expect(r!.type).toBe('deployment_plan');
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toBe('2026-03-13');
+    });
+
+    it('extracts update verb "change it to March 8 2026" → 2026-03-08', () => {
+      const r = extractStructuredFact('Actually change it to March 8 2026');
+      expect(r).not.toBeNull();
+      expect(r!.type).toBe('deployment_plan');
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toBe('2026-03-08');
+    });
+
+    it('extracts "change to March 8 2026" (no "it")', () => {
+      const r = extractStructuredFact('Change to March 8 2026');
+      expect(r).not.toBeNull();
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toBe('2026-03-08');
+    });
+
+    it('extracts update verb "reschedule to March 10" → normalized date', () => {
+      const r = extractStructuredFact('reschedule to March 10');
+      expect(r).not.toBeNull();
+      expect(r!.type).toBe('deployment_plan');
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect((r!.value as string).endsWith('03-10')).toBe(true);
+    });
+
+    it('extracts update verb "move it to April 2" → normalized date', () => {
+      const r = extractStructuredFact('move it to April 2');
+      expect(r).not.toBeNull();
+      expect(r!.type).toBe('deployment_plan');
+      expect(r!.slot).toBe('launch_date');
+      expect(r!.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect((r!.value as string).endsWith('04-02')).toBe(true);
+    });
+
+    it('extracts "shift it to March 20 2026" and "update to April 1 2026"', () => {
+      expect(extractStructuredFact('shift it to March 20 2026')!.value).toBe('2026-03-20');
+      expect(extractStructuredFact('update to April 1 2026')!.value).toBe('2026-04-01');
+    });
+
+    it('returns only type/slot/value (no transcript stored)', () => {
+      const r = extractStructuredFact('change it to March 8 2026');
+      expect(r).not.toBeNull();
+      expect(Object.keys(r!)).toEqual(['type', 'slot', 'value']);
+      expect(r!.type).toBe('deployment_plan');
+      expect(r!.slot).toBe('launch_date');
+      expect(typeof r!.value).toBe('string');
+    });
   });
 
   describe('financial_commitment / money_amount', () => {

@@ -255,6 +255,20 @@ describe('factExtractor', () => {
       expect(a!.value).toBe('2026-03-23');
     });
 
+    it('extracts deployment_plan from update verbs (change/move/reschedule to DATE)', () => {
+      const change = extractFactAnchor(USER, 'Actually change it to March 8 2026', SESSION, VEC, TS, 0);
+      expect(change).not.toBeNull();
+      expect(change!.type).toBe('deployment_plan');
+      expect(change!.summary.slot).toBe('launch_date');
+      expect(change!.value).toBe('2026-03-08');
+
+      const move = extractFactAnchor(USER, 'Move it to March 8 2026', SESSION, VEC, TS + 1, 0);
+      expect(move!.value).toBe('2026-03-08');
+
+      const reschedule = extractFactAnchor(USER, 'Reschedule to March 10 2026', SESSION, VEC, TS + 2, 0);
+      expect(reschedule!.value).toBe('2026-03-10');
+    });
+
     it('extracts financial_commitment anchor with money_amount', () => {
       const a = extractFactAnchor(
         USER,

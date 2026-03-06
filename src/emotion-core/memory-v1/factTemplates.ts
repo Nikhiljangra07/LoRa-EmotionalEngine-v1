@@ -26,6 +26,16 @@ export const FACT_TEMPLATES: FactTemplateRule[] = [
       /(?:deploy|launch|planning\s+to\s+deploy|will\s+deploy)\s+(?:.*?\s+)?on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
       /on\s+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
       /on\s+(\d{1,2}\s+[A-Za-z]+,?\s+\d{4})/i,
+      // "I will deploy March 13 2026" (no "on")
+      /(?:deploy|launch|will\s+deploy)\s+(?:.*?\s+)?([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})/i,
+      /(?:deploy|launch|will\s+deploy)\s+(?:.*?\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4})/i,
+      // Update verbs: "change (it )?to DATE", "move (it )?to DATE", etc.
+      /change\s+(?:it\s+)?to\s+(.+)/i,
+      /move\s+(?:it\s+)?to\s+(.+)/i,
+      /reschedule\s+(?:it\s+)?to\s+(.+)/i,
+      /shift\s+(?:it\s+)?to\s+(.+)/i,
+      /update\s+(?:it\s+)?to\s+(.+)/i,
+      /push\s+(?:it\s+)?to\s+(.+)/i,
     ],
   },
   {
@@ -68,8 +78,17 @@ export interface ExtractedStructuredFact {
   value: string | number;
 }
 
+/** Strip trailing non-date words so "March 8 2026 please" → "March 8 2026". */
+function trimTrailingNonDate(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s+(please|thanks|\.|,|\b(?:and|or|then)\b).*$/i, '')
+    .trim();
+}
+
 /**
  * Run templates in order; returns first match with normalized value when applicable.
+ * Only type/slot/value are returned; no transcript text is stored.
  */
 export function extractStructuredFact(message: string): ExtractedStructuredFact | null {
   for (const rule of FACT_TEMPLATES) {
@@ -78,7 +97,8 @@ export function extractStructuredFact(message: string): ExtractedStructuredFact 
       if (!m) continue;
 
       if (rule.slot === 'launch_date' && m[1]) {
-        const normalized = normalizeDate(m[1].trim());
+        const raw = trimTrailingNonDate(m[1]);
+        const normalized = normalizeDate(raw);
         if (normalized) return { type: rule.type, slot: rule.slot, value: normalized };
         continue;
       }
