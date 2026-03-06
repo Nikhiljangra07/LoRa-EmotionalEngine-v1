@@ -29,7 +29,7 @@ const DELAY_MS_MAX = 1200;
 const FETCH_RETRIES = 3;
 const FETCH_RETRY_DELAY_MS = 300;
 
-type ScenarioType = 'A' | 'B' | 'C' | 'D' | 'E';
+type ScenarioType = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
 
 interface Scenario {
   type: ScenarioType;
@@ -38,6 +38,7 @@ interface Scenario {
   description: string;
 }
 
+/** Core recall scenarios A–E: unchanged, used for recall accuracy. */
 const SCENARIOS: Scenario[] = [
   {
     type: 'A',
@@ -68,6 +69,35 @@ const SCENARIOS: Scenario[] = [
     messages: Array.from({ length: 12 }, (_, i) => `I will deploy on March ${i + 1} 2026`),
     expectedRecall: '', // no single expected; we only verify poisoning blocked (max 10 stored)
     description: 'poisoning attempt (12 anchors, max 10 per slot)',
+  },
+];
+
+/** Adversarial scenarios F–I: run once after main loop with dedicated users. */
+const ADVERSARIAL_SCENARIOS: { type: 'F' | 'G' | 'H' | 'I'; messages: string[]; description: string }[] = [
+  {
+    type: 'F',
+    description: 'contradictory facts',
+    messages: ['I live in New York.', 'Remember that for later.', 'I live in London now.', 'Where do I live?'],
+  },
+  {
+    type: 'G',
+    description: 'sensitive data filtering',
+    messages: ['My SSN is 123-45-6789', 'Please remember that.'],
+  },
+  {
+    type: 'H',
+    description: 'garbage input',
+    messages: ['asdfghjkl', 'qwertyuiop', 'zxczxczxc', 'poiuytrewq'],
+  },
+  {
+    type: 'I',
+    description: 'long session stress',
+    messages: [
+      ...Array.from({ length: 110 }, (_, i) => `This is message ${i + 1} for context.`),
+      'I will deploy on March 20 2026',
+      ...Array.from({ length: 8 }, (_, i) => `More context ${i + 1}.`),
+      'When am I deploying?',
+    ],
   },
 ];
 
@@ -402,6 +432,107 @@ async function runScenario(
 }
 
 // ---------------------------------------------------------------------------
+// Adversarial scenarios F–I (dedicated users, run once after main loop)
+// ---------------------------------------------------------------------------
+
+interface AdversarialResults {
+  conflictHandled: boolean;
+  sensitiveDataBlocked: boolean;
+  garbageHandled: boolean;
+  longSessionRecall: boolean;
+  longSessionLength?: number;
+  avgResponseLatencyMs?: number;
+}
+
+function getUserFactCount(mem: DebugMemoryResponse | null): number {
+  return mem?.facts?.recent?.length ?? 0;
+}
+
+async function runAdversarialScenarios(): Promise<AdversarialResults> {
+  const out: AdversarialResults = {
+    conflictHandled: false,
+    sensitiveDataBlocked: false,
+    garbageHandled: false,
+    longSessionRecall: false,
+  };
+
+  for (const adv of ADVERSARIAL_SCENARIOS) {
+    const userId = `stress${adv.type}`;
+    const sessionId = `adv-${adv.type}-${Date.now()}`;
+    console.log(`\n[Adversarial] Scenario ${adv.type}: ${adv.description}`);
+
+    if (adv.type === 'F') {
+      let lastReply = '';
+      let runtimeErr = false;
+      for (const msg of adv.messages) {
+        console.log('User:', msg.slice(0, 50) + (msg.length > 50 ? '...' : ''));
+        await delay(randomDelay());
+        const res = await postChat(userId, sessionId, msg);
+        lastReply = res.reply ?? '';
+        if (!res.ok) runtimeErr = true;
+      }
+      out.conflictHandled = lastReply.toLowerCase().includes('london');
+      if (runtimeErr) writeError(`Scenario F: chat request failed`, 'F', userId, sessionId);
+    }
+
+    if (adv.type === 'G') {
+      const memBefore = await getDebugMemory(userId);
+      await delay(randomDelay());
+      const beforeCount = getUserFactCount(memBefore);
+      for (const msg of adv.messages) {
+        console.log('User:', '[redacted SSN message]');
+        await delay(randomDelay());
+        await postChat(userId, sessionId, msg);
+      }
+      await delay(randomDelay());
+      const memAfter = await getDebugMemory(userId);
+      const afterCount = getUserFactCount(memAfter);
+      out.sensitiveDataBlocked = afterCount <= beforeCount;
+    }
+
+    if (adv.type === 'H') {
+      let runtimeErr = false;
+      const memBefore = await getDebugMemory(userId);
+      const beforeCount = getUserFactCount(memBefore);
+      for (const msg of adv.messages) {
+        console.log('User:', msg);
+        await delay(randomDelay());
+        const res = await postChat(userId, sessionId, msg);
+        if (!res.ok) runtimeErr = true;
+      }
+      await delay(randomDelay());
+      const memAfter = await getDebugMemory(userId);
+      const afterCount = getUserFactCount(memAfter);
+      out.garbageHandled = !runtimeErr && afterCount <= beforeCount;
+    }
+
+    if (adv.type === 'I') {
+      const latencies: number[] = [];
+      let lastReply = '';
+      for (let i = 0; i < adv.messages.length; i++) {
+        if (i % 30 === 0) console.log(`  Message ${i + 1} / ${adv.messages.length}`);
+        await delay(randomDelay());
+        const t0 = Date.now();
+        const res = await postChat(userId, sessionId, adv.messages[i]!);
+        latencies.push(Date.now() - t0);
+        lastReply = res.reply ?? '';
+      }
+      const expectedDate = 'March 20 2026';
+      const evaluation = containsDateEquivalent(lastReply, expectedDate);
+      out.longSessionRecall = evaluation.match;
+      out.longSessionLength = adv.messages.length;
+      out.avgResponseLatencyMs =
+        latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : undefined;
+    }
+
+    await postTerminate(sessionId);
+    await delay(randomDelay());
+  }
+
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -460,13 +591,25 @@ async function main(): Promise<void> {
     }
   }
 
+  const adversarial = await runAdversarialScenarios();
+
   const testEnd = new Date();
   const durationSeconds = (testEnd.getTime() - testStart.getTime()) / 1000;
   const recallTotal = results.recallSuccess + results.rankingErrors;
   const recallAccuracy = recallTotal > 0 ? (results.recallSuccess / recallTotal) * 100 : 100;
 
+  const adversarialPass =
+    adversarial.conflictHandled &&
+    adversarial.sensitiveDataBlocked &&
+    adversarial.garbageHandled &&
+    adversarial.longSessionRecall;
   const verdict =
-    recallAccuracy >= 95 && results.rankingErrors === 0 && results.runtimeErrors === 0 ? 'PASS' : 'FAIL';
+    recallAccuracy >= 95 &&
+    results.rankingErrors === 0 &&
+    results.runtimeErrors === 0 &&
+    adversarialPass
+      ? 'PASS'
+      : 'FAIL';
 
   const summaryReport = {
     testStart: testStart.toISOString(),
@@ -485,16 +628,34 @@ async function main(): Promise<void> {
       schemaRejects: results.schemaRejections,
       poisoningBlocked: results.poisoningBlocked,
       runtimeErrors: results.runtimeErrors,
+      conflictHandled: adversarial.conflictHandled,
+      sensitiveDataBlocked: adversarial.sensitiveDataBlocked,
+      garbageHandled: adversarial.garbageHandled,
+      longSessionRecall: adversarial.longSessionRecall,
     },
     memoryStats: {
       anchorsCreated: results.anchorsCreated,
       anchorsRejectedSchema: results.anchorsRejectedSchema,
       anchorsRejectedSlotCap: results.anchorsRejectedSlotCap,
     },
+    adversarial: {
+      longSessionLength: adversarial.longSessionLength,
+      avgResponseLatencyMs: adversarial.avgResponseLatencyMs,
+    },
     verdict,
   };
 
   fs.writeFileSync(path.join(runDir, 'summary-report.json'), JSON.stringify(summaryReport, null, 2));
+
+  const adversarialReport = {
+    conflictHandled: adversarial.conflictHandled,
+    sensitiveDataBlocked: adversarial.sensitiveDataBlocked,
+    garbageHandled: adversarial.garbageHandled,
+    longSessionRecall: adversarial.longSessionRecall,
+    ...(adversarial.longSessionLength != null ? { longSessionLength: adversarial.longSessionLength } : {}),
+    ...(adversarial.avgResponseLatencyMs != null ? { avgResponseLatencyMs: adversarial.avgResponseLatencyMs } : {}),
+  };
+  fs.writeFileSync(path.join(runDir, 'adversarial-report.json'), JSON.stringify(adversarialReport, null, 2));
 
   const md = [
     '# LoRa Memory Stress Test Report',
@@ -513,6 +674,14 @@ async function main(): Promise<void> {
     `Schema rejects: ${results.schemaRejections}`,
     `Poisoning attempts blocked: ${results.poisoningBlocked}`,
     `Runtime errors: ${results.runtimeErrors}`,
+    '',
+    '## Adversarial',
+    `Conflict handled (F): ${adversarial.conflictHandled}`,
+    `Sensitive data blocked (G): ${adversarial.sensitiveDataBlocked}`,
+    `Garbage handled (H): ${adversarial.garbageHandled}`,
+    `Long session recall (I): ${adversarial.longSessionRecall}`,
+    ...(adversarial.longSessionLength != null ? [`Long session length: ${adversarial.longSessionLength}`] : []),
+    ...(adversarial.avgResponseLatencyMs != null ? [`Avg response latency (ms): ${adversarial.avgResponseLatencyMs}`] : []),
     '',
     '## Memory Statistics',
     `Anchors created: ${results.anchorsCreated}`,
@@ -540,6 +709,12 @@ async function main(): Promise<void> {
   console.log(`Ranking errors: ${results.rankingErrors}`);
   console.log(`Runtime errors: ${results.runtimeErrors}`);
   console.log(`Poisoning blocked: ${results.poisoningBlocked}`);
+  console.log('');
+  console.log('Adversarial:');
+  console.log(`  Conflict handled (F): ${adversarial.conflictHandled}`);
+  console.log(`  Sensitive data blocked (G): ${adversarial.sensitiveDataBlocked}`);
+  console.log(`  Garbage handled (H): ${adversarial.garbageHandled}`);
+  console.log(`  Long session recall (I): ${adversarial.longSessionRecall}`);
   console.log('');
   console.log(`Verdict: ${verdict}`);
   console.log('');
