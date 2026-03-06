@@ -2,6 +2,7 @@ import '../bootstrap';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import { validateEnv } from '../config/envValidator';
 import { getLLMHealth } from './llmTelemetry';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 import { registerSessionLifecycleRoute } from './routes/session.lifecycle.route';
@@ -31,6 +32,16 @@ app.use(express.json());
 
 // Laura UI: serve public/ so GET / opens the chat page
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));
+
+if (process.env.NODE_ENV !== 'test') {
+  try {
+    validateEnv();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[LoRa]', msg);
+    process.exit(1);
+  }
+}
 
 let apiChatRegistered = false;
 let engineSessions: Map<string, import('./routes/chat.route').SessionEntry> | undefined;

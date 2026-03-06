@@ -25,6 +25,8 @@ const MAX_REQUESTS_PER_SECOND = 2;
 const DELAY_MS_MIN = 200;
 const DELAY_MS_MAX = 1200;
 
+const SERVER_CHECK_TIMEOUT_MS = 5000;
+
 type ScenarioType = 'A' | 'B' | 'C' | 'D' | 'E';
 
 interface Scenario {
@@ -153,6 +155,22 @@ async function rateLimit(): Promise<void> {
     await delay(minInterval - elapsed);
   }
   lastRequestTime = Date.now();
+}
+
+// ---------------------------------------------------------------------------
+// Server reachability
+// ---------------------------------------------------------------------------
+
+async function isServerReachable(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SERVER_CHECK_TIMEOUT_MS);
+    const res = await fetch(`${API_URL}/health/llm`, { signal: controller.signal });
+    clearTimeout(timeout);
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -290,6 +308,7 @@ async function runScenario(
 
   for (let i = 0; i < scenario.messages.length; i++) {
     const input = scenario.messages[i];
+    console.log('User:', input);
     await delay(randomDelay());
 
     const chatRes = await postChat(userId, sessionId, input);
@@ -381,6 +400,12 @@ async function runScenario(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
+  const serverOk = await isServerReachable();
+  if (!serverOk) {
+    console.error('LoRa server not running. Start with npm run dev.');
+    process.exit(1);
+  }
+
   const testStart = new Date();
   ensureRunDir();
 
@@ -417,6 +442,8 @@ async function main(): Promise<void> {
       const scenario = scenarioCycle[scenarioIndex % scenarioCycle.length];
       scenarioIndex++;
 
+      console.log(`\nRunning conversation ${conversationCount + 1} / ${TOTAL_CONVERSATIONS}`);
+      console.log(`Scenario ${scenario.type}`);
       await runScenario(scenario, userId, sessionId, results);
       conversationCount++;
 
