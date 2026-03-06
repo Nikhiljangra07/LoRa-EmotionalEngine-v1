@@ -61,6 +61,9 @@ export type FactAnchorStatus =
   | 'quarantined'
   | 'confirmed';
 
+/** Source of the fact: explicit statement, update verb, or vague/inferred. */
+export type AnchorSourceType = 'explicit' | 'update' | 'inferred';
+
 export interface FactAnchor {
   anchorId: string;
   userId: string;
@@ -77,6 +80,13 @@ export interface FactAnchor {
 
   salience: number;
   extractionConfidence: number;
+
+  /** 0–1 reliability for ranking; falls back to extractionConfidence when absent (legacy). */
+  confidence?: number;
+  /** How the fact was stated: explicit, update verb, or inferred. */
+  sourceType?: AnchorSourceType;
+  /** Ranking weight: update=3, explicit=2, inferred=1. */
+  priority?: number;
 
   status: FactAnchorStatus;
 

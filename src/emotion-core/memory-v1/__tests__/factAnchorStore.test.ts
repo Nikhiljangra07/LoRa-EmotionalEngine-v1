@@ -5,6 +5,7 @@ import {
   MAX_ANCHORS_CONFIRMED,
   MAX_ANCHORS_QUARANTINED,
 } from '../factAnchorTypes';
+import { MAX_ANCHORS_PER_SLOT } from '../anchorRanking';
 
 const store = createInMemoryFactAnchorStore();
 
@@ -113,6 +114,50 @@ describe('caps & truncation', () => {
 });
 
 // =========================================================================
+// 2b. Anchor poisoning & schema guard
+// =========================================================================
+
+describe('anchor poisoning & schema guard', () => {
+  it('anchor poisoning blocked after MAX_ANCHORS_PER_SLOT for same slot', () => {
+    let s = store.init();
+    for (let i = 0; i < MAX_ANCHORS_PER_SLOT + 1; i++) {
+      const a = makeAnchor({
+        anchorId: `p-${i}`,
+        type: 'deployment_plan',
+        summary: { template: 'deployment_plan', slot: 'launch_date' },
+        value: `2026-0${(i % 9) + 1}-${String((i % 28) + 1).padStart(2, '0')}`,
+        extractionConfidence: 0.9,
+      });
+      const { nextState, results } = store.upsertFromExtraction(s, {
+        userId: 'u1', sessionId: `sess-${i}`, nowMs: 1000 + i,
+        extracted: [a],
+      });
+      s = nextState;
+      if (i === MAX_ANCHORS_PER_SLOT) {
+        expect(results.rejectedBySlotCap).toBe(1);
+      }
+    }
+    const launchDateAnchors = s.confirmed.filter((a) => a.type === 'deployment_plan' && a.summary.slot === 'launch_date');
+    expect(launchDateAnchors.length).toBe(MAX_ANCHORS_PER_SLOT);
+  });
+
+  it('invalid schema slot rejected (rejectedBySchema)', () => {
+    const s = store.init();
+    const a = makeAnchor({
+      anchorId: 'bad',
+      type: 'deployment_plan',
+      summary: { template: 'deployment_plan', slot: 'invalid_slot' as any },
+      extractionConfidence: 0.9,
+    });
+    const { nextState, results } = store.upsertFromExtraction(s, {
+      userId: 'u1', sessionId: 'sess-1', nowMs: 1000, extracted: [a],
+    });
+    expect(results.rejectedBySchema).toBe(1);
+    expect(nextState.confirmed.length).toBe(0);
+  });
+});
+
+// =========================================================================
 // 3. Dedupe & reinforcement
 // =========================================================================
 
@@ -187,7 +232,7 @@ describe('dedupe & reinforcement', () => {
   it('anchorKey deduplication uses type+template+slot+date', () => {
     let s = store.init();
     const a1 = makeAnchor({ anchorId: 'a1', type: 'goal', summary: { template: 'goal_active', slot: 'learning' } });
-    const a2 = makeAnchor({ anchorId: 'a2', type: 'preference', summary: { template: 'preference_positive', slot: 'learning' } });
+    const a2 = makeAnchor({ anchorId: 'a2', type: 'preference', summary: { template: 'preference_positive', slot: 'general_positive' } });
     s = store.upsertFromExtraction(s, {
       userId: 'u1', sessionId: 'sess-1', nowMs: 1000, extracted: [a1],
       maxAnchorsPerMessage: 2, maxAnchorsPerSession: 10,
@@ -309,6 +354,7 @@ describe('capacity eviction', () => {
   });
 
   it('confirmed eviction at > MAX removes lowest priority', () => {
+    const goalSlots = ['learning', 'exercise', 'diet', 'hobby', 'career_change'] as const;
     let s = store.init();
     for (let i = 0; i < MAX_ANCHORS_CONFIRMED + 2; i++) {
       const a = makeAnchor({
@@ -317,7 +363,7 @@ describe('capacity eviction', () => {
         createdAt: 1000 + i,
         reinforceCount: i === 0 ? 1 : 3,
         appearsInSessions: i === 0 ? 1 : 3,
-        summary: { template: 'goal_active', slot: 'learning' },
+        summary: { template: 'goal_active', slot: goalSlots[i % 5] },
         date: `key-${i}`,
       });
       const { nextState } = store.upsertFromExtraction(s, {
@@ -334,13 +380,14 @@ describe('capacity eviction', () => {
   });
 
   it('tie-break deterministic by anchorId', () => {
+    const goalSlots = ['learning', 'exercise', 'diet', 'hobby', 'career_change'] as const;
     let s = store.init();
     for (let i = 0; i < MAX_ANCHORS_QUARANTINED + 1; i++) {
       const a = makeAnchor({
         anchorId: `q-${String(i).padStart(3, '0')}`,
         extractionConfidence: 0.55,
         createdAt: 5000,
-        summary: { template: 'goal_active', slot: 'learning' },
+        summary: { template: 'goal_active', slot: goalSlots[i % 5] },
         date: `key-${i}`,
       });
       s = store.upsertFromExtraction(s, {

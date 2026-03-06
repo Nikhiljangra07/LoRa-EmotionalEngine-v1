@@ -29,6 +29,8 @@ export interface UpsertResult {
   rejectedByCap: number;
   rejectedByTemplate: number;
   rejectedByType: number;
+  rejectedBySchema: number;
+  rejectedBySlotCap: number;
 }
 
 export interface MaintainInput {

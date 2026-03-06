@@ -45,6 +45,10 @@ export interface AnchorRecord {
   timestamp: number;
   emotion: EmotionSignal;
   metrics: EmotionalMetrics;
+  /** True when two+ high-confidence anchors existed for same slot; winner is active. */
+  conflict?: boolean;
+  /** When conflict is true, the anchorId this anchor supersedes. */
+  supersedes?: string;
 }
 
 export interface SemanticRecord {

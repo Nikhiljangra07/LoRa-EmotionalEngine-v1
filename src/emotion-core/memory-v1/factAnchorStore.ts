@@ -5,6 +5,7 @@ import {
   QUARANTINE_THRESHOLD,
 } from './factAnchorTypes';
 import { transitionAnchorStatus } from './anchorLifecycle';
+import { isSlotAllowed, MAX_ANCHORS_PER_SLOT } from './anchorRanking';
 import type {
   FactAnchorStore,
   FactAnchorStoreState,
@@ -166,6 +167,8 @@ export function createInMemoryFactAnchorStore(): FactAnchorStore {
         rejectedByCap: 0,
         rejectedByTemplate: 0,
         rejectedByType: 0,
+        rejectedBySchema: 0,
+        rejectedBySlotCap: 0,
       };
 
       if (extracted.length === 0) {
@@ -234,6 +237,24 @@ export function createInMemoryFactAnchorStore(): FactAnchorStore {
             results.reinforcedQuarantined++;
           }
         } else {
+          if (!isSlotAllowed(ext.type, ext.summary.slot)) {
+            results.rejectedBySchema++;
+            if (process.env.NODE_ENV !== 'test') {
+              console.warn('[LoRa::AnchorGuard] Schema drift: slot not allowed', { type: ext.type, slot: ext.summary.slot });
+            }
+            continue;
+          }
+          const slotKey = `${ext.type}|${ext.summary.slot}`;
+          const sameSlotCount =
+            confirmed.filter((a) => `${a.type}|${a.summary.slot}` === slotKey).length +
+            quarantined.filter((a) => `${a.type}|${a.summary.slot}` === slotKey).length;
+          if (sameSlotCount >= MAX_ANCHORS_PER_SLOT) {
+            results.rejectedBySlotCap++;
+            if (process.env.NODE_ENV !== 'test') {
+              console.warn('[LoRa::AnchorGuard] Max anchors per slot exceeded', { slotKey, count: sameSlotCount, max: MAX_ANCHORS_PER_SLOT });
+            }
+            continue;
+          }
           const anchor = deepCopyAnchor(ext);
           if (anchor.extractionConfidence < QUARANTINE_THRESHOLD) {
             anchor.status = 'quarantined';

@@ -3,6 +3,8 @@ import { FalkorAnchorAdapter } from '../db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../db/ChromaSchemaAdapter';
 import { extractFactAnchor } from '../factExtractor';
 import { scoreAnchors, type AnchorScore } from '../anchorRelevanceArbiter';
+import { filterBySchema, rankAnchors } from '../anchorRanking';
+import { MAX_ANCHORS_PER_MESSAGE } from '../anchorRanking';
 import type { FactAnchor } from '../factAnchorTypes';
 import type { SchemaRecord } from '../schemaStore';
 import type { MaintainReport, AsyncFactAnchorStore } from '../factAnchorStoreTypes';
@@ -95,6 +97,7 @@ export class MemoryService {
           sessionId,
           nowMs: timestamp,
           extracted: [candidate],
+          maxAnchorsPerMessage: MAX_ANCHORS_PER_MESSAGE,
         });
         wroteFalkor = upsertResult !== null;
       } else {
@@ -154,26 +157,24 @@ export class MemoryService {
 
     let relevantAnchors: AnchorRecord[] = [];
     if (!falkorDown && rawCandidates.length > 0) {
-      const scored: AnchorScore[] = scoreAnchors(rawCandidates, emotionVec, nowMs, band);
-      const deduped = deduplicateBySlot(scored);
-      const byPriority = [...deduped].sort((a, b) => {
+      const schemaFiltered = filterBySchema(rawCandidates);
+      const scored: AnchorScore[] = scoreAnchors(schemaFiltered, emotionVec, nowMs, band);
+      const ranked = rankAnchors(scored, nowMs);
+      const byPriority = [...ranked].sort((a, b) => {
         const pa = ANCHOR_PRIORITY[a.anchor.type] ?? 10;
         const pb = ANCHOR_PRIORITY[b.anchor.type] ?? 10;
         if (pa !== pb) return pb - pa;
-        return b.anchor.createdAt - a.anchor.createdAt;
+        return b.score - a.score;
       });
-      const selectedAnchors = byPriority.slice(0, 3);
-      relevantAnchors = selectedAnchors.map((s) => factAnchorToRecord(s.anchor, band));
+      const selected = byPriority.slice(0, 3);
+      relevantAnchors = selected.map((r) => factAnchorToRecord(r.anchor, band, r.conflict, r.supersedes));
       console.log('[LoRa::AnchorPoolSize]', {
         totalAnchorsFromFalkor: rawCandidates.length,
+        schemaFiltered: schemaFiltered.length,
         scoredCount: scored.length,
-        dedupedCount: deduped.length,
-        returnedAfterRanking: selectedAnchors.length,
+        rankedCount: ranked.length,
+        returnedAfterRanking: selected.length,
       });
-      console.log(
-        '[LoRa::AnchorRanking]',
-        selectedAnchors.map((s) => ({ type: s.anchor.type, slot: s.anchor.summary.slot, value: s.anchor.value })),
-      );
     }
 
     return {
@@ -232,13 +233,15 @@ export class MemoryService {
 function factAnchorToRecord(
   fa: FactAnchor,
   band: string,
+  conflict?: boolean,
+  supersedes?: string,
 ): AnchorRecord {
   const vec = fa.emotionVecAtCreation;
   const slotValue =
     fa.value !== undefined
       ? `${fa.summary.slot} = ${fa.value}`
       : undefined;
-  return {
+  const record: AnchorRecord = {
     anchorId: fa.anchorId,
     contentSummary: slotValue ?? anchorSummaryLabel(fa.summary.template, fa.summary.slot),
     slotValue,
@@ -255,6 +258,9 @@ function factAnchorToRecord(
       band: band as EmotionalMetrics['band'],
     },
   };
+  if (conflict) record.conflict = true;
+  if (supersedes) record.supersedes = supersedes;
+  return record;
 }
 
 function toSemanticRecord(s: SchemaRecord): SemanticRecord {
@@ -284,23 +290,6 @@ function deterministicVector(seed: number, dim: number): number[] {
   }
   const norm = Math.sqrt(out.reduce((sum, x) => sum + x * x, 0)) || 1;
   return out.map((x) => x / norm);
-}
-
-/**
- * For single-valued slots (same type + slot), keep only the anchor with
- * the latest createdAt. Ensures "latest user assertion wins" for facts
- * like deployment_plan.launch_date when multiple values exist.
- */
-function deduplicateBySlot(scored: AnchorScore[]): AnchorScore[] {
-  const seen = new Map<string, AnchorScore>();
-  for (const s of scored) {
-    const key = `${s.anchor.type}|${s.anchor.summary.slot}`;
-    const existing = seen.get(key);
-    if (!existing || s.anchor.createdAt > existing.anchor.createdAt) {
-      seen.set(key, s);
-    }
-  }
-  return [...seen.values()];
 }
 
 /**

@@ -367,7 +367,7 @@ describe('MemoryService saveMessage resilience', () => {
     const mockFactStore = {
       upsertFromExtraction: jest.fn().mockResolvedValue({
         nextState: {},
-        results: { createdConfirmed: 1, createdQuarantined: 0, reinforcedConfirmed: 0, reinforcedQuarantined: 0, promotedToConfirmed: 0, evictedConfirmed: 0, evictedQuarantined: 0, rejectedByCap: 0, rejectedByTemplate: 0, rejectedByType: 0 },
+        results: { createdConfirmed: 1, createdQuarantined: 0, reinforcedConfirmed: 0, reinforcedQuarantined: 0, promotedToConfirmed: 0, evictedConfirmed: 0, evictedQuarantined: 0, rejectedByCap: 0, rejectedByTemplate: 0, rejectedByType: 0, rejectedBySchema: 0, rejectedBySlotCap: 0 },
       }),
     };
     const mockVectorAdapter = {

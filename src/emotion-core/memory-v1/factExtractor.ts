@@ -3,13 +3,19 @@ import type {
   AnchorType,
   AnchorTemplate,
   AnchorSlot,
+  AnchorSourceType,
 } from './factAnchorTypes';
 import { QUARANTINE_THRESHOLD } from './factAnchorTypes';
 import { extractStructuredFact } from './factTemplates';
+import { MIN_CONFIDENCE } from './anchorRanking';
 
 const SESSION_ANCHOR_CAP = 3;
+const MAX_ANCHORS_PER_MESSAGE = 2;
 
 const REMEMBER_INTENT_RE = /\b(?:remember that|save that|don'?t forget)\b/i;
+
+/** Update verbs for deployment_plan: change/move/reschedule/shift/update/push (it )?to DATE */
+const DEPLOYMENT_UPDATE_VERB_RE = /\b(?:change|move|reschedule|shift|update|push)\s+(?:it\s+)?to\s+/i;
 
 // ---------------------------------------------------------------------------
 // Goal patterns
@@ -153,16 +159,36 @@ export function extractFactAnchor(
       const template: AnchorTemplate =
         structured.type === 'goal' ? 'goal_objective' : structured.type;
       const type = anchorTypeFromTemplate(template);
-      const confidence = BASE_CONFIDENCE[type];
-      const status = confidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
+      const baseConfidence = BASE_CONFIDENCE[type];
+      let confidence: number;
+      let sourceType: AnchorSourceType;
+      let priority: number;
+      if (type === 'deployment_plan' && DEPLOYMENT_UPDATE_VERB_RE.test(message)) {
+        confidence = 1.0;
+        sourceType = 'update';
+        priority = 3;
+      } else if (type === 'deployment_plan') {
+        confidence = 0.9;
+        sourceType = 'explicit';
+        priority = 2;
+      } else {
+        confidence = baseConfidence;
+        sourceType = 'explicit';
+        priority = 2;
+      }
+      if (confidence < MIN_CONFIDENCE) return null;
+      const status = baseConfidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
       const anchor: FactAnchor = {
         anchorId: `${userId}-${sessionId}-${timestamp}`,
         userId,
         type,
         summary: { template, slot: structured.slot as AnchorSlot },
         value: structured.value,
-        salience: confidence,
-        extractionConfidence: confidence,
+        salience: baseConfidence,
+        extractionConfidence: baseConfidence,
+        confidence,
+        sourceType,
+        priority,
         status,
         emotionVecAtCreation: [...emotionVec],
         sessionId,
@@ -192,8 +218,9 @@ export function extractFactAnchor(
   if (!match) return null;
 
   const type = anchorTypeFromTemplate(match.template);
-  const confidence = BASE_CONFIDENCE[type];
-  const status = confidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
+  const baseConfidence = BASE_CONFIDENCE[type];
+  if (baseConfidence < MIN_CONFIDENCE) return null;
+  const status = baseConfidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
 
   const anchor: FactAnchor = {
     anchorId: `${userId}-${sessionId}-${timestamp}`,
@@ -203,8 +230,11 @@ export function extractFactAnchor(
       template: match.template,
       slot: match.slot,
     },
-    salience: confidence,
-    extractionConfidence: confidence,
+    salience: baseConfidence,
+    extractionConfidence: baseConfidence,
+    confidence: baseConfidence,
+    sourceType: 'explicit',
+    priority: 2,
     status,
     emotionVecAtCreation: [...emotionVec],
     sessionId,
