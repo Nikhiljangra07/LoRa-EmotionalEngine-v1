@@ -81,8 +81,10 @@ function parseOneDateString(raw: string): ParsedDate | null {
 /**
  * Extract all recognizable date expressions from a text block.
  * Returns an array of canonical "YYYY-MM-DD" strings.
+ * When contextYear is provided (e.g. from the expected date), month-day expressions
+ * without a year (e.g. "March 20", "Mar 20", "20 March") are inferred to that year.
  */
-export function extractDatesFromText(text: string): string[] {
+export function extractDatesFromText(text: string, contextYear?: number): string[] {
   const clean = stripOrdinal(text).replace(/,/g, ' ').replace(/[—–\-]+/g, ' ');
   const results: string[] = [];
   const seen = new Set<string>();
@@ -123,6 +125,38 @@ export function extractDatesFromText(text: string): string[] {
     }
   }
 
+  // Month-Day / Day-Month without year: infer year only when contextYear is provided (from expected date)
+  if (contextYear !== undefined) {
+    // "March 20" or "Mar 20" (not followed by a 4-digit year)
+    for (const m of clean.matchAll(/\b([A-Za-z]+)\s+(\d{1,2})\b(?!\s*\d{4})/gi)) {
+      const month = MONTH_ABBR[m[1]!.toLowerCase()];
+      if (month) {
+        const day = parseInt(m[2]!, 10);
+        if (day >= 1 && day <= 31) {
+          const c = `${contextYear}-${pad2(month)}-${pad2(day)}`;
+          if (!seen.has(c)) {
+            seen.add(c);
+            results.push(c);
+          }
+        }
+      }
+    }
+    // "20 March" or "20 Mar" (not followed by a 4-digit year)
+    for (const m of clean.matchAll(/\b(\d{1,2})\s+([A-Za-z]+)\b(?!\s*\d{4})/gi)) {
+      const month = MONTH_ABBR[m[2]!.toLowerCase()];
+      if (month) {
+        const day = parseInt(m[1]!, 10);
+        if (day >= 1 && day <= 31) {
+          const c = `${contextYear}-${pad2(month)}-${pad2(day)}`;
+          if (!seen.has(c)) {
+            seen.add(c);
+            results.push(c);
+          }
+        }
+      }
+    }
+  }
+
   return results;
 }
 
@@ -142,7 +176,8 @@ export function containsDateEquivalent(
 
   const parsedExpected = parseOneDateString(expectedDate);
   const expectedNormalized = parsedExpected ? dateToCanonical(parsedExpected) : normalizeText(expectedDate);
-  const detectedDates = extractDatesFromText(response);
+  const contextYear = parsedExpected?.year;
+  const detectedDates = extractDatesFromText(response, contextYear);
 
   // Primary: canonical date comparison
   if (parsedExpected) {
