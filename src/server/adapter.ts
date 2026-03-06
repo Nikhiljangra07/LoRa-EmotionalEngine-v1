@@ -58,6 +58,11 @@ try {
 registerOnboardingRoute(app);
 registerSessionLifecycleRoute(app, engineSessions);
 
+// ── Health: simple liveness for stress test and load balancers ─────────
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 // ── Health: LLM readiness (read-only, no side-effects) ───────────────
 app.get('/health/llm', (_req, res) => {
   res.json(getLLMHealth());

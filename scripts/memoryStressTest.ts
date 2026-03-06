@@ -15,7 +15,7 @@ import * as path from 'path';
 // Config
 // ---------------------------------------------------------------------------
 
-const API_URL = process.env.LORA_STRESS_API_URL ?? 'http://localhost:3000';
+const BASE_URL = process.env.LORA_BASE_URL || process.env.LORA_STRESS_API_URL || 'http://localhost:3000';
 const TOTAL_CONVERSATIONS = parseInt(process.env.LORA_STRESS_CONVERSATIONS ?? '100', 10);
 const SESSIONS_PER_USER = parseInt(process.env.LORA_STRESS_SESSIONS_PER_USER ?? '20', 10);
 const MESSAGES_PER_SESSION = 5;
@@ -25,7 +25,8 @@ const MAX_REQUESTS_PER_SECOND = 2;
 const DELAY_MS_MIN = 200;
 const DELAY_MS_MAX = 1200;
 
-const SERVER_CHECK_TIMEOUT_MS = 5000;
+const FETCH_RETRIES = 3;
+const FETCH_RETRY_DELAY_MS = 300;
 
 type ScenarioType = 'A' | 'B' | 'C' | 'D' | 'E';
 
@@ -158,19 +159,25 @@ async function rateLimit(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Server reachability
+// Safe fetch with retries
 // ---------------------------------------------------------------------------
 
-async function isServerReachable(): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), SERVER_CHECK_TIMEOUT_MS);
-    const res = await fetch(`${API_URL}/health/llm`, { signal: controller.signal });
-    clearTimeout(timeout);
-    return res.ok;
-  } catch {
-    return false;
+async function safeFetch(
+  url: string,
+  options: RequestInit,
+  retries: number = FETCH_RETRIES,
+): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise((r) => setTimeout(r, FETCH_RETRY_DELAY_MS));
+    }
   }
+  throw new Error('safeFetch: max retries');
 }
 
 // ---------------------------------------------------------------------------
@@ -190,18 +197,25 @@ async function postChat(
   text: string,
 ): Promise<{ ok: boolean; reply: string; status: number; body: ChatResponse }> {
   await rateLimit();
-  const url = `${API_URL}/api/chat`;
+  const url = `${BASE_URL}/api/chat`;
   const body = JSON.stringify({ userId, sessionId, text, messageId: `msg-${Date.now()}` });
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
     });
-    const data = (await res.json()) as ChatResponse;
+    let data: ChatResponse;
+    try {
+      data = (await res.json()) as ChatResponse;
+    } catch {
+      const raw = await res.text();
+      data = { reply: raw || '' };
+    }
     const reply = typeof data.reply === 'string' ? data.reply : '';
     return { ok: res.ok, reply, status: res.status, body: data };
   } catch (e) {
+    console.error('CHAT REQUEST FAILED', e);
     const message = e instanceof Error ? e.message : String(e);
     return { ok: false, reply: '', status: 0, body: { error: 'fetch_error', details: message } };
   }
@@ -209,9 +223,9 @@ async function postChat(
 
 async function postTerminate(sessionId: string): Promise<{ ended: boolean }> {
   await rateLimit();
-  const url = `${API_URL}/api/session/terminate`;
+  const url = `${BASE_URL}/api/session/terminate`;
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId }),
@@ -230,9 +244,9 @@ interface DebugMemoryResponse {
 
 async function getDebugMemory(userId: string): Promise<DebugMemoryResponse | null> {
   await rateLimit();
-  const url = `${API_URL}/debug/memory?userId=${encodeURIComponent(userId)}`;
+  const url = `${BASE_URL}/debug/memory?userId=${encodeURIComponent(userId)}`;
   try {
-    const res = await fetch(url);
+    const res = await safeFetch(url, { method: 'GET' });
     if (!res.ok) return null;
     return (await res.json()) as DebugMemoryResponse;
   } catch {
@@ -316,7 +330,8 @@ async function runScenario(
 
     const isRecallQuestion = input.toLowerCase().includes('when am i deploying');
     const expectedRecall = isRecallQuestion ? scenario.expectedRecall : undefined;
-    const recallCorrect = !expectedRecall || replyContainsRecall(chatRes.reply ?? '', expectedRecall);
+    const recallCorrect: boolean | null =
+      !chatRes.ok ? null : !expectedRecall ? true : replyContainsRecall(chatRes.reply ?? '', expectedRecall);
 
     writeConversationLog({
       timestamp: ts,
@@ -337,7 +352,7 @@ async function runScenario(
       input.replace(/,/g, ';'),
       (chatRes.reply ?? '').replace(/,/g, ';').slice(0, 200),
       expectedRecall ?? '',
-      recallCorrect ? 'true' : 'false',
+      recallCorrect === null ? '' : recallCorrect ? 'true' : 'false',
     ].join(','));
 
     if (!chatRes.ok) {
@@ -352,7 +367,7 @@ async function runScenario(
       continue;
     }
 
-    if (isRecallQuestion && expectedRecall) {
+    if (isRecallQuestion && expectedRecall && recallCorrect !== null) {
       if (!recallCorrect) {
         result.recallCorrect = false;
         result.rankingError = true;
@@ -400,9 +415,11 @@ async function runScenario(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  const serverOk = await isServerReachable();
-  if (!serverOk) {
-    console.error('LoRa server not running. Start with npm run dev.');
+  try {
+    const res = await fetch(`${BASE_URL}/health`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch {
+    console.error(`LoRa server not reachable at ${BASE_URL}`);
     process.exit(1);
   }
 
@@ -414,7 +431,7 @@ async function main(): Promise<void> {
     sessionsPerUser: SESSIONS_PER_USER,
     messagesPerSession: MESSAGES_PER_SESSION,
     users: USERS,
-    apiUrl: API_URL,
+    baseUrl: BASE_URL,
     debugMemory: DEBUG_MEMORY,
   };
   fs.writeFileSync(path.join(runDir, 'test-config.json'), JSON.stringify(config, null, 2));
