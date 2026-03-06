@@ -92,12 +92,14 @@ const ADVERSARIAL_SCENARIOS: { type: 'F' | 'G' | 'H' | 'I'; messages: string[]; 
   {
     type: 'I',
     description: 'long session stress',
-    messages: [
-      ...Array.from({ length: 110 }, (_, i) => `This is message ${i + 1} for context.`),
-      'I will deploy on March 20 2026',
-      ...Array.from({ length: 8 }, (_, i) => `More context ${i + 1}.`),
-      'When am I deploying?',
-    ],
+    messages: (() => {
+      const msgs: string[] = [];
+      for (let i = 0; i < 110; i++) msgs.push(`This is message ${i + 1} for context.`);
+      msgs.push('I will deploy March 20 2026'); // message 111 (1-based)
+      for (let i = 0; i < 8; i++) msgs.push(`More context ${i + 1}.`);
+      msgs.push('When am I deploying?'); // message 120 (1-based)
+      return msgs;
+    })(),
   },
 ];
 
@@ -508,18 +510,22 @@ async function runAdversarialScenarios(): Promise<AdversarialResults> {
 
     if (adv.type === 'I') {
       const latencies: number[] = [];
-      let lastReply = '';
       for (let i = 0; i < adv.messages.length; i++) {
+        const input = adv.messages[i]!;
         if (i % 30 === 0) console.log(`  Message ${i + 1} / ${adv.messages.length}`);
         await delay(randomDelay());
         const t0 = Date.now();
-        const res = await postChat(userId, sessionId, adv.messages[i]!);
+        const res = await postChat(userId, sessionId, input);
         latencies.push(Date.now() - t0);
-        lastReply = res.reply ?? '';
+        const response = res.reply ?? '';
+        if (input.includes('When am I deploying?')) {
+          const result = containsDateEquivalent(response, 'March 20 2026');
+          out.longSessionRecall = result.match;
+          console.log('Scenario I recall check');
+          console.log('Response:', response);
+          console.log('Detected dates:', result.debug.detectedDates);
+        }
       }
-      const expectedDate = 'March 20 2026';
-      const evaluation = containsDateEquivalent(lastReply, expectedDate);
-      out.longSessionRecall = evaluation.match;
       out.longSessionLength = adv.messages.length;
       out.avgResponseLatencyMs =
         latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : undefined;
