@@ -93,6 +93,15 @@ const llmTimeoutMs = Math.max(
   parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 12000
 );
 
+/**
+ * When true, the LLM cooldown/fallback mechanism is disabled.
+ * All provider failures surface as thrown errors instead of being
+ * silently replaced with canned comfort text.
+ * Activated via LORA_STRESS_TEST=1 — intended for stress-test runs
+ * where silent fallback masks real failures.
+ */
+const stressTestMode = process.env.LORA_STRESS_TEST === '1';
+
 import { writeSessionTrace } from '../../debug/sessionTrace';
 
 const VALID_DOMINANT_EMOTIONS: ReadonlySet<string> = new Set([
@@ -1950,7 +1959,13 @@ export class EngineOrchestrator {
   ): Promise<string> {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
-      if (
+      if (stressTestMode) {
+        // Stress-test mode: skip cooldown entirely — always reattempt the LLM
+        this.llmAvailability = 'AVAILABLE';
+        this.llmCooldownUntil = null;
+        this.llmCooldownStartedAt = null;
+        this.logLLMEvent('cooldown_bypassed_stress_test');
+      } else if (
         this.llmCooldownUntil !== null &&
         now >= this.llmCooldownUntil
       ) {
@@ -2084,6 +2099,19 @@ export class EngineOrchestrator {
     if (attempts > 1) {
       this.logLLMEvent('retry_summary', { attempts });
     }
+
+    if (stressTestMode) {
+      // Stress-test mode: surface the real error instead of hiding it behind canned text
+      const errMsg = lastError instanceof Error ? lastError.message : String(lastError ?? 'LLM retries exhausted');
+      const status = (lastError as any)?.status ?? (lastError as any)?.statusCode ?? 'N/A';
+      console.error('[LoRa::StressTest] LLM retries exhausted — surfacing error', {
+        attempts,
+        error: errMsg,
+        status,
+      });
+      throw new Error(`LLM retries exhausted (${attempts} attempts): ${errMsg}`);
+    }
+
     this.llmAvailability = 'UNAVAILABLE';
     this.llmCooldownStartedAt = now;
     const cooldownMs = debugEnabled
@@ -2184,6 +2212,12 @@ export class EngineOrchestrator {
   }
 
   private static fallbackResponse(): string {
+    if (stressTestMode) {
+      throw new Error(
+        'LLM fallback triggered during stress test — this masks real provider failures. ' +
+        'The canned response would have been returned instead of a real LLM reply.',
+      );
+    }
     return 'I’m here with you. Let’s take this one step at a time.';
   }
 

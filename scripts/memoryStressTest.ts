@@ -254,6 +254,16 @@ async function postChat(
       data = { reply: raw || '' };
     }
     const reply = typeof data.reply === 'string' ? data.reply : '';
+
+    // Detect canned fallback — the server returned comfort text instead of a real LLM response.
+    // This indicates the server's cooldown mechanism is active (LORA_STRESS_TEST=1 was not set).
+    if (reply.includes('one step at a time') || reply.includes('I\u2019m here with you')) {
+      console.warn(`[FALLBACK DETECTED] userId=${userId} sessionId=${sessionId}`);
+      console.warn(`  Reply: ${reply.slice(0, 120)}`);
+      console.warn('  The server is returning canned fallback text. Start the server with LORA_STRESS_TEST=1 to disable cooldown.');
+      return { ok: false, reply, status: res.status, body: { ...data, error: 'fallback_detected', details: 'Canned fallback response detected — LLM cooldown is masking real responses' } };
+    }
+
     return { ok: res.ok, reply, status: res.status, body: data };
   } catch (e) {
     console.error('CHAT REQUEST FAILED', e);
