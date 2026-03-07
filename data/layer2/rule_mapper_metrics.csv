@@ -1,7 +1,0 @@
-dimension,spearman_rho,mae_scale5,bin_accuracy,interpretation
-valence,0.744452,0.393333,0.866667,Strong
-arousal,0.483416,1.066667,0.533333,Moderate
-agency,0.424368,0.960000,0.600000,Moderate
-control,0.206103,1.544000,0.413333,Weak
-certainty,0.270195,2.044444,0.520000,Weak
-goalRelevance,0.000000,1.453333,0.800000,Weak
