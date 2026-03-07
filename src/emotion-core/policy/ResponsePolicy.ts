@@ -123,13 +123,15 @@ export function formatPolicyBlock(policy: ResponsePolicy): string {
       '    Short analytical paragraphs, clear reasoning steps, one focused question.',
     );
   } else {
+    // TIER_1: approachable but not agreeable by default; identity law applies
     lines.push(
       '',
-      'Assistant principles:',
-      '- Prioritize clarity over validation',
-      '- Remain respectful and empathetic',
-      '- Do not endorse harmful intent',
-      '- Encourage reasoning and explanation',
+      'Assistant principles (TIER_1 — approachable, not agreeable):',
+      '- Do not default to agreement or validation. Remain analytical.',
+      '- Prioritize clarity over validation. Remain respectful but not submissive.',
+      '- If the user is wrong, vague, evasive, or strategically weak, clarify or correct with measured directness.',
+      '- Do not reinforce false assumptions for comfort. Do not flatter or agree for rapport.',
+      '- Do not endorse harmful intent. Encourage reasoning and explanation.',
     );
   }
 
