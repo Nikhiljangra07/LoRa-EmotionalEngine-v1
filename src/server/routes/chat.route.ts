@@ -23,6 +23,12 @@ import {
 } from '../../emotion-core/policy/ResponsePolicy';
 import type { ResponsePolicy } from '../../emotion-core/policy/ResponsePolicy';
 import { enforceIdentity } from '../../emotion-core/policy/IdentityGuard';
+import {
+  getDailyLimit,
+  getTokensUsedToday,
+  wouldExceedLimit,
+  addTokens,
+} from '../usage/DailyTokenUsage';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -154,6 +160,13 @@ function emptyDebug(): ApiChatResponse['debug'] {
   };
 }
 
+/** Rough token estimate for request (input + output buffer). ~4 chars per token + 500 for output. */
+function estimateRequestTokens(history: ChatTurn[], currentText: string): number {
+  const inputChars =
+    history.reduce((sum, t) => sum + (t.text?.length ?? 0), 0) + currentText.length;
+  return Math.ceil(inputChars / 4) + 500;
+}
+
 /**
  * Register POST /api/chat with the app. Builds Falkor + Chroma + MemoryService + orchestrator
  * factory once. Throws if LORA_FALKOR_URL or LORA_CHROMA_URL are missing (unless options
@@ -267,6 +280,20 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     const policy = getResponsePolicy(tierRecord.tier, etvBand);
     const policyDebug = { maxWords: policy.maxWords, maxQuestions: policy.maxQuestions, reasoningDepth: policy.reasoningDepth, tone: policy.tone };
 
+    const dailyLimit = getDailyLimit();
+    if (dailyLimit > 0) {
+      const estimatedTokens = estimateRequestTokens(session.history, text);
+      if (wouldExceedLimit(userId, estimatedTokens)) {
+        const used = getTokensUsedToday(userId);
+        console.warn(`[LORA_TOKEN_LIMIT] userId=${userId} used=${used}`);
+        res.status(200).json({
+          error: 'daily_limit_reached',
+          message: "You have reached today's usage limit. Please try again tomorrow.",
+        });
+        return;
+      }
+    }
+
     try {
       const userTurn: ChatTurn = {
         role: 'user',
@@ -320,6 +347,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       reply = enforceIdentity(reply);
       reply = enforceWordLimit(reply, policy.maxWords);
       reply = enforceQuestionLimit(reply, policy.maxQuestions);
+
+      if (dailyLimit > 0) {
+        const consumed =
+          estimateRequestTokens(session.history, '') + Math.ceil(reply.length / 4);
+        addTokens(userId, consumed);
+      }
 
       if (reply) {
         session.history.push({
