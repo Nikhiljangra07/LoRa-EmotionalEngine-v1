@@ -1,12 +1,14 @@
 /**
  * Validates required LoRa environment variables at startup.
  * Fails loudly with clear instructions instead of silently disabling /api/chat.
+ * Only variable names are logged; secret values are never logged.
  */
 
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-const REQUIRED = ['LORA_FALKOR_URL', 'LORA_CHROMA_URL'] as const;
+/** Required at server startup; missing any causes exit(1). */
+const REQUIRED = ['ANTHROPIC_API_KEY', 'CHROMA_HOST', 'FALKOR_HOST'] as const;
 
 function loadEnv(): void {
   const cwd = process.cwd();
@@ -15,8 +17,8 @@ function loadEnv(): void {
 }
 
 /**
- * Validates that LORA_FALKOR_URL and LORA_CHROMA_URL are set.
- * Loads .env.local and .env, then checks. Throws if any required variable is missing.
+ * Validates that all required env vars are set (non-empty).
+ * Loads .env.local and .env, then checks. Logs each missing variable by name only, then throws.
  */
 export function validateEnv(): void {
   loadEnv();
@@ -30,10 +32,11 @@ export function validateEnv(): void {
   }
 
   if (missing.length > 0) {
-    const message =
-      'LoRa startup failed: missing LORA_FALKOR_URL or LORA_CHROMA_URL. ' +
-      'Ensure Docker services are running and .env.local is configured.';
-    throw new Error(message);
+    for (const name of missing) {
+      console.error('[LoRa::ENV_CHECK] Missing required environment variable:', name);
+    }
+    console.error('Server exiting.');
+    throw new Error('Server exiting.');
   }
 }
 
