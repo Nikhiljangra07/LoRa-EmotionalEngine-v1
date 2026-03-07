@@ -1,8 +1,9 @@
 import { normalizeDate, normalizeDatesAll } from '../utils/normalizeDate';
+import { extractNormalizedDates } from '../utils/extractDates';
 import { containsDateEquivalent, extractDatesFromText } from '../scripts/utils/dateRecallEvaluator';
 
 // ---------------------------------------------------------------------------
-// normalizeDate — standalone utility
+// normalizeDate — standalone utility (delegates to extractDates)
 // ---------------------------------------------------------------------------
 
 describe('normalizeDate', () => {
@@ -15,7 +16,7 @@ describe('normalizeDate', () => {
   ];
 
   test.each(cases)('normalizeDate(%j) === %j', (input, expected) => {
-    expect(normalizeDate(input)).toBe(expected);
+    expect(normalizeDate(input, 2026)).toBe(expected);
   });
 
   it('returns null for text with no dates', () => {
@@ -38,6 +39,29 @@ describe('normalizeDatesAll', () => {
     const dates = normalizeDatesAll('March 20 2026 and March 20, 2026');
     const unique = dates.filter((d) => d === '2026-03-20');
     expect(unique.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractNormalizedDates — core chrono-node extraction
+// ---------------------------------------------------------------------------
+
+describe('extractNormalizedDates', () => {
+  it('extracts date with semicolon separator', () => {
+    expect(extractNormalizedDates('March 20; 2026', 2026)).toContain('2026-03-20');
+  });
+
+  it('extracts month-day without year using referenceYear', () => {
+    expect(extractNormalizedDates('March 20 is the date', 2026)).toContain('2026-03-20');
+  });
+
+  it('extracts multiple dates from prose', () => {
+    const dates = extractNormalizedDates(
+      'Based on this conversation: March 20 but maybe March 8',
+      2026,
+    );
+    expect(dates).toContain('2026-03-20');
+    expect(dates).toContain('2026-03-08');
   });
 });
 

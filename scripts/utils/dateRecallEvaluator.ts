@@ -7,7 +7,7 @@
  *   2. chrono-node fallback via normalizeDate utility (handles edge-case punctuation).
  */
 
-import { normalizeDatesAll } from '../../utils/normalizeDate';
+import { extractNormalizedDates } from '../../utils/extractDates';
 
 const MONTH_NAMES = [
   'january', 'february', 'march', 'april', 'may', 'june',
@@ -164,7 +164,7 @@ export function extractDatesFromText(text: string, contextYear?: number): string
   }
 
   // Chrono-node fallback: catch dates that regex patterns missed (e.g. unusual punctuation)
-  const chronoDates = normalizeDatesAll(text);
+  const chronoDates = extractNormalizedDates(text, contextYear);
   for (const c of chronoDates) {
     if (!seen.has(c)) {
       seen.add(c);

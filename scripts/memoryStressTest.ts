@@ -403,6 +403,10 @@ async function runScenario(
         result.recallCorrect = false;
         result.rankingError = true;
         results.rankingErrors++;
+        console.log(`[RECALL MISS] Scenario ${scenario.type} | user=${userId}`);
+        console.log(`  expectedDate: ${recallDebug?.expectedNormalized ?? expectedRecall}`);
+        console.log(`  detectedDates: ${JSON.stringify(recallDebug?.detectedDates ?? [])}`);
+        console.log(`  response: ${(chatRes.reply ?? '').slice(0, 200)}`);
       } else {
         results.recallSuccess++;
       }
