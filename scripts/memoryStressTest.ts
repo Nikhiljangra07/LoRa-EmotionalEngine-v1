@@ -5,7 +5,7 @@
  * multi-session persistence, poisoning protection, schema guard, and recall accuracy.
  *
  * Usage: npm run stress:memory
- * Optional: DEBUG_MEMORY=1 to log anchor state; LORA_STRESS_CONVERSATIONS=50 to override total.
+ * Optional: DEBUG_MEMORY=1 to log anchor state; LORA_TEST_CONVERSATIONS=50 to override total.
  */
 
 import * as fs from 'fs';
@@ -17,7 +17,7 @@ import { containsDateEquivalent, type RecallDebug } from './utils/dateRecallEval
 // ---------------------------------------------------------------------------
 
 const BASE_URL = process.env.LORA_BASE_URL || process.env.LORA_STRESS_API_URL || 'http://localhost:3000';
-const TOTAL_CONVERSATIONS = parseInt(process.env.LORA_STRESS_CONVERSATIONS ?? '100', 10);
+const TOTAL_CONVERSATIONS = Number(process.env.LORA_TEST_CONVERSATIONS) || 100;
 const SESSIONS_PER_USER = parseInt(process.env.LORA_STRESS_SESSIONS_PER_USER ?? '20', 10);
 const MESSAGES_PER_SESSION = 5;
 const USERS = ['userA', 'userB', 'userC'];
