@@ -34,6 +34,9 @@ export interface SessionEntry {
 
 const DEFAULT_ETV = 0.5;
 
+/** Maximum messages per session; exceeding terminates the session and requires a new sessionId. */
+const MAX_SESSION_MESSAGES = 25;
+
 /** Optional injection for tests (mock LLM + memory so no real DB). */
 export interface ChatRouteOptions {
   responderFactory?: () => {
@@ -243,6 +246,22 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });
 
     const session = getSession(userId, sessionId, engineKey);
+    const messageCount = session.history.filter((t) => t.role === 'user').length;
+    if (messageCount >= MAX_SESSION_MESSAGES) {
+      sessions.delete(engineKey);
+      console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
+      res.status(200).json({
+        reply: 'This session has reached the maximum message limit. Please start a new session to continue.',
+        sessionEnded: true,
+        tier: tierService.getTier(userId).tier,
+        sessionCount: tierService.getTier(userId).sessionCount,
+        debug: emptyDebug(),
+        error: 'session_cap',
+        details: 'Session message limit reached. Use a new sessionId to continue.',
+      });
+      return;
+    }
+
     const tierRecord = tierService.getTier(userId);
     const etvBand = resolveBand(userId);
     const policy = getResponsePolicy(tierRecord.tier, etvBand);
