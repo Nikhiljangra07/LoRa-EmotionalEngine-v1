@@ -694,7 +694,10 @@ async function runAdversarialScenarios(): Promise<AdversarialResults> {
         if (input === RECALL_MSG_L) {
           const result = containsDateEquivalent(response, 'March 20 2026');
           out.longContextRecall = result.match;
-          console.log('Scenario L recall check. Match:', result.match);
+          console.log('Scenario L recall check');
+          console.log('Response:', response);
+          console.log('Detected dates:', result.debug.detectedDates);
+          console.log('Match:', result.match);
         }
       }
     }

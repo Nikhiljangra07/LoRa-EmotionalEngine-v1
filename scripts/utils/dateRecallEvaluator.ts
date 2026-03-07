@@ -1,7 +1,13 @@
 /**
  * Date recall evaluator: normalize and compare date expressions in text.
  * Used by the memory stress test to decide if a response correctly recalls an expected date.
+ *
+ * Two extraction layers:
+ *   1. Built-in regex patterns (fast, deterministic).
+ *   2. chrono-node fallback via normalizeDate utility (handles edge-case punctuation).
  */
+
+import { normalizeDatesAll } from '../../utils/normalizeDate';
 
 const MONTH_NAMES = [
   'january', 'february', 'march', 'april', 'may', 'june',
@@ -18,7 +24,7 @@ function stripOrdinal(s: string): string {
 }
 
 export function normalizeText(s: string): string {
-  return stripOrdinal(s).replace(/,/g, ' ').replace(/[—–\-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  return stripOrdinal(s).replace(/[,;:]/g, ' ').replace(/[—–\-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
 interface ParsedDate {
@@ -85,7 +91,7 @@ function parseOneDateString(raw: string): ParsedDate | null {
  * without a year (e.g. "March 20", "Mar 20", "20 March") are inferred to that year.
  */
 export function extractDatesFromText(text: string, contextYear?: number): string[] {
-  const clean = stripOrdinal(text).replace(/,/g, ' ').replace(/[—–\-]+/g, ' ');
+  const clean = stripOrdinal(text).replace(/[,;:]/g, ' ').replace(/[—–\-]+/g, ' ');
   const results: string[] = [];
   const seen = new Set<string>();
 
@@ -154,6 +160,15 @@ export function extractDatesFromText(text: string, contextYear?: number): string
           }
         }
       }
+    }
+  }
+
+  // Chrono-node fallback: catch dates that regex patterns missed (e.g. unusual punctuation)
+  const chronoDates = normalizeDatesAll(text);
+  for (const c of chronoDates) {
+    if (!seen.has(c)) {
+      seen.add(c);
+      results.push(c);
     }
   }
 
