@@ -92,14 +92,7 @@ const ADVERSARIAL_SCENARIOS: { type: 'F' | 'G' | 'H' | 'I'; messages: string[]; 
   {
     type: 'I',
     description: 'long session stress',
-    messages: (() => {
-      const msgs: string[] = [];
-      for (let i = 0; i < 110; i++) msgs.push(`This is message ${i + 1} for context.`);
-      msgs.push('I will deploy March 20 2026'); // message 111 (1-based)
-      for (let i = 0; i < 8; i++) msgs.push(`More context ${i + 1}.`);
-      msgs.push('When am I deploying?'); // message 120 (1-based)
-      return msgs;
-    })(),
+    messages: [], // Built dynamically in runScenarioI — kept empty here
   },
 ];
 
@@ -509,24 +502,62 @@ async function runAdversarialScenarios(): Promise<AdversarialResults> {
     }
 
     if (adv.type === 'I') {
+      const LONG_SESSION_LENGTH = 120;
+      const ANCHOR_INDEX = 111;   // 1-based
+      const RECALL_INDEX = 120;   // 1-based
+      const ANCHOR_MSG = 'I will deploy March 20 2026';
+      const RECALL_MSG = 'When am I deploying?';
+      const NEUTRAL_POOL = [
+        'sounds good', 'ok', 'noted', 'continue', 'understood',
+        'got it', 'sure', 'right', 'alright', 'thanks',
+        'let me think about that', 'interesting point',
+        'what else should I consider', 'tell me more',
+        'I agree with that assessment', 'fair enough',
+        'can you elaborate', 'that makes sense',
+        'I see what you mean', 'go on',
+      ];
+
       const latencies: number[] = [];
-      for (let i = 0; i < adv.messages.length; i++) {
-        const input = adv.messages[i]!;
-        if (i % 30 === 0) console.log(`  Message ${i + 1} / ${adv.messages.length}`);
+      let anchorInserted = false;
+      let recallQueried = false;
+
+      for (let i = 1; i <= LONG_SESSION_LENGTH; i++) {
+        let input: string;
+
+        if (i === ANCHOR_INDEX) {
+          input = ANCHOR_MSG;
+          anchorInserted = true;
+        } else if (i === RECALL_INDEX) {
+          input = RECALL_MSG;
+          recallQueried = true;
+        } else {
+          input = NEUTRAL_POOL[(i - 1) % NEUTRAL_POOL.length]!;
+        }
+
+        if (i % 30 === 0 || i === ANCHOR_INDEX || i === RECALL_INDEX) {
+          console.log(`  Scenario I message ${i}/${LONG_SESSION_LENGTH}: ${input}`);
+        }
+
         await delay(randomDelay());
         const t0 = Date.now();
         const res = await postChat(userId, sessionId, input);
         latencies.push(Date.now() - t0);
         const response = res.reply ?? '';
-        if (input.includes('When am I deploying?')) {
+
+        if (input === RECALL_MSG) {
           const result = containsDateEquivalent(response, 'March 20 2026');
           out.longSessionRecall = result.match;
           console.log('Scenario I recall check');
           console.log('Response:', response);
           console.log('Detected dates:', result.debug.detectedDates);
+          console.log('Match:', result.match);
         }
       }
-      out.longSessionLength = adv.messages.length;
+
+      if (!anchorInserted) throw new Error('Scenario I anchor missing at message ' + ANCHOR_INDEX);
+      if (!recallQueried) throw new Error('Scenario I recall query missing at message ' + RECALL_INDEX);
+
+      out.longSessionLength = LONG_SESSION_LENGTH;
       out.avgResponseLatencyMs =
         latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : undefined;
     }
