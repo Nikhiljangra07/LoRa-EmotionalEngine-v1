@@ -13,10 +13,25 @@ import { registerDebugMemoryRoute } from './routes/debug.memory.route';
 const app = express();
 const port = 3000;
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+  if (process.env.LORA_STRESS_TEST === '1') {
+    console.error('[LoRa::ENV_CHECK] Stress-test mode cannot run in production.');
+    process.exit(1);
+  }
+  process.env.LORA_STRESS_TEST = '';
+  process.env.LORA_DEBUG_EIV = '';
+  process.env.LORA_DEBUG_MODE = '';
+  process.env.LORA_DEBUG_SESSION = '';
+  process.env.LORA_DEBUG_PROMPT_SIGNALS = '';
+  process.env.LORA_DEBUG_LLM_PAYLOAD = '';
+}
+
 const isDev = process.env.NODE_ENV === 'development';
 const isDebugMode = process.env.LORA_DEBUG_MODE === '1';
 
-if (isDev || isDebugMode) {
+if ((isDev || isDebugMode) && !isProduction) {
   registerDebugMemoryRoute(app);
 }
 
