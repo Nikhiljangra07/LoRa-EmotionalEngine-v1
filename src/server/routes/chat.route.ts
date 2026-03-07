@@ -30,6 +30,11 @@ import {
   addTokens,
 } from '../usage/DailyTokenUsage';
 import { logSessionEnd } from '../analytics/engagementLogger';
+import {
+  incrementTokensToday,
+  recordSessionEnd,
+  startPeriodicWrite,
+} from '../analytics/runtimeMetrics';
 import { tryAllow as rateLimitTryAllow } from '../rateLimit/slidingWindowRateLimit';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
@@ -246,6 +251,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       durationSeconds: Math.round(durationSeconds * 100) / 100,
       endedAt: Math.floor(now / 1000),
     });
+    recordSessionEnd(messagesCount);
   }
 
   function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
@@ -393,6 +399,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         estimateRequestTokens(session.history, '') + Math.ceil(reply.length / 4);
       if (dailyLimit > 0) addTokens(userId, consumed);
       session.tokensUsed += consumed;
+      incrementTokensToday(consumed);
 
       if (reply) {
         session.history.push({
@@ -431,6 +438,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
   });
 
+  startPeriodicWrite();
   return sessions;
 }
 
