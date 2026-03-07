@@ -64,7 +64,7 @@
     "memory:dump": "ts-node scripts/memory-dump.ts",
     "reset:chroma": "ts-node scripts/resetChromaSchemas.ts",
     "stress:memory": "ts-node scripts/memoryStressTest.ts",
-    "dev:stress": "npm run dev:bootstrap && LORA_STRESS_TEST=1 LORA_DEBUG_EIV=1 LORA_TIER_MODEL=1 LORA_APPRAISAL_BRIDGE=1 LORA_APPRAISAL_BRIDGE_MODE=1 LORA_ETV_V1=1 NODE_ENV=development ts-node src/server/adapter.ts"
+    "dev:stress": "LORA_STRESS_TEST=1 npm run dev"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

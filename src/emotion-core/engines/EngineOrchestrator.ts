@@ -1960,10 +1960,10 @@ export class EngineOrchestrator {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
       if (stressTestMode) {
-        // Stress-test mode: skip cooldown entirely — always reattempt the LLM
         this.llmAvailability = 'AVAILABLE';
         this.llmCooldownUntil = null;
         this.llmCooldownStartedAt = null;
+        console.warn('[LORA_STRESS_TEST] cooldown bypassed');
         this.logLLMEvent('cooldown_bypassed_stress_test');
       } else if (
         this.llmCooldownUntil !== null &&
@@ -2101,14 +2101,8 @@ export class EngineOrchestrator {
     }
 
     if (stressTestMode) {
-      // Stress-test mode: surface the real error instead of hiding it behind canned text
       const errMsg = lastError instanceof Error ? lastError.message : String(lastError ?? 'LLM retries exhausted');
-      const status = (lastError as any)?.status ?? (lastError as any)?.statusCode ?? 'N/A';
-      console.error('[LoRa::StressTest] LLM retries exhausted — surfacing error', {
-        attempts,
-        error: errMsg,
-        status,
-      });
+      console.warn('[LORA_STRESS_TEST] fallback prevented — retries exhausted, surfacing real error');
       throw new Error(`LLM retries exhausted (${attempts} attempts): ${errMsg}`);
     }
 
@@ -2213,6 +2207,7 @@ export class EngineOrchestrator {
 
   private static fallbackResponse(): string {
     if (stressTestMode) {
+      console.warn('[LORA_STRESS_TEST] fallback prevented');
       throw new Error(
         'LLM fallback triggered during stress test — this masks real provider failures. ' +
         'The canned response would have been returned instead of a real LLM reply.',

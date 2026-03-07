@@ -1,19 +1,11 @@
 /**
  * Regression tests for the stress-test-mode fallback gate.
  *
- * Root cause: EngineOrchestrator's cooldown mechanism silently replaces real
- * LLM responses with canned comfort text ("I'm here with you…"). Under stress
- * tests, a single transient timeout cascades into minutes of fake responses,
- * causing false recall failures across all scenarios.
- *
- * These tests verify:
- *   1. Normal date recall does NOT trigger fallback
- *   2. LLM failure in stress-test mode throws instead of returning canned text
- *   3. LLM failure outside stress-test mode still returns canned text (production UX)
- *   4. Different users/sessions remain isolated
+ * stressTestMode is a module-level constant in EngineOrchestrator, evaluated
+ * once at import time. Tests that need it enabled MUST use jest.isolateModules
+ * so the module is re-evaluated with the env var already set.
  */
 
-import { EngineOrchestrator } from '../EngineOrchestrator';
 import type { AnalyzerOutputs } from '../../processors/EIVComponentAssembler';
 import type { EmotionalState } from '../../types/analysis.types';
 
@@ -33,6 +25,7 @@ const emotionalState: EmotionalState = {
 const CANNED_FALLBACK_FRAGMENT = 'one step at a time';
 
 function makeEngine(
+  EngineOrchestrator: any,
   responder: () => Promise<string>,
   opts: { maxAttempts?: number; cooldownMs?: number } = {},
 ) {
@@ -43,49 +36,58 @@ function makeEngine(
   );
 }
 
-describe('EngineOrchestrator — stress-test mode fallback gate', () => {
-  const origEnv = process.env.LORA_STRESS_TEST;
+describe('EngineOrchestrator — production mode (LORA_STRESS_TEST unset)', () => {
+  let EngineOrchestrator: any;
 
-  afterEach(() => {
-    if (origEnv === undefined) {
-      delete process.env.LORA_STRESS_TEST;
-    } else {
-      process.env.LORA_STRESS_TEST = origEnv;
-    }
+  beforeAll(() => {
+    delete process.env.LORA_STRESS_TEST;
   });
 
+  beforeEach(() => {
+    jest.resetModules();
+  });
+
+  function loadOrchestrator(): Promise<any> {
+    return new Promise((resolve) => {
+      jest.isolateModules(() => {
+        const mod = require('../EngineOrchestrator');
+        resolve(mod.EngineOrchestrator);
+      });
+    });
+  }
+
   test('successful LLM call never returns fallback text', async () => {
-    const engine = makeEngine(async () => 'Your deployment is March 20, 2026.');
+    EngineOrchestrator = await loadOrchestrator();
+    const engine = makeEngine(EngineOrchestrator, async () => 'Your deployment is March 20, 2026.');
     const result = await engine.processMessage(analyzerOutputs, emotionalState);
     expect(result.llmOutput).toBe('Your deployment is March 20, 2026.');
     expect(result.llmOutput).not.toContain(CANNED_FALLBACK_FRAGMENT);
   });
 
-  test('LLM failure without stress-test mode returns canned fallback (production UX)', async () => {
-    process.env.LORA_STRESS_TEST = '';
-    const engine = makeEngine(async () => { throw new Error('timeout'); });
+  test('LLM failure returns canned fallback (production UX preserved)', async () => {
+    EngineOrchestrator = await loadOrchestrator();
+    const engine = makeEngine(EngineOrchestrator, async () => { throw new Error('timeout'); });
     const result = await engine.processMessage(analyzerOutputs, emotionalState);
     expect(result.llmOutput).toContain(CANNED_FALLBACK_FRAGMENT);
   });
 
   test('separate orchestrator instances do not share cooldown state', async () => {
-    process.env.LORA_STRESS_TEST = '';
+    EngineOrchestrator = await loadOrchestrator();
 
-    // Engine A fails → enters cooldown
-    const engineA = makeEngine(async () => { throw new Error('timeout'); }, { cooldownMs: 60000 });
+    const engineA = makeEngine(EngineOrchestrator, async () => { throw new Error('timeout'); }, { cooldownMs: 60000 });
     const resultA = await engineA.processMessage(analyzerOutputs, emotionalState);
     expect(resultA.llmOutput).toContain(CANNED_FALLBACK_FRAGMENT);
 
-    // Engine B (different session) should succeed independently
-    const engineB = makeEngine(async () => 'March 20, 2026 is your date.');
+    const engineB = makeEngine(EngineOrchestrator, async () => 'March 20, 2026 is your date.');
     const resultB = await engineB.processMessage(analyzerOutputs, emotionalState);
     expect(resultB.llmOutput).toBe('March 20, 2026 is your date.');
     expect(resultB.llmOutput).not.toContain(CANNED_FALLBACK_FRAGMENT);
   });
 
   test('repeated calls to a healthy LLM never degrade into fallback', async () => {
+    EngineOrchestrator = await loadOrchestrator();
     let callCount = 0;
-    const engine = makeEngine(async () => {
+    const engine = makeEngine(EngineOrchestrator, async () => {
       callCount++;
       return `Response ${callCount}`;
     });
@@ -94,6 +96,61 @@ describe('EngineOrchestrator — stress-test mode fallback gate', () => {
     await engine.processMessage(analyzerOutputs, emotionalState);
     const result = await engine.processMessage(analyzerOutputs, emotionalState);
     expect(callCount).toBe(3);
+    expect(result.llmOutput).not.toContain(CANNED_FALLBACK_FRAGMENT);
+  });
+});
+
+describe('EngineOrchestrator — stress-test mode (LORA_STRESS_TEST=1)', () => {
+  beforeEach(() => {
+    jest.resetModules();
+  });
+
+  function loadOrchestratorWithStressMode(): Promise<any> {
+    return new Promise((resolve) => {
+      process.env.LORA_STRESS_TEST = '1';
+      jest.isolateModules(() => {
+        const mod = require('../EngineOrchestrator');
+        resolve(mod.EngineOrchestrator);
+      });
+    });
+  }
+
+  afterEach(() => {
+    delete process.env.LORA_STRESS_TEST;
+  });
+
+  test('LLM failure throws instead of returning canned fallback', async () => {
+    const EngineOrchestrator = await loadOrchestratorWithStressMode();
+    const engine = makeEngine(EngineOrchestrator, async () => { throw new Error('provider timeout'); });
+
+    await expect(
+      engine.processMessage(analyzerOutputs, emotionalState),
+    ).rejects.toThrow('LLM retries exhausted');
+  });
+
+  test('successful LLM call still works normally', async () => {
+    const EngineOrchestrator = await loadOrchestratorWithStressMode();
+    const engine = makeEngine(EngineOrchestrator, async () => 'March 20, 2026.');
+    const result = await engine.processMessage(analyzerOutputs, emotionalState);
+    expect(result.llmOutput).toBe('March 20, 2026.');
+    expect(result.llmOutput).not.toContain(CANNED_FALLBACK_FRAGMENT);
+  });
+
+  test('cooldown is bypassed — second call after failure still attempts LLM', async () => {
+    const EngineOrchestrator = await loadOrchestratorWithStressMode();
+    let callCount = 0;
+    const engine = makeEngine(EngineOrchestrator, async () => {
+      callCount++;
+      if (callCount === 1) throw new Error('transient failure');
+      return 'Recovered response';
+    }, { maxAttempts: 1 });
+
+    await expect(engine.processMessage(analyzerOutputs, emotionalState)).rejects.toThrow();
+    expect(callCount).toBe(1);
+
+    const result = await engine.processMessage(analyzerOutputs, emotionalState);
+    expect(callCount).toBe(2);
+    expect(result.llmOutput).toBe('Recovered response');
     expect(result.llmOutput).not.toContain(CANNED_FALLBACK_FRAGMENT);
   });
 });
