@@ -29,7 +29,7 @@ const DELAY_MS_MAX = 1200;
 const FETCH_RETRIES = 3;
 const FETCH_RETRY_DELAY_MS = 300;
 
-type ScenarioType = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I';
+type ScenarioType = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L';
 
 interface Scenario {
   type: ScenarioType;
@@ -72,8 +72,8 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
-/** Adversarial scenarios F–I: run once after main loop with dedicated users. */
-const ADVERSARIAL_SCENARIOS: { type: 'F' | 'G' | 'H' | 'I'; messages: string[]; description: string }[] = [
+/** Adversarial scenarios F–L: run once after main loop with dedicated users. */
+const ADVERSARIAL_SCENARIOS: { type: 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L'; messages: string[]; description: string }[] = [
   {
     type: 'F',
     description: 'contradictory facts',
@@ -92,7 +92,22 @@ const ADVERSARIAL_SCENARIOS: { type: 'F' | 'G' | 'H' | 'I'; messages: string[]; 
   {
     type: 'I',
     description: 'long session stress',
-    messages: [], // Built dynamically in runScenarioI — kept empty here
+    messages: [], // Built dynamically in runScenarioI
+  },
+  {
+    type: 'J',
+    description: 'multi-user memory isolation',
+    messages: [], // Built dynamically in runScenarioJ
+  },
+  {
+    type: 'K',
+    description: 'fact overwrite / update logic',
+    messages: [], // Built dynamically in runScenarioK
+  },
+  {
+    type: 'L',
+    description: 'long context recall under heavy token load',
+    messages: [], // Built dynamically in runScenarioL
   },
 ];
 
@@ -435,6 +450,9 @@ interface AdversarialResults {
   sensitiveDataBlocked: boolean;
   garbageHandled: boolean;
   longSessionRecall: boolean;
+  multiUserIsolation: boolean;
+  factOverwriteHandled: boolean;
+  longContextRecall: boolean;
   longSessionLength?: number;
   avgResponseLatencyMs?: number;
 }
@@ -443,12 +461,38 @@ function getUserFactCount(mem: DebugMemoryResponse | null): number {
   return mem?.facts?.recent?.length ?? 0;
 }
 
+/** Deterministic: response contains expected string (case-insensitive). Used for J/K city checks. */
+function containsNormalized(response: string, expected: string): boolean {
+  return response.toLowerCase().includes(expected.toLowerCase());
+}
+
+/** Deterministic long filler (~250 chars, no dates). Index selects paragraph. */
+function generateLongMessage(index: number): string {
+  const PARAGRAPHS = [
+    'The system status looks stable. We should review the deployment pipeline and ensure all checks pass before the next release. The engineering team has been focused on performance and we are seeing improved latency across the board.',
+    'Project planning for the quarter is underway. We need to align on priorities and make sure the roadmap reflects the latest feedback from stakeholders. Backlog grooming is scheduled for next week.',
+    'Engineering notes from the last sync: the API gateway is holding up well under load. We will add more granular metrics to track per-endpoint latency. No dates have been set for the infrastructure upgrade.',
+    'Discussion points from the standup: focus on test coverage and documentation. The team will continue with the current sprint scope and we will reassess capacity before committing to additional work.',
+    'Technical debt review suggests we should refactor the authentication module. The current implementation works but could be simplified. No timeline has been decided yet for this initiative.',
+    'The monitoring dashboard is now showing all critical services. We are tracking error rates and throughput. Next step is to define alerting thresholds and runbooks for the on-call team.',
+  ];
+  return PARAGRAPHS[index % PARAGRAPHS.length]!;
+}
+
+const FILLER_POOL = [
+  'sounds good', 'ok', 'noted', 'continue', 'understood',
+  'got it', 'sure', 'right', 'alright', 'thanks',
+];
+
 async function runAdversarialScenarios(): Promise<AdversarialResults> {
   const out: AdversarialResults = {
     conflictHandled: false,
     sensitiveDataBlocked: false,
     garbageHandled: false,
     longSessionRecall: false,
+    multiUserIsolation: false,
+    factOverwriteHandled: false,
+    longContextRecall: false,
   };
 
   for (const adv of ADVERSARIAL_SCENARIOS) {
@@ -562,6 +606,99 @@ async function runAdversarialScenarios(): Promise<AdversarialResults> {
         latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : undefined;
     }
 
+    // --- Scenario J: Multi-user memory isolation ---
+    if (adv.type === 'J') {
+      const userAId = 'stressJ_A';
+      const userBId = 'stressJ_B';
+      const sessionA = `adv-J-A-${Date.now()}`;
+      const sessionB = `adv-J-B-${Date.now()}`;
+      const fillerJ = [FILLER_POOL[0], FILLER_POOL[1]];
+      let passA = false;
+      let passB = false;
+
+      // User A: "I live in Tokyo" → filler → "Where do I live?" → expect Tokyo
+      for (const msg of ['I live in Tokyo', fillerJ[0]!, fillerJ[1]!, 'Where do I live?']) {
+        await delay(randomDelay());
+        const res = await postChat(userAId, sessionA, msg);
+        if (msg === 'Where do I live?') {
+          const response = res.reply ?? '';
+          passA = containsNormalized(response, 'Tokyo') && !response.toLowerCase().includes('berlin');
+          console.log('Scenario J user:', userAId);
+          console.log('Expected:', 'Tokyo');
+          console.log('Response:', response);
+        }
+      }
+      await postTerminate(sessionA);
+      await delay(randomDelay());
+
+      // User B: "I live in Berlin" → filler → "Where do I live?" → expect Berlin
+      for (const msg of ['I live in Berlin', fillerJ[0]!, fillerJ[1]!, 'Where do I live?']) {
+        await delay(randomDelay());
+        const res = await postChat(userBId, sessionB, msg);
+        if (msg === 'Where do I live?') {
+          const response = res.reply ?? '';
+          passB = containsNormalized(response, 'Berlin') && !response.toLowerCase().includes('tokyo');
+          console.log('Scenario J user:', userBId);
+          console.log('Expected:', 'Berlin');
+          console.log('Response:', response);
+        }
+      }
+      out.multiUserIsolation = passA && passB;
+      await postTerminate(sessionB);
+    }
+
+    // --- Scenario K: Fact overwrite / memory update ---
+    if (adv.type === 'K') {
+      const msgsK = [
+        'I live in New York',
+        FILLER_POOL[0],
+        'I moved to London',
+        FILLER_POOL[1],
+        'Where do I live?',
+      ];
+      let lastResponse = '';
+      for (const msg of msgsK) {
+        console.log('User:', msg.slice(0, 50) + (msg.length > 50 ? '...' : ''));
+        await delay(randomDelay());
+        const res = await postChat(userId, sessionId, msg);
+        lastResponse = res.reply ?? '';
+      }
+      const hasLondon = containsNormalized(lastResponse, 'London');
+      out.factOverwriteHandled = hasLondon;
+      console.log('Scenario K detected locations: London=' + hasLondon + ', response excerpt:', lastResponse.slice(0, 120));
+    }
+
+    // --- Scenario L: Long context recall (200 messages, anchor at 151, recall at 200) ---
+    if (adv.type === 'L') {
+      const LONG_CONTEXT_LENGTH = 200;
+      const ANCHOR_INDEX_L = 151;
+      const RECALL_INDEX_L = 200;
+      const ANCHOR_MSG_L = 'I will deploy March 20 2026';
+      const RECALL_MSG_L = 'When am I deploying?';
+
+      for (let i = 1; i <= LONG_CONTEXT_LENGTH; i++) {
+        let input: string;
+        if (i === ANCHOR_INDEX_L) {
+          input = ANCHOR_MSG_L;
+        } else if (i === RECALL_INDEX_L) {
+          input = RECALL_MSG_L;
+        } else {
+          input = generateLongMessage(i - 1);
+        }
+        if (i % 50 === 0 || i === ANCHOR_INDEX_L || i === RECALL_INDEX_L) {
+          console.log(`  Scenario L message ${i}/${LONG_CONTEXT_LENGTH}: ${input.slice(0, 40)}...`);
+        }
+        await delay(randomDelay());
+        const res = await postChat(userId, sessionId, input);
+        const response = res.reply ?? '';
+        if (input === RECALL_MSG_L) {
+          const result = containsDateEquivalent(response, 'March 20 2026');
+          out.longContextRecall = result.match;
+          console.log('Scenario L recall check. Match:', result.match);
+        }
+      }
+    }
+
     await postTerminate(sessionId);
     await delay(randomDelay());
   }
@@ -639,7 +776,10 @@ async function main(): Promise<void> {
     adversarial.conflictHandled &&
     adversarial.sensitiveDataBlocked &&
     adversarial.garbageHandled &&
-    adversarial.longSessionRecall;
+    adversarial.longSessionRecall &&
+    adversarial.multiUserIsolation &&
+    adversarial.factOverwriteHandled &&
+    adversarial.longContextRecall;
   const verdict =
     recallAccuracy >= 95 &&
     results.rankingErrors === 0 &&
@@ -669,6 +809,9 @@ async function main(): Promise<void> {
       sensitiveDataBlocked: adversarial.sensitiveDataBlocked,
       garbageHandled: adversarial.garbageHandled,
       longSessionRecall: adversarial.longSessionRecall,
+      multiUserIsolation: adversarial.multiUserIsolation,
+      factOverwriteHandled: adversarial.factOverwriteHandled,
+      longContextRecall: adversarial.longContextRecall,
     },
     memoryStats: {
       anchorsCreated: results.anchorsCreated,
@@ -689,6 +832,9 @@ async function main(): Promise<void> {
     sensitiveDataBlocked: adversarial.sensitiveDataBlocked,
     garbageHandled: adversarial.garbageHandled,
     longSessionRecall: adversarial.longSessionRecall,
+    multiUserIsolation: adversarial.multiUserIsolation,
+    factOverwriteHandled: adversarial.factOverwriteHandled,
+    longContextRecall: adversarial.longContextRecall,
     ...(adversarial.longSessionLength != null ? { longSessionLength: adversarial.longSessionLength } : {}),
     ...(adversarial.avgResponseLatencyMs != null ? { avgResponseLatencyMs: adversarial.avgResponseLatencyMs } : {}),
   };
@@ -717,6 +863,9 @@ async function main(): Promise<void> {
     `Sensitive data blocked (G): ${adversarial.sensitiveDataBlocked}`,
     `Garbage handled (H): ${adversarial.garbageHandled}`,
     `Long session recall (I): ${adversarial.longSessionRecall}`,
+    `Multi-user isolation (J): ${adversarial.multiUserIsolation}`,
+    `Fact overwrite handled (K): ${adversarial.factOverwriteHandled}`,
+    `Long context recall (L): ${adversarial.longContextRecall}`,
     ...(adversarial.longSessionLength != null ? [`Long session length: ${adversarial.longSessionLength}`] : []),
     ...(adversarial.avgResponseLatencyMs != null ? [`Avg response latency (ms): ${adversarial.avgResponseLatencyMs}`] : []),
     '',
@@ -752,6 +901,9 @@ async function main(): Promise<void> {
   console.log(`  Sensitive data blocked (G): ${adversarial.sensitiveDataBlocked}`);
   console.log(`  Garbage handled (H): ${adversarial.garbageHandled}`);
   console.log(`  Long session recall (I): ${adversarial.longSessionRecall}`);
+  console.log(`  Multi-user isolation (J): ${adversarial.multiUserIsolation}`);
+  console.log(`  Fact overwrite handled (K): ${adversarial.factOverwriteHandled}`);
+  console.log(`  Long context recall (L): ${adversarial.longContextRecall}`);
   console.log('');
   console.log(`Verdict: ${verdict}`);
   console.log('');
