@@ -17,7 +17,7 @@ import * as path from 'path';
 // Constants
 // ---------------------------------------------------------------------------
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const SRC_DIR = path.join(PROJECT_ROOT, 'src');
 const USER_ID = 'shadow_test_user';
 const STATE_DIR = path.join(PROJECT_ROOT, '.lora', 'memory-v1', USER_ID);

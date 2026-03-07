@@ -11,8 +11,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { PromptProfileDiffPayload } from '../src/emotion-core/logging/DecisionLogger';
-import { analyzePromptDiffs, renderReport } from '../src/emotion-core/analytics/promptDiffAnalytics';
+import type { PromptProfileDiffPayload } from '../../src/emotion-core/logging/DecisionLogger';
+import { analyzePromptDiffs, renderReport } from '../../src/emotion-core/analytics/promptDiffAnalytics';
 
 function parseJsonLines(text: string): PromptProfileDiffPayload[] {
   const payloads: PromptProfileDiffPayload[] = [];

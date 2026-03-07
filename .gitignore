@@ -9,8 +9,11 @@ node_modules/
 dist/
 build/
 
-# logs
+# logs and runtime artifacts
 logs/
 *.log
-debug/traces/
+debug/
+stress-tests/
+coverage/
+
 .DS_Store

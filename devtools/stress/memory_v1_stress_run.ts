@@ -14,11 +14,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 
-import { generateStressSessions, defaultBandSchedule } from '../src/emotion-core/memory-v1/stress/stressScenarios';
-import { runStress } from '../src/emotion-core/memory-v1/stress/stressRunner';
-import { computeVerdict, renderStressReportMd } from '../src/emotion-core/memory-v1/stress/stressAnalyzer';
+import { generateStressSessions, defaultBandSchedule } from '../../src/emotion-core/memory-v1/stress/stressScenarios';
+import { runStress } from '../../src/emotion-core/memory-v1/stress/stressRunner';
+import { computeVerdict, renderStressReportMd } from '../../src/emotion-core/memory-v1/stress/stressAnalyzer';
 
 function parseArgs(): { seed: number; governed: boolean } {
   const args = process.argv.slice(2);

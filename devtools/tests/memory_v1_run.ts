@@ -1,13 +1,13 @@
 #!/usr/bin/env ts-node
 
-import { runScenario } from '../src/emotion-core/memory-v1/runtime';
+import { runScenario } from '../../src/emotion-core/memory-v1/runtime';
 import {
   calmStable,
   volatileModerate,
   intenseStable,
   violationSpike,
-} from '../src/emotion-core/memory-v1/fixtures';
-import type { RuntimeScenario } from '../src/emotion-core/memory-v1/runtimeTypes';
+} from '../../src/emotion-core/memory-v1/fixtures';
+import type { RuntimeScenario } from '../../src/emotion-core/memory-v1/runtimeTypes';
 
 const scenarioMap: Record<string, RuntimeScenario> = {
   calmStable,
