@@ -30,6 +30,7 @@ import {
   addTokens,
 } from '../usage/DailyTokenUsage';
 import { logSessionEnd } from '../analytics/engagementLogger';
+import { tryAllow as rateLimitTryAllow } from '../rateLimit/slidingWindowRateLimit';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -290,6 +291,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     const engineKey = `${userId}::${sessionId}`;
     console.log('ENGINE KEY:', engineKey);
     if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });
+
+    if (!rateLimitTryAllow(userId)) {
+      console.warn(`[LORA_RATE_LIMIT] userId=${userId}`);
+      res.status(429).json({ message: 'Too many requests. Please slow down.' });
+      return;
+    }
 
     const session = getSession(userId, sessionId, engineKey);
     const messageCount = session.history.filter((t) => t.role === 'user').length;
