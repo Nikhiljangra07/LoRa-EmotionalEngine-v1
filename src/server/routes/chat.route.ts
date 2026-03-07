@@ -29,6 +29,7 @@ import {
   wouldExceedLimit,
   addTokens,
 } from '../usage/DailyTokenUsage';
+import { logSessionEnd } from '../analytics/engagementLogger';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -36,6 +37,10 @@ export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appre
 export interface SessionEntry {
   engine: EngineOrchestrator;
   history: ChatTurn[];
+  /** When this session was created (first message). Used for engagement analytics. */
+  sessionStartedAt: number;
+  /** Tokens used in this session (incremented after each LLM reply). */
+  tokensUsed: number;
 }
 
 const DEFAULT_ETV = 0.5;
@@ -226,15 +231,43 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     };
   }
 
+  function emitSessionEnd(userId: string, sessionId: string, entry: SessionEntry): void {
+    const now = Date.now();
+    const messagesCount = entry.history.filter((t) => t.role === 'user').length;
+    const durationSeconds = (now - entry.sessionStartedAt) / 1000;
+    logSessionEnd({
+      userId,
+      sessionId,
+      sessionStart: entry.sessionStartedAt,
+      sessionEnd: now,
+      messagesCount,
+      tokensUsed: entry.tokensUsed,
+      durationSeconds: Math.round(durationSeconds * 100) / 100,
+      endedAt: Math.floor(now / 1000),
+    });
+  }
+
   function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
     let entry = sessions.get(key);
     if (!entry) {
+      // Close any other sessions for this user (new sessionId = previous session ended)
+      const prefix = userId + '::';
+      for (const k of sessions.keys()) {
+        if (k.startsWith(prefix) && k !== key) {
+          const old = sessions.get(k)!;
+          emitSessionEnd(userId, k.slice(prefix.length), old);
+          sessions.delete(k);
+        }
+      }
+      const startedAt = Date.now();
       entry = {
         engine: new EngineOrchestrator(DEFAULT_ETV, {}, makePolicyAwareFactory(userId), {
           userId,
           memoryService,
         }),
         history: [],
+        sessionStartedAt: startedAt,
+        tokensUsed: 0,
       };
       sessions.set(key, entry);
       if (sessionDebug) console.log('[LoRa::Session] engine created', { key });
@@ -261,6 +294,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     const session = getSession(userId, sessionId, engineKey);
     const messageCount = session.history.filter((t) => t.role === 'user').length;
     if (messageCount >= MAX_SESSION_MESSAGES) {
+      emitSessionEnd(userId, sessionId, session);
       sessions.delete(engineKey);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
       res.status(200).json({
@@ -348,11 +382,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       reply = enforceWordLimit(reply, policy.maxWords);
       reply = enforceQuestionLimit(reply, policy.maxQuestions);
 
-      if (dailyLimit > 0) {
-        const consumed =
-          estimateRequestTokens(session.history, '') + Math.ceil(reply.length / 4);
-        addTokens(userId, consumed);
-      }
+      const consumed =
+        estimateRequestTokens(session.history, '') + Math.ceil(reply.length / 4);
+      if (dailyLimit > 0) addTokens(userId, consumed);
+      session.tokensUsed += consumed;
 
       if (reply) {
         session.history.push({
