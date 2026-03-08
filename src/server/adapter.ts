@@ -12,6 +12,9 @@ const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = '0.0.0.0';
 
+const publicPath = path.join(__dirname, '..', '..', 'public');
+app.use(express.static(publicPath));
+
 app.use(
   cors({
     origin: ['http://localhost:8080', 'http://localhost:3000'],
@@ -22,20 +25,9 @@ app.use(
 
 app.use(express.json());
 
-// Root and health for Railway / probes (before static so GET / returns JSON)
-app.get('/', (_req, res) => {
-  res.json({
-    service: 'LoRa Emotional Engine v1',
-    status: 'running',
-    version: '1.0',
-  });
-});
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
-
-// Laura UI: serve public/ so GET / opens the chat page
-app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
 let apiChatRegistered = false;
 try {
@@ -93,6 +85,10 @@ app.post('/chat', async (req, res) => {
   } catch {
     return res.status(500).json({ reply: '' });
   }
+});
+
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
 });
 
 app.listen(PORT, HOST, () => {
