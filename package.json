@@ -61,15 +61,15 @@
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "chromadb": "^3.3.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "openai": "^6.16.0",
-    "ioredis": "^5.6.0"
+    "ioredis": "^5.6.0",
+    "openai": "^6.16.0"
   }
 }

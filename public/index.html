@@ -56,7 +56,7 @@
   </footer>
   <script>
     (function () {
-      const API_BASE = window.location.origin;
+      const API_BASE = 'https://lora-emotionalengine-v1-production.up.railway.app';
       const STORAGE_SESSION = 'lora_session_id';
       const STORAGE_USER = 'lora_user_id';
       const STORAGE_DEBUG = 'lora_debug';
@@ -92,7 +92,9 @@
       }
 
       function generateMessageId() {
-        return 'msg-' + Date.now();
+        return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : 'msg-' + Date.now();
       }
 
       const userId = getOrCreateUserId();

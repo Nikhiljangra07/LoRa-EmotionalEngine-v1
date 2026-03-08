@@ -12,11 +12,22 @@ const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = '0.0.0.0';
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://presence-whispers-production.up.railway.app',
+];
+
 app.use(
   cors({
-    origin: ['http://localhost:8080', 'http://localhost:3000'],
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
