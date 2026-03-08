@@ -10,6 +10,7 @@ dist/
 build/
 
 # logs
+logs/
 *.log
 debug/traces/
 .DS_Store
