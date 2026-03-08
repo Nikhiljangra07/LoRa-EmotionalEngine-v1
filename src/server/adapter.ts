@@ -21,6 +21,18 @@ app.use(
 
 app.use(express.json());
 
+// Root and health for Railway / probes (before static so GET / returns JSON)
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'LoRa Emotional Engine v1',
+    status: 'running',
+    version: '1.0',
+  });
+});
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // Laura UI: serve public/ so GET / opens the chat page
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));
 
