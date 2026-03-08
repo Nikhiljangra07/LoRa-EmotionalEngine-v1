@@ -46,6 +46,11 @@ app.post('/api/session/terminate', (req, res) => {
   res.json({ success: true });
 });
 
+// ── Session layer ──────────────────────────────────────────────────
+// Shared engine instance for fallback /api/chat and legacy /chat.
+const sessionManager = new SessionManager();
+const DEFAULT_SESSION_ID = 'default-http-session';
+
 let apiChatRegistered = false;
 try {
   registerChatRoute(app);
@@ -56,22 +61,35 @@ try {
 }
 
 if (!apiChatRegistered) {
-  app.post('/api/chat', (req, res) => {
+  app.post('/api/chat', async (req, res) => {
     const message = typeof req.body?.message === 'string' ? req.body.message : '';
-    res.json({
-      reply: message ? 'LoRa received: ' + message : 'LoRa placeholder response',
-    });
+    const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId : DEFAULT_SESSION_ID;
+
+    if (!message || !message.trim()) {
+      return res.json({ reply: '' });
+    }
+
+    try {
+      const engine = sessionManager.getEngine(sessionId);
+      const { analyzerOutputs, signalPacket } = InputProcessor.process(message.trim());
+      const result = await engine.processMessage(
+        analyzerOutputs,
+        undefined,
+        false,
+        {},
+        undefined,
+        signalPacket
+      );
+
+      res.json({
+        reply: result.llmOutput ?? '',
+      });
+    } catch (error) {
+      console.error('LoRa runtime error:', error);
+      res.json({ reply: 'LoRa encountered an internal error.' });
+    }
   });
 }
-
-// ── Session layer ──────────────────────────────────────────────────
-// The frontend sends no session identifier, so all HTTP requests share
-// a single global engine instance.  This is intentional: it mirrors
-// the CLI's single-engine behaviour and preserves emotional continuity
-// (ETV, momentum, cooldown, message count) across requests.
-// The session is ephemeral — lost on process restart, no persistence.
-const sessionManager = new SessionManager();
-const DEFAULT_SESSION_ID = 'default-http-session';
 
 // ── Health: LLM readiness (read-only, no side-effects) ───────────────
 app.get('/health/llm', (_req, res) => {
