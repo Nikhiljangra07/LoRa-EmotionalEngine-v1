@@ -113,24 +113,25 @@ function emptyDebug(): ApiChatResponse['debug'] {
 }
 
 /**
- * Register POST /api/chat with the app. Builds Falkor + Chroma + MemoryService + orchestrator
- * factory once. Throws if LORA_FALKOR_URL or LORA_CHROMA_URL are missing (unless options
- * provide memoryService for testing). Use options to inject mocks in tests and avoid real DB.
+ * Register POST /api/chat with the app. Builds Falkor + Chroma + MemoryService when configured;
+ * otherwise runs without memory. Use options to inject mocks in tests and avoid real DB.
  */
 export function registerChatRoute(app: Express, options?: ChatRouteOptions): void {
-  let memoryService: MemoryService;
+  const falkorUrl = process.env.LORA_FALKOR_URL;
+  const chromaUrl = process.env.LORA_CHROMA_URL;
+  const memoryEnabled = Boolean(falkorUrl?.trim() && chromaUrl?.trim());
+
+  if (!memoryEnabled) {
+    console.warn('[LoRa] Memory layer disabled — Falkor or Chroma not configured.');
+  }
+  console.log(`[LoRa] Memory layer enabled: ${memoryEnabled}`);
+
+  let memoryService: MemoryService | undefined;
   const responderFactory = options?.responderFactory ?? (() => new OpenAIResponder());
 
   if (options?.memoryService) {
     memoryService = options.memoryService;
-  } else {
-    const falkorUrl = process.env.LORA_FALKOR_URL;
-    const chromaUrl = process.env.LORA_CHROMA_URL;
-    if (!falkorUrl?.trim() || !chromaUrl?.trim()) {
-      throw new Error(
-        'LORA_FALKOR_URL and LORA_CHROMA_URL are required for /api/chat. Set both and restart.'
-      );
-    }
+  } else if (memoryEnabled) {
     const anchorAdapter = new FalkorAnchorAdapter();
     const chromaAdapter = new ChromaSchemaAdapter();
     const factStore = new FalkorFactAnchorStore();
@@ -146,7 +147,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       entry = {
         engine: new EngineOrchestrator(DEFAULT_ETV, {}, responderFactory, {
           userId,
-          memoryService,
+          ...(memoryService !== undefined ? { memoryService } : {}),
         }),
         history: [],
       };
@@ -234,22 +235,30 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
 }
 
 /**
- * Run Chroma and Falkor health probes; log one line per DB. Call after registerChatRoute
- * (when LORA_FALKOR_URL and LORA_CHROMA_URL are set). Does not throw or exit.
+ * Run Chroma and Falkor health probes when configured; log one line per DB.
+ * Does not throw or exit. Skips probes when URLs are not set.
  */
 export async function runStartupHealthChecks(): Promise<void> {
-  try {
-    const c = getFalkorClient();
-    if (c.status === 'wait') await c.connect();
-    await c.ping();
-    console.log('[LoRa] Falkor OK');
-  } catch {
-    console.log('[LoRa] Falkor: unreachable');
+  if (process.env.LORA_FALKOR_URL?.trim()) {
+    try {
+      const c = getFalkorClient();
+      if (c.status === 'wait') await c.connect();
+      await c.ping();
+      console.log('[LoRa] Falkor OK');
+    } catch {
+      console.log('[LoRa] Falkor: unreachable');
+    }
+  } else {
+    console.log('[LoRa] Falkor: not configured');
   }
-  try {
-    await getChromaClient().heartbeat();
-    console.log('[LoRa] Chroma OK');
-  } catch {
-    console.log('[LoRa] Chroma: unreachable');
+  if (process.env.LORA_CHROMA_URL?.trim()) {
+    try {
+      await getChromaClient().heartbeat();
+      console.log('[LoRa] Chroma OK');
+    } catch {
+      console.log('[LoRa] Chroma: unreachable');
+    }
+  } else {
+    console.log('[LoRa] Chroma: not configured');
   }
 }
