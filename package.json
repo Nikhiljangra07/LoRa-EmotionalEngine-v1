@@ -10,6 +10,8 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server/adapter.js",
     "test": "jest",
     "chat": "ts-node src/emotion-core/debug/chat-cli.ts",
     "dev": "npm run dev:bootstrap && LORA_DEBUG_EIV=1 LORA_TIER_MODEL=1 LORA_APPRAISAL_BRIDGE=1 LORA_APPRAISAL_BRIDGE_MODE=1 LORA_ETV_V1=1 NODE_ENV=development ts-node src/server/adapter.ts",

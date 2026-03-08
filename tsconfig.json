@@ -8,6 +8,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "rootDir": "src",
+    "outDir": "dist",
     "types": ["jest", "node"]
   },
   "include": ["src"],

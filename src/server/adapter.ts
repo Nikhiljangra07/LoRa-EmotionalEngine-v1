@@ -11,7 +11,7 @@ import { featureFlags } from '../emotion-core/config/featureFlags';
 import { registerDebugMemoryRoute } from './routes/debug.memory.route';
 
 const app = express();
-const port = 3000;
+const port = Number(process.env.PORT) || 3000;
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -84,7 +84,7 @@ app.get('/health/llm', (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`[LoRa::Adapter] listening on ${port}`);
+  console.log(`LoRa server running on port ${port}`);
   console.log('[LoRa] Runtime Model: Claude Sonnet 4-6');
   
   if (process.env.NODE_ENV === 'development') {
