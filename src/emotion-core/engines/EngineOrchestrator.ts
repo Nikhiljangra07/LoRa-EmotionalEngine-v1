@@ -1163,6 +1163,36 @@ export class EngineOrchestrator {
       }
     }
 
+    // user_name anchor allows LoRa to personalize conversation; captured once during onboarding and reused across sessions.
+    const hasUserNameAnchor = memServiceAnchors.some(
+      (a) => a.slotValue != null && a.slotValue.startsWith('user_name ='),
+    );
+    if (this.messageCount === 1 && !hasUserNameAnchor) {
+      const onboardingResult = {
+        eiv: eivResult,
+        prompt: '(onboarding: request name)',
+        llmOutput: 'Before we continue, what name would you like me to use for you?',
+        debug: {
+          etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
+          band: this.lastEtvPolicy?.band ?? 'B0',
+          anchorsUsed: memServiceAnchors.length,
+          schemasUsed: memServiceSemanticCount,
+          degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+          stmTurns: sessionHistory?.length ?? 0,
+          behaviorMode: {
+            band: currentBand,
+            intensityLevel: classifyIntensity(currentEiv),
+            anchorIntegration: memServiceAnchors.length > 0,
+            degradedMode: memServiceDegraded.falkor || memServiceDegraded.chroma,
+          },
+          ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
+          ...(featureFlags.personaEnforcerEnabled ? { personaEnforcer: { triggered: false, kind: 'none' as const } } : {}),
+        },
+      };
+      this.lastDecision = onboardingResult;
+      return onboardingResult;
+    }
+
     // ── Narrative State Engine: advance per-message (feature-flagged) ──
     let narrativeMomentum: NarrativeMomentumBlock | undefined;
     if (featureFlags.narrativeStateEngineEnabled) {

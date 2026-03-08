@@ -84,6 +84,7 @@ const BASE_CONFIDENCE: Record<AnchorType, number> = {
   deployment_plan: 0.80,
   financial_commitment: 0.80,
   project_stage: 0.70,
+  identity: 0.90,
 };
 
 // ---------------------------------------------------------------------------
@@ -136,7 +137,31 @@ function anchorTypeFromTemplate(template: AnchorTemplate): AnchorType {
   if (template === 'deployment_plan') return 'deployment_plan';
   if (template === 'financial_commitment') return 'financial_commitment';
   if (template === 'project_stage') return 'project_stage';
+  if (template === 'identity_user_name') return 'identity';
   return 'date_event';
+}
+
+// ---------------------------------------------------------------------------
+// Identity: user_name (onboarding — captured once, reused across sessions)
+// ---------------------------------------------------------------------------
+
+const USER_NAME_PATTERNS: Array<RegExp> = [
+  /\b(?:my name is|call me|i'?m|it'?s|this is)\s+([A-Za-z][A-Za-z'\s-]{1,29})\s*[.!]?$/i,
+  /\b(?:my name is|call me|i'?m|it'?s|this is)\s+([A-Za-z][A-Za-z'\s-]{1,29})/i,
+  /^([A-Za-z][a-z'-]{2,29})$/,  // single name word, 3+ chars to avoid "Hi" etc.
+];
+
+function tryUserName(message: string): string | null {
+  const trimmed = message.trim();
+  if (trimmed.length < 2 || trimmed.length > 50) return null;
+  for (const re of USER_NAME_PATTERNS) {
+    const m = trimmed.match(re);
+    if (m && m[1]) {
+      const name = m[1].trim().replace(/\s+/g, ' ').slice(0, 40);
+      if (name.length >= 2) return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +177,33 @@ export function extractFactAnchor(
   sessionAnchorCount: number,
 ): FactAnchor | null {
   if (sessionAnchorCount >= SESSION_ANCHOR_CAP) return null;
+
+  const userName = tryUserName(message);
+  if (userName) {
+    const type: AnchorType = 'identity';
+    const slot: AnchorSlot = 'user_name';
+    const baseConfidence = BASE_CONFIDENCE[type];
+    const status = baseConfidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
+    const anchor: FactAnchor = {
+      anchorId: `${userId}-${sessionId}-${timestamp}-user_name`,
+      userId,
+      type,
+      summary: { template: 'identity_user_name', slot },
+      value: userName,
+      salience: baseConfidence,
+      extractionConfidence: baseConfidence,
+      sourceType: 'explicit',
+      priority: 2,
+      status,
+      emotionVecAtCreation: [...emotionVec],
+      sessionId,
+      createdAt: timestamp,
+      reinforceCount: 1,
+      appearsInSessions: 1,
+      lastSeenSessionId: sessionId,
+    };
+    return anchor;
+  }
 
   const structured = extractStructuredFact(message);
   // Use structured extraction unless it's goal/objective and legacy tryGoal would give a more specific slot
