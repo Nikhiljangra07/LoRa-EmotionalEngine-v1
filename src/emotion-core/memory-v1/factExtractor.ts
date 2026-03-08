@@ -145,23 +145,15 @@ function anchorTypeFromTemplate(template: AnchorTemplate): AnchorType {
 // Identity: user_name (onboarding — captured once, reused across sessions)
 // ---------------------------------------------------------------------------
 
-const USER_NAME_PATTERNS: Array<RegExp> = [
-  /\b(?:my name is|call me|i'?m|it'?s|this is)\s+([A-Za-z][A-Za-z'\s-]{1,29})\s*[.!]?$/i,
-  /\b(?:my name is|call me|i'?m|it'?s|this is)\s+([A-Za-z][A-Za-z'\s-]{1,29})/i,
-  /^([A-Za-z][a-z'-]{2,29})$/,  // single name word, 3+ chars to avoid "Hi" etc.
-];
+// Only explicit phrases; no single-word detection (avoids false captures like "hello", "testing").
+const USER_NAME_RE = /\b(my name is|call me|i am|i'm|this is)\s+([A-Za-z]{2,20})\b/i;
 
 function tryUserName(message: string): string | null {
-  const trimmed = message.trim();
-  if (trimmed.length < 2 || trimmed.length > 50) return null;
-  for (const re of USER_NAME_PATTERNS) {
-    const m = trimmed.match(re);
-    if (m && m[1]) {
-      const name = m[1].trim().replace(/\s+/g, ' ').slice(0, 40);
-      if (name.length >= 2) return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-    }
-  }
-  return null;
+  const m = message.trim().match(USER_NAME_RE);
+  if (!m || !m[2]) return null;
+  const name = m[2].trim();
+  if (name.length < 2) return null;
+  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
 // ---------------------------------------------------------------------------
