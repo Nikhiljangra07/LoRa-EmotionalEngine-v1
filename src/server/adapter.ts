@@ -10,6 +10,7 @@ import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
+const HOST = '0.0.0.0';
 
 app.use(
   cors({
@@ -94,8 +95,8 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`[LoRa] Server running on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[LoRa] Server running on ${HOST}:${PORT}`);
   if (apiChatRegistered) {
     runStartupHealthChecks().catch(() => {});
   }
