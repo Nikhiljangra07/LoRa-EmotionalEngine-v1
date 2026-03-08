@@ -10,11 +10,18 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // ── Environment invariant guard ──────────────────────────────────────
-// The server MUST have an OpenAI API key to function.
-// Fail fast with a clear message rather than crashing later at runtime.
-if (!process.env.OPENAI_API_KEY) {
+// Require the API key for the selected LLM provider only.
+const provider = (process.env.LLM_PROVIDER || 'anthropic').toLowerCase();
+if (provider === 'openai' && !process.env.OPENAI_API_KEY?.trim()) {
   console.error(
-    '[LoRa::Fatal] OPENAI_API_KEY is missing or empty. Server cannot start.'
+    '[LoRa::Fatal] OPENAI_API_KEY is required when LLM_PROVIDER=openai'
   );
   process.exit(1);
 }
+if (provider === 'anthropic' && !process.env.ANTHROPIC_API_KEY?.trim()) {
+  console.error(
+    '[LoRa::Fatal] ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic'
+  );
+  process.exit(1);
+}
+console.log(`[LoRa] LLM Provider: ${provider}`);
