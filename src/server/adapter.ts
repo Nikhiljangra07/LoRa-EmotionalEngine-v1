@@ -37,6 +37,15 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.post('/api/session/start', (_req, res) => {
+  const sessionId = 'sess_' + Math.random().toString(36).substring(2);
+  res.json({ sessionId });
+});
+
+app.post('/api/session/terminate', (req, res) => {
+  res.json({ success: true });
+});
+
 let apiChatRegistered = false;
 try {
   registerChatRoute(app);
@@ -44,6 +53,15 @@ try {
 } catch (err) {
   const msg = err instanceof Error ? err.message : String(err);
   console.warn('[LoRa::Adapter] /api/chat not registered:', msg);
+}
+
+if (!apiChatRegistered) {
+  app.post('/api/chat', (req, res) => {
+    const message = typeof req.body?.message === 'string' ? req.body.message : '';
+    res.json({
+      reply: message ? 'LoRa received: ' + message : 'LoRa placeholder response',
+    });
+  });
 }
 
 // ── Session layer ──────────────────────────────────────────────────
