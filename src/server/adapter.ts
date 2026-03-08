@@ -12,9 +12,6 @@ const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = '0.0.0.0';
 
-const publicPath = path.join(__dirname, '..', '..', 'public');
-app.use(express.static(publicPath));
-
 app.use(
   cors({
     origin: ['http://localhost:8080', 'http://localhost:3000'],
@@ -87,9 +84,8 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(publicPath, 'index.html'));
-});
+const publicPath = path.join(__dirname, '..', '..', 'public');
+app.use(express.static(publicPath));
 
 app.listen(PORT, HOST, () => {
   console.log(`[LoRa] Server running on ${HOST}:${PORT}`);
