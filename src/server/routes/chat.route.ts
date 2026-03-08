@@ -256,7 +256,7 @@ export async function runStartupHealthChecks(): Promise<void> {
       await getChromaClient().heartbeat();
       console.log('[LoRa] Chroma OK');
     } catch {
-      console.log('[LoRa] Chroma: unreachable');
+      console.log('[LoRa] Chroma unreachable');
     }
   } else {
     console.log('[LoRa] Chroma: not configured');

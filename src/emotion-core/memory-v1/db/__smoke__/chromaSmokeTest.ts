@@ -22,13 +22,6 @@ import { ChromaClient } from 'chromadb';
 
 const COLLECTION_NAME = 'lora_schemas_smoke';
 
-function parseChromaUrl(raw: string): { host: string; port: number; ssl: boolean } {
-  const parsed = new URL(raw);
-  const ssl = parsed.protocol === 'https:';
-  const port = parsed.port ? Number(parsed.port) : (ssl ? 443 : 8000);
-  return { host: parsed.hostname, port, ssl };
-}
-
 function log(tag: 'PASS' | 'FAIL' | 'WARN' | 'INFO', msg: string): void {
   const prefix = tag === 'PASS' || tag === 'FAIL' ? `[SMOKE ${tag}]` : `[SMOKE ${tag}]`;
   process.stdout.write(`${prefix} ${msg}\n`);
@@ -50,8 +43,7 @@ async function main(): Promise<void> {
 
   let client: ChromaClient;
   try {
-    const { host, port, ssl } = parseChromaUrl(chromaUrl);
-    client = new ChromaClient({ host, port, ssl });
+    client = new ChromaClient({ path: chromaUrl });
     await client.heartbeat();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

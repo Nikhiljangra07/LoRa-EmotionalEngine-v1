@@ -9,7 +9,7 @@ import { debugEnabled } from '../emotion-core/debug/debugGate';
 import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 
 const app = express();
-const port = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 8080;
 
 app.use(
   cors({
@@ -94,8 +94,8 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`LoRa server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`[LoRa] Server running on port ${PORT}`);
   if (apiChatRegistered) {
     runStartupHealthChecks().catch(() => {});
   }
