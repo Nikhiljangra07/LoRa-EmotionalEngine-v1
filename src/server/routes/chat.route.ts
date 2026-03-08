@@ -294,6 +294,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       return;
     }
     const { userId, sessionId, text, timestamp } = validated.data;
+    if (!userId) {
+      res.status(400).json({
+        error: 'userId is required for this endpoint.',
+      });
+      return;
+    }
     const engineKey = `${userId}::${sessionId}`;
     console.log('ENGINE KEY:', engineKey);
     if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });

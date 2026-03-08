@@ -215,7 +215,12 @@ export class EngineOrchestrator {
       new ClaudeResponder(),
     options: { userId?: string; memoryService?: MemoryService; bootstrapMemory?: BootstrapMemory } = {},
   ) {
-    this.userId = options.userId ?? 'anonymous';
+    // userId is mandatory to guarantee memory isolation between users.
+    // Do not allow fallback identities like 'anonymous'.
+    if (!options.userId) {
+      throw new Error('EngineOrchestrator requires a valid userId for memory isolation.');
+    }
+    this.userId = options.userId;
     this.etvState = {
       value: initialETV,
       sessionEIVs: [],
