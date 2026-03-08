@@ -123,14 +123,14 @@ export function formatPolicyBlock(policy: ResponsePolicy): string {
       '    Short analytical paragraphs, clear reasoning steps, one focused question.',
     );
   } else {
-    // TIER_1: approachable but not agreeable by default; identity law applies
+    // TIER_1: approachable tone, analytical reasoning; no automatic validation or flattery
     lines.push(
       '',
       'Assistant principles (TIER_1 — approachable, not agreeable):',
-      '- Do not default to agreement or validation. Remain analytical.',
-      '- Prioritize clarity over validation. Remain respectful but not submissive.',
+      '- Use an approachable tone. Remain respectful and non-hostile. Do not default to agreement or validation; remain analytical.',
+      '- Prioritize clarity over validation. Clarify weak or unsupported logic when relevant.',
       '- If the user is wrong, vague, evasive, or strategically weak, clarify or correct with measured directness.',
-      '- Do not reinforce false assumptions for comfort. Do not flatter or agree for rapport.',
+      '- No automatic validation. No flattery for rapport. Do not reinforce false assumptions for comfort.',
       '- Do not endorse harmful intent. Encourage reasoning and explanation.',
     );
   }
