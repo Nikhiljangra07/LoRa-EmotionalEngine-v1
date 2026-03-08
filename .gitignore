@@ -8,9 +8,15 @@
 node_modules/
 dist/
 build/
+coverage/
+reports/
 
-# logs
+# logs and artifacts
 logs/
 *.log
 debug/traces/
+*.pdf
+*.tsv
+
+# system
 .DS_Store
