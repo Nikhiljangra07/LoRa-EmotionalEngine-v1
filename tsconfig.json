@@ -12,9 +12,9 @@
     "types": ["jest", "node"]
   },
   "include": ["src"],
-  "exclude": ["src/**/* 2.ts", "src/**/* 2.js"],
+  "exclude": ["src/**/* 2.ts", "src/**/* 2.js", "src/**/* 3.ts", "src/**/* 3.js", "src/**/* 4.ts", "src/**/* 4.js"],
   "baseUrl": "src",
     "paths": {
       "@emotion/*": ["emotion-core/*"]
-    },
+    }
 }

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Laura — Chat</title>
+  <style>
+    :root { --bg: #0f0f12; --surface: #1a1a1f; --border: #2a2a32; --text: #e4e4e7; --muted: #71717a; --accent: #a78bfa; --error: #f87171; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; min-height: 100vh; display: flex; flex-direction: column; }
+    header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    h1 { font-size: 1.125rem; font-weight: 600; margin: 0; }
+    .session-info { font-size: 0.75rem; color: var(--muted); }
+    main { flex: 1; overflow: auto; padding: 1rem; }
+    .messages { display: flex; flex-direction: column; gap: 0.75rem; max-width: 42rem; margin: 0 auto; }
+    .msg { padding: 0.75rem 1rem; border-radius: 8px; max-width: 85%; }
+    .msg.user { background: var(--surface); border: 1px solid var(--border); align-self: flex-end; }
+    .msg.assistant { background: var(--surface); border: 1px solid var(--border); align-self: flex-start; }
+    .msg .role { font-size: 0.7rem; color: var(--muted); margin-bottom: 0.25rem; }
+    .msg .body { white-space: pre-wrap; word-break: break-word; }
+    .footer { padding: 1rem; border-top: 1px solid var(--border); }
+    .input-row { display: flex; gap: 0.5rem; max-width: 42rem; margin: 0 auto; }
+    .input-row input { flex: 1; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 1rem; }
+    .input-row input:focus { outline: none; border-color: var(--accent); }
+    .input-row button { padding: 0.6rem 1rem; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; }
+    .btn-send { background: var(--accent); color: var(--bg); }
+    .btn-send:hover { opacity: 0.9; }
+    .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-end { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .btn-end:hover { color: var(--text); }
+    #debug-panel { margin-top: 1rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.8rem; max-width: 42rem; margin-left: auto; margin-right: auto; }
+    #debug-panel h3 { margin: 0 0 0.5rem 0; font-size: 0.85rem; color: var(--muted); }
+    #debug-panel dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0; }
+    #debug-panel dt { color: var(--muted); }
+    #debug-panel dd { margin: 0; }
+    .degraded-true { color: var(--error); }
+    .error { color: var(--error); font-size: 0.85rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Laura</h1>
+    <span class="session-info" id="session-info">—</span>
+  </header>
+  <main>
+    <div class="messages" id="messages"></div>
+  </main>
+  <footer class="footer">
+    <div class="input-row">
+      <input type="text" id="input" placeholder="Type a message..." autocomplete="off" />
+      <button type="button" class="btn-send" id="send">Send</button>
+      <button type="button" class="btn-end" id="end-session">End Session</button>
+    </div>
+    <div id="debug-panel" style="display: none;"></div>
+    <div class="error" id="error" style="display: none;"></div>
+  </footer>
+  <script>
+    (function () {
+      const API_BASE = window.location.origin;
+      const STORAGE_SESSION = 'lora_session_id';
+      const STORAGE_USER = 'lora_user_id';
+      const STORAGE_DEBUG = 'lora_debug';
+
+      function showDebugPanel() {
+        return window.location.hostname === 'localhost' ||
+          window.location.search.includes('debug=1') ||
+          localStorage.getItem(STORAGE_DEBUG) === '1';
+      }
+
+      function getOrCreateUserId() {
+        let id = localStorage.getItem(STORAGE_USER);
+        if (!id) {
+          id = 'user-' + Math.random().toString(36).slice(2, 12);
+          localStorage.setItem(STORAGE_USER, id);
+        }
+        return id;
+      }
+
+      function getOrCreateSessionId() {
+        let id = localStorage.getItem(STORAGE_SESSION);
+        if (!id) {
+          id = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+          localStorage.setItem(STORAGE_SESSION, id);
+        }
+        return id;
+      }
+
+      function startNewSession() {
+        const id = 'sess-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+        localStorage.setItem(STORAGE_SESSION, id);
+        return id;
+      }
+
+      function generateMessageId() {
+        return 'msg-' + Date.now();
+      }
+
+      const userId = getOrCreateUserId();
+      let sessionId = getOrCreateSessionId();
+
+      const messagesEl = document.getElementById('messages');
+      const inputEl = document.getElementById('input');
+      const sendBtn = document.getElementById('send');
+      const endBtn = document.getElementById('end-session');
+      const sessionInfoEl = document.getElementById('session-info');
+      const debugPanelEl = document.getElementById('debug-panel');
+      const errorEl = document.getElementById('error');
+
+      function renderSessionInfo() {
+        sessionInfoEl.textContent = 'Session: ' + sessionId.slice(0, 20) + '…';
+      }
+
+      function appendMessage(role, body) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + role;
+        div.innerHTML = '<div class="role">' + (role === 'user' ? 'You' : 'Laura') + '</div><div class="body">' + escapeHtml(body || '') + '</div>';
+        messagesEl.appendChild(div);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function escapeHtml(s) {
+        const el = document.createElement('div');
+        el.textContent = s;
+        return el.innerHTML;
+      }
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+      }
+      function clearError() {
+        errorEl.textContent = '';
+        errorEl.style.display = 'none';
+      }
+
+      function renderDebug(data) {
+        if (!showDebugPanel() || !data) return;
+        debugPanelEl.style.display = 'block';
+        const d = data.debug || {};
+        const deg = d.degraded || {};
+        const bm = d.behaviorMode || {};
+        debugPanelEl.innerHTML =
+          '<h3>Debug</h3>' +
+          '<dl>' +
+          '<dt>EIV</dt><dd>' + (d.eiv != null ? Number(d.eiv).toFixed(3) : '—') + '</dd>' +
+          '<dt>ETV</dt><dd>' + (d.etv != null ? Number(d.etv).toFixed(3) : '—') + '</dd>' +
+          '<dt>Band</dt><dd>' + (d.band ?? '—') + '</dd>' +
+          '<dt>Anchors used</dt><dd>' + (d.anchorsUsed ?? 0) + '</dd>' +
+          '<dt>Schemas used</dt><dd>' + (d.schemasUsed ?? 0) + '</dd>' +
+          '<dt>Falkor</dt><dd class="' + (deg.falkor ? 'degraded-true' : '') + '">' + (deg.falkor ? 'degraded' : 'OK') + '</dd>' +
+          '<dt>Chroma</dt><dd class="' + (deg.chroma ? 'degraded-true' : '') + '">' + (deg.chroma ? 'degraded' : 'OK') + '</dd>' +
+          (bm.band ? '<dt>Behavior band</dt><dd>' + bm.band + '</dd>' : '') +
+          (bm.intensityLevel ? '<dt>Intensity</dt><dd>' + bm.intensityLevel + '</dd>' : '') +
+          '<dt>Anchor integration</dt><dd>' + (bm.anchorIntegration ? 'yes' : 'no') + '</dd>' +
+          '<dt>Degraded mode</dt><dd class="' + (bm.degradedMode ? 'degraded-true' : '') + '">' + (bm.degradedMode ? 'yes' : 'no') + '</dd>' +
+          (d.relational ? '<dt>Relational intent</dt><dd>' + d.relational.intent + ' (' + Number(d.relational.confidence).toFixed(2) + ')</dd>' : '') +
+          (d.personaEnforcer && d.personaEnforcer.triggered ? '<dt>Persona enforcer</dt><dd>' + d.personaEnforcer.kind + (d.personaEnforcer.templateId ? ' (' + d.personaEnforcer.templateId + ')' : '') + '</dd>' : '') +
+          '</dl>';
+      }
+
+      async function postChat(payload) {
+        const res = await fetch(API_BASE + '/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || res.statusText || 'Request failed');
+        }
+        return data;
+      }
+
+      async function sendMessage(text) {
+        if (!text || !text.trim()) return;
+        clearError();
+        const messageId = generateMessageId();
+        const timestamp = Date.now();
+        appendMessage('user', text.trim());
+        inputEl.value = '';
+        sendBtn.disabled = true;
+
+        try {
+          const data = await postChat({
+            userId,
+            sessionId,
+            messageId,
+            text: text.trim(),
+            timestamp,
+          });
+          appendMessage('assistant', data.reply || '');
+          renderDebug(data);
+        } catch (e) {
+          showError(e.message || 'Send failed');
+          renderDebug({ debug: { eiv: 0, etv: 0, band: '—', anchorsUsed: 0, schemasUsed: 0, degraded: { falkor: false, chroma: false } } });
+        } finally {
+          sendBtn.disabled = false;
+        }
+      }
+
+      async function endSession() {
+        clearError();
+        sendBtn.disabled = true;
+        endBtn.disabled = true;
+        const messageId = generateMessageId();
+        const timestamp = Date.now();
+        try {
+          await postChat({
+            userId,
+            sessionId,
+            messageId,
+            text: '(end session)',
+            timestamp,
+            endSession: true,
+          });
+          sessionId = startNewSession();
+          renderSessionInfo();
+          messagesEl.innerHTML = '';
+          debugPanelEl.style.display = 'none';
+          debugPanelEl.innerHTML = '';
+        } catch (e) {
+          showError(e.message || 'End session failed');
+        } finally {
+          sendBtn.disabled = false;
+          endBtn.disabled = false;
+        }
+      }
+
+      sendBtn.addEventListener('click', function () { sendMessage(inputEl.value); });
+      inputEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { sendMessage(inputEl.value); } });
+      endBtn.addEventListener('click', endSession);
+
+      renderSessionInfo();
+    })();
+  </script>
+</body>
+</html>

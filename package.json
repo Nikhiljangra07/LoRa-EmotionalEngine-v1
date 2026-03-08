@@ -2,6 +2,9 @@
   "name": "lora-emotional-engine-v1",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

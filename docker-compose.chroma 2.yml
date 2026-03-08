@@ -1,0 +1,12 @@
+services:
+  chroma:
+    image: chromadb/chroma:1.5.1
+    container_name: lora-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma
+    restart: unless-stopped
+
+volumes:
+  chroma_data:
