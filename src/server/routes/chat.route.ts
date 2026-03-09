@@ -315,6 +315,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     if (messageCount >= MAX_SESSION_MESSAGES) {
       emitSessionEnd(userId, sessionId, session);
       sessions.delete(engineKey);
+      tierService.recordSessionCompletion(userId);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
       res.status(200).json({
         reply: 'This session has reached the maximum message limit. Please start a new session to continue.',
@@ -441,6 +442,40 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       const message = err instanceof Error ? err.message : String(err);
       console.error('[LoRa::Chat] engine error:', message);
       res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand, policy: policyDebug }, error: 'engine_error', details: message });
+    }
+  });
+
+  app.post('/api/session/terminate', async (req: Request, res: Response): Promise<void> => {
+    const { userId, sessionId } = req.body;
+
+    if (!userId || !sessionId) {
+      res.status(400).json({ error: 'userId and sessionId required' });
+      return;
+    }
+
+    const engineKey = `${userId}::${sessionId}`;
+    const session = sessions.get(engineKey);
+
+    if (session) {
+      emitSessionEnd(userId, sessionId, session);
+      sessions.delete(engineKey);
+
+      const tierRecord = tierService.recordSessionCompletion(userId);
+
+      res.status(200).json({
+        success: true,
+        tier: tierRecord.tier,
+        sessionCount: tierRecord.sessionCount,
+        message: 'Session terminated successfully'
+      });
+    } else {
+      const tierRecord = tierService.getTier(userId);
+      res.status(200).json({
+        success: true,
+        tier: tierRecord.tier,
+        sessionCount: tierRecord.sessionCount,
+        message: 'Session already terminated or not found'
+      });
     }
   });
 
