@@ -81,8 +81,11 @@ if (!apiChatRegistered) {
         signalPacket
       );
 
+      const reply = result.llmOutput ?? '';
+      const debug = result.debug;
       res.json({
-        reply: result.llmOutput ?? '',
+        reply,
+        tier: debug?.band ?? undefined,
       });
     } catch (error) {
       console.error('LoRa runtime error:', error);

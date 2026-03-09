@@ -172,6 +172,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       sessions.delete(key);
       res.status(200).json({
         reply: '',
+        ended: true,
         debug: emptyDebug(),
       });
       return;
@@ -212,8 +213,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       }
 
       const debug = result.debug ?? emptyDebug();
+      const reply = result.llmOutput ?? '';
       res.status(200).json({
-        reply: result.llmOutput,
+        reply,
+        tier: debug.band ?? undefined,
+        sessionCount: session.history.length,
         debug: {
           eiv: result.eiv?.value ?? 0,
           etv: debug.etv ?? 0,
@@ -229,7 +233,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ reply: '', debug: emptyDebug(), error: message });
+      res.status(500).json({ reply: '', ended: false, debug: emptyDebug(), error: message });
     }
   });
 }
