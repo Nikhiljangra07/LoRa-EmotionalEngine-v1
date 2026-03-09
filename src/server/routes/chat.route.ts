@@ -329,6 +329,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       return;
     }
 
+    // Tier comes ONLY from TierService (TIER_1 | TIER_2 | TIER_3). Never use band/etvBand/debug.band for top-level tier.
     const tierRecord = tierService.getTier(userId);
     console.log('[LoRa::TierCheck]', {
       tierFromService: tierRecord.tier,
