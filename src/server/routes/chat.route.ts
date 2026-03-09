@@ -330,6 +330,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
 
     const tierRecord = tierService.getTier(userId);
+    console.log('[LoRa::TierCheck]', {
+      tierFromService: tierRecord.tier,
+      sessionCount: tierRecord.sessionCount,
+      etvBand: resolveBand(userId)
+    });
     const etvBand = resolveBand(userId);
     const policy = getResponsePolicy(tierRecord.tier, etvBand);
     const policyDebug = { maxWords: policy.maxWords, maxQuestions: policy.maxQuestions, reasoningDepth: policy.reasoningDepth, tone: policy.tone };
