@@ -1803,6 +1803,12 @@ export class EngineOrchestrator {
         status: (lastError as any)?.status ?? 'N/A',
       });
     }
+    // Surface the real error so operators can fix config (e.g. API key, provider) instead of only seeing the canned fallback.
+    if (lastError != null) {
+      const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
+      const status = (lastError as any)?.status ?? (lastError as any)?.statusCode ?? 'N/A';
+      console.error('[LoRa] LLM fallback used after retries exhausted:', { error: errMsg, status });
+    }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
     return EngineOrchestrator.fallbackResponse();
   }
