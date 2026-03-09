@@ -13,6 +13,7 @@ import { PromptTemplateBuilder, classifyIntensity } from '../prompt/PromptTempla
 import { DecisionLogger } from '../logging/DecisionLogger';
 import type { MessageDecisionLog } from '../logging/DecisionLogger';
 import { OpenAIResponder } from '../llm/OpenAIResponder';
+import { AnthropicResponder } from '../llm/AnthropicResponder';
 import { EmotionalStateInterpreter } from '../processors/EmotionalStateInterpreter';
 import { MOMENTUM_CONSTANTS } from '../config/momentum.constants';
 import type { PromptProfile, PacingHint, ValidationIntensity, ToneHint, ValidationHint, ActionHint, InterruptHint, StepHint, QuestionBudgetHint } from '../types/logging.types';
@@ -68,6 +69,18 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   maxAttempts: 2,
   cooldownMs: 30000,
 };
+
+/** Provider-aware default: uses LLM_PROVIDER (anthropic | openai) to select responder. */
+export function defaultResponderFactory(): LLMResponder {
+  const provider = (process.env.LLM_PROVIDER || 'openai').toLowerCase();
+  if (provider === 'anthropic') {
+    return new AnthropicResponder({ apiKey: process.env.ANTHROPIC_API_KEY?.trim() || undefined });
+  }
+  if (provider === 'openai') {
+    return new OpenAIResponder();
+  }
+  throw new Error(`Unsupported LLM_PROVIDER: ${provider}`);
+}
 
 /** Per-request abort timeout (env-configurable, default 12 s). */
 const llmTimeoutMs = Math.max(
@@ -172,8 +185,7 @@ export class EngineOrchestrator {
   constructor(
     initialETV: number = MASTER_CONSTANTS.engineDefaults.initialETV,
     llmConfig: Partial<LLMConfig> = {},
-    responderFactory: () => LLMResponder = () =>
-      new OpenAIResponder(),
+    responderFactory: () => LLMResponder = defaultResponderFactory,
     options: { userId?: string; memoryService?: MemoryService; bootstrapMemory?: BootstrapMemory } = {},
   ) {
     this.userId = options.userId ?? 'anonymous';

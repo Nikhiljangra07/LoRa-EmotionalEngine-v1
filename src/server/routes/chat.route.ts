@@ -5,8 +5,7 @@ import { FalkorFactAnchorStore } from '../../emotion-core/memory-v1/db/FalkorFac
 import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { MemoryService } from '../../emotion-core/memory-v1/service/MemoryService';
-import { EngineOrchestrator } from '../../emotion-core/engines/EngineOrchestrator';
-import { OpenAIResponder } from '../../emotion-core/llm/OpenAIResponder';
+import { EngineOrchestrator, defaultResponderFactory } from '../../emotion-core/engines/EngineOrchestrator';
 import { InputProcessor } from '../../emotion-core/processors/InputProcessor';
 import type { ChatTurn } from '../../emotion-core/prompt/PromptTemplateBuilder';
 import { STM_MAX_TURNS, STM_MAX_TEXT_LENGTH, truncateTurnText } from '../../emotion-core/prompt/PromptTemplateBuilder';
@@ -127,7 +126,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): voi
   console.log(`[LoRa] Memory layer enabled: ${memoryEnabled}`);
 
   let memoryService: MemoryService | undefined;
-  const responderFactory = options?.responderFactory ?? (() => new OpenAIResponder());
+  const responderFactory = options?.responderFactory ?? defaultResponderFactory;
 
   if (options?.memoryService) {
     memoryService = options.memoryService;

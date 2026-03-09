@@ -65,6 +65,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "chromadb": "^3.3.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
