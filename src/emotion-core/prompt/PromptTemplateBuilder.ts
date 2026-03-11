@@ -746,7 +746,7 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
   ): string {
     if (!anchors || anchors.length === 0) return '';
 
-    const ELIGIBLE_BANDS: ReadonlySet<string> = new Set(['B2', 'B3', 'B4']);
+    const ELIGIBLE_BANDS: ReadonlySet<string> = new Set(['B0', 'B1', 'B2', 'B3', 'B4']);
 
     const eligible = anchors
       .filter((a) => {

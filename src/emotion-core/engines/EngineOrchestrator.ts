@@ -1163,39 +1163,8 @@ export class EngineOrchestrator {
       }
     }
 
-    // user_name anchor allows LoRa to personalize conversation; captured once during onboarding and reused across sessions.
-    // Direct lookup bypasses retrieval scoring so a generic first message ("hi") still finds the stored name.
-    let hasUserNameAnchor = memServiceAnchors.some(
-      (a) => a.slotValue != null && a.slotValue.startsWith('user_name ='),
-    );
-    if (!hasUserNameAnchor && this.messageCount === 1 && this.memoryService) {
-      hasUserNameAnchor = await this.memoryService.hasUserNameAnchor(this.userId);
-    }
-    if (this.messageCount === 1 && !hasUserNameAnchor) {
-      const onboardingResult = {
-        eiv: eivResult,
-        prompt: '(onboarding: request name)',
-        llmOutput: 'Before we continue, what name would you like me to use for you?',
-        debug: {
-          etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
-          band: this.lastEtvPolicy?.band ?? 'B0',
-          anchorsUsed: memServiceAnchors.length,
-          schemasUsed: memServiceSemanticCount,
-          degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
-          stmTurns: sessionHistory?.length ?? 0,
-          behaviorMode: {
-            band: currentBand,
-            intensityLevel: classifyIntensity(currentEiv),
-            anchorIntegration: memServiceAnchors.length > 0,
-            degradedMode: memServiceDegraded.falkor || memServiceDegraded.chroma,
-          },
-          ...(bootstrapActive ? { bootstrapActive: true, bootstrapInjected: !!bootstrapContextStr } : {}),
-          ...(featureFlags.personaEnforcerEnabled ? { personaEnforcer: { triggered: false, kind: 'none' as const } } : {}),
-        },
-      };
-      this.lastDecision = onboardingResult;
-      return onboardingResult;
-    }
+    // Name onboarding disabled for MVP — name is captured naturally via fact extraction
+    // when the user includes it in conversation ("I'm Nikhil", "call me X").
 
     // ── Narrative State Engine: advance per-message (feature-flagged) ──
     let narrativeMomentum: NarrativeMomentumBlock | undefined;

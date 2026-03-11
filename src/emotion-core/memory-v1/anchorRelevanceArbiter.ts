@@ -43,11 +43,11 @@ function bandLimit(band: BandHint): number {
   switch (band) {
     case 'B0':
     case 'B1':
-      return 0;
-    case 'B2':
-      return 1;
-    case 'B3':
       return 2;
+    case 'B2':
+      return 2;
+    case 'B3':
+      return 3;
     case 'B4':
       return 3;
   }
