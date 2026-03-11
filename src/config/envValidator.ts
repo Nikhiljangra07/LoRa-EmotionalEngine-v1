@@ -8,7 +8,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 
 /** Required at server startup; missing any causes exit(1). */
-const REQUIRED = ['ANTHROPIC_API_KEY', 'CHROMA_HOST', 'FALKOR_HOST'] as const;
+const REQUIRED = ['ANTHROPIC_API_KEY', 'LORA_CHROMA_URL', 'LORA_FALKOR_URL'] as const;
 
 function loadEnv(): void {
   const cwd = process.cwd();
