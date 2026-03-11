@@ -174,7 +174,8 @@ describe('ResponsePolicy injection via responder wrapper', () => {
 
   test('getResponsePolicy merges tier depth with band constraints', () => {
     const p1 = getResponsePolicy('TIER_1', 'B0');
-    expect(p1).toEqual({ maxWords: 60, maxQuestions: 1, reasoningDepth: 'clarify', tone: 'guarded' });
+    expect(p1).toMatchObject({ maxWords: 120, maxQuestions: 1, reasoningDepth: 'clarify', tone: 'guarded' });
+    expect(p1.personality?.analytical).toBe(true);
 
     const p2 = getResponsePolicy('TIER_2', 'B2');
     expect(p2).toMatchObject({ maxWords: 110, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'direct' });

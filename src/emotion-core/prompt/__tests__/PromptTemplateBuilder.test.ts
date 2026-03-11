@@ -138,7 +138,7 @@ describe('PromptTemplateBuilder — Behavioral Prompt Engineering', () => {
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState);
 
     expect(prompt).toMatch(/you are/i);
-    expect(prompt).toMatch(/perceptive conversational presence/i);
+    expect(prompt).toMatch(/analytical reasoning partner/i);
     expect(prompt).toMatch(/architecture|thoughtfully/i); // creator attribution (generic when no LORA_SYSTEM_CREATOR)
     expect(prompt).not.toMatch(/NeuraSoul/i);
     expect(prompt).toMatch(/do not/i); // must include constraints

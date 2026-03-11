@@ -69,12 +69,14 @@ function postApiChat(
 // ── Unit tests: policy resolution + post-gen guards ────────────────
 
 describe('ResponsePolicy — unit tests', () => {
-  test('Tier1/Band0 → clarify, guarded, 60 words, 1 question', () => {
+  test('Tier1/Band0 → clarify, guarded, 120 words, 1 question, analytical personality', () => {
     const p = getResponsePolicy('TIER_1', 'B0');
     expect(p.reasoningDepth).toBe('clarify');
     expect(p.tone).toBe('guarded');
-    expect(p.maxWords).toBe(60);
+    expect(p.maxWords).toBe(120);
     expect(p.maxQuestions).toBe(1);
+    expect(p.personality?.analytical).toBe(true);
+    expect(p.personality?.factualFraming).toBe(true);
   });
 
   test('Tier2/Band2 → contextual, direct, 110 words, 2 questions, analytical personality', () => {
@@ -109,7 +111,7 @@ describe('ResponsePolicy — unit tests', () => {
     const p = getResponsePolicy('TIER_3', 'B0');
     expect(p.reasoningDepth).toBe('interpretive');
     expect(p.tone).toBe('direct');
-    expect(p.maxWords).toBe(60);
+    expect(p.maxWords).toBe(120);
     expect(p.personality?.blunt).toBe(true);
     expect(p.personality?.analytical).toBe(true);
   });
@@ -118,7 +120,7 @@ describe('ResponsePolicy — unit tests', () => {
     const p = getResponsePolicy('TIER_99', 'B99');
     expect(p.reasoningDepth).toBe('clarify');
     expect(p.tone).toBe('guarded');
-    expect(p.maxWords).toBe(60);
+    expect(p.maxWords).toBe(120);
     expect(p.maxQuestions).toBe(1);
   });
 
@@ -191,13 +193,13 @@ describe('ResponsePolicy — integration (mock LLM)', () => {
     else done();
   });
 
-  test('T1/B0: reply is truncated to 60 words by post-gen guard', async () => {
+  test('T1/B0: reply is truncated to 120 words by post-gen guard', async () => {
     mockBandValue = 'BAND_0';
-    mockReply = Array(100).fill('word').join(' ');
+    mockReply = Array(200).fill('word').join(' ');
     const res = await postApiChat(port, { userId: 'trunc-u', sessionId: 'trunc-s', text: 'hi' });
     expect(res.status).toBe(200);
     const reply = res.body.reply as string;
-    expect(reply.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(60);
+    expect(reply.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(120);
   });
 
   test('T1/B0: reply with 3 questions is truncated to 1', async () => {
@@ -226,7 +228,7 @@ describe('ResponsePolicy — integration (mock LLM)', () => {
     expect(res.status).toBe(200);
     const debug = res.body.debug as Record<string, unknown>;
     expect(debug.policy).toEqual({
-      maxWords: 60,
+      maxWords: 120,
       maxQuestions: 1,
       reasoningDepth: 'clarify',
       tone: 'guarded',

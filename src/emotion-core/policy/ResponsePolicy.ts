@@ -20,7 +20,7 @@ export interface ResponsePolicy {
 // ── Band → conversational openness ─────────────────────────────────
 
 const BAND_POLICIES: Record<string, Omit<ResponsePolicy, 'reasoningDepth'>> = {
-  B0: { maxWords: 60,  maxQuestions: 1, tone: 'guarded' },
+  B0: { maxWords: 120, maxQuestions: 1, tone: 'guarded' },
   B2: { maxWords: 110, maxQuestions: 2, tone: 'neutral' },
   B4: { maxWords: 170, maxQuestions: 3, tone: 'collaborative' },
 };
@@ -40,18 +40,19 @@ export function getResponsePolicy(tier: string, band: string): ResponsePolicy {
   const depth = TIER_DEPTH[tier] ?? TIER_DEPTH.TIER_1;
   const policy: ResponsePolicy = { ...bandPolicy, reasoningDepth: depth };
 
+  policy.personality = {
+    analytical: true,
+    blunt: true,
+    clarityFirst: true,
+    avoidOverValidation: true,
+    avoidTherapyTone: true,
+    avoidNarrativeFiller: true,
+    challengeAssumptions: true,
+    factualFraming: true,
+  };
+
   if (tier === 'TIER_2' || tier === 'TIER_3') {
     policy.tone = 'direct';
-    policy.personality = {
-      analytical: true,
-      blunt: true,
-      clarityFirst: true,
-      avoidOverValidation: true,
-      avoidTherapyTone: true,
-      avoidNarrativeFiller: true,
-      challengeAssumptions: true,
-      factualFraming: true,
-    };
   }
 
   return policy;
@@ -121,17 +122,6 @@ export function formatPolicyBlock(policy: ResponsePolicy): string {
       '',
       '10. Keep responses concise.',
       '    Short analytical paragraphs, clear reasoning steps, one focused question.',
-    );
-  } else {
-    // TIER_1: approachable tone, analytical reasoning; no automatic validation or flattery
-    lines.push(
-      '',
-      'Assistant principles (TIER_1 — approachable, not agreeable):',
-      '- Use an approachable tone. Remain respectful and non-hostile. Do not default to agreement or validation; remain analytical.',
-      '- Prioritize clarity over validation. Clarify weak or unsupported logic when relevant.',
-      '- If the user is wrong, vague, evasive, or strategically weak, clarify or correct with measured directness.',
-      '- No automatic validation. No flattery for rapport. Do not reinforce false assumptions for comfort.',
-      '- Do not endorse harmful intent. Encourage reasoning and explanation.',
     );
   }
 
