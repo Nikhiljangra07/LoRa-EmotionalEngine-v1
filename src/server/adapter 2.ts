@@ -35,23 +35,11 @@ if ((isDev || isDebugMode) && !isProduction) {
   registerDebugMemoryRoute(app);
 }
 
-const allowedOrigins = [
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'https://presence-whispers-production.up.railway.app',
-];
-
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('CORS blocked'));
-      }
-    },
-    credentials: true,
+    origin: ['http://localhost:8080', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
   })
 );
 
