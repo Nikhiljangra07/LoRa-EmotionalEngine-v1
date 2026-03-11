@@ -217,6 +217,23 @@ export class MemoryService {
     }
   }
 
+  /**
+   * Direct lookup: does a confirmed `user_name` anchor exist for this user?
+   * Bypasses relevance scoring so the result is independent of the current
+   * message query — used by onboarding to decide whether to ask for the name.
+   */
+  async hasUserNameAnchor(userId: string): Promise<boolean> {
+    try {
+      const data = await this.factStore.exportAll(userId);
+      if (!data) return false;
+      return data.confirmed.some(
+        (a) => a.type === 'identity' && a.summary.slot === 'user_name',
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async healthCheck(): Promise<{ falkor: boolean; chroma: boolean }> {
     const [falkorResult, chromaResult] = await Promise.all([
       this.factStore.exportAll('__healthcheck__').catch(() => null),

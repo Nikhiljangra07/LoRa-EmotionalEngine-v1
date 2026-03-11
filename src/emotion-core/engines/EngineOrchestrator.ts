@@ -1164,9 +1164,13 @@ export class EngineOrchestrator {
     }
 
     // user_name anchor allows LoRa to personalize conversation; captured once during onboarding and reused across sessions.
-    const hasUserNameAnchor = memServiceAnchors.some(
+    // Direct lookup bypasses retrieval scoring so a generic first message ("hi") still finds the stored name.
+    let hasUserNameAnchor = memServiceAnchors.some(
       (a) => a.slotValue != null && a.slotValue.startsWith('user_name ='),
     );
+    if (!hasUserNameAnchor && this.messageCount === 1 && this.memoryService) {
+      hasUserNameAnchor = await this.memoryService.hasUserNameAnchor(this.userId);
+    }
     if (this.messageCount === 1 && !hasUserNameAnchor) {
       const onboardingResult = {
         eiv: eivResult,
