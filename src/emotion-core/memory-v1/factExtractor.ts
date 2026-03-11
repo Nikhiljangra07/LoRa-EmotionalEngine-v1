@@ -145,15 +145,33 @@ function anchorTypeFromTemplate(template: AnchorTemplate): AnchorType {
 // Identity: user_name (onboarding — captured once, reused across sessions)
 // ---------------------------------------------------------------------------
 
-// Only explicit phrases; no single-word detection (avoids false captures like "hello", "testing").
+// Explicit phrases ("my name is Nikhil") OR a bare name response (just "Nikhil").
 const USER_NAME_RE = /\b(my name is|call me|i am|i'm|this is)\s+([A-Za-z]{2,20})\b/i;
 
+// Bare name: entire message is 1–2 words, each starting uppercase, no digits/punctuation.
+// Matches "Nikhil", "Nikhil J", but not "hello", "yes", "ok", "no", "hey", "hi", "thanks".
+const BARE_NAME_RE = /^([A-Z][a-z]{1,19})(?:\s+[A-Z][a-z]{1,19})?$/;
+const NOT_A_NAME = new Set([
+  'yes', 'no', 'ok', 'okay', 'hi', 'hey', 'hello', 'thanks', 'sure', 'bye',
+  'maybe', 'please', 'sorry', 'right', 'wrong', 'true', 'false', 'fine',
+  'good', 'great', 'cool', 'nice', 'test', 'testing', 'done', 'help',
+]);
+
 function tryUserName(message: string): string | null {
-  const m = message.trim().match(USER_NAME_RE);
-  if (!m || !m[2]) return null;
-  const name = m[2].trim();
-  if (name.length < 2) return null;
-  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  const trimmed = message.trim();
+
+  const m = trimmed.match(USER_NAME_RE);
+  if (m && m[2]) {
+    const name = m[2].trim();
+    if (name.length >= 2) return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  }
+
+  const bare = trimmed.match(BARE_NAME_RE);
+  if (bare && !NOT_A_NAME.has(trimmed.toLowerCase())) {
+    return bare[0];
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
