@@ -1,26 +1,28 @@
-import { graphQuery } from './falkorClient';
+import { getFalkorClient } from './falkorClient';
 
-const GRAPH_NAME = 'lora_anchors';
+const HASH_PREFIX = 'lora:legacy:';
 
 export interface AnchorRow {
   anchorId: string;
   payload: unknown;
 }
 
+async function getConnectedClient() {
+  const c = getFalkorClient();
+  if (c.status === 'wait') await c.connect();
+  return c;
+}
+
 /**
- * Minimal FalkorDB adapter for anchor storage. All operations are userId-scoped.
+ * Minimal Redis adapter for anchor storage. All operations are userId-scoped.
+ * Uses plain Redis hashes — no FalkorDB/RedisGraph module required.
  * Degraded mode: on error returns false / null / true as specified; never throws to callers.
  */
 export class FalkorAnchorAdapter {
   async upsertAnchor(userId: string, anchorId: string, payload: object): Promise<boolean> {
     try {
-      const payloadJson = JSON.stringify(payload);
-      await graphQuery(
-        GRAPH_NAME,
-        `MERGE (a:Anchor { userId: $userId, anchorId: $anchorId })
-         SET a.payloadJson = $payloadJson`,
-        { userId, anchorId, payloadJson },
-      );
+      const c = await getConnectedClient();
+      await c.hset(`${HASH_PREFIX}${userId}`, anchorId, JSON.stringify(payload));
       return true;
     } catch {
       return false;
@@ -29,19 +31,14 @@ export class FalkorAnchorAdapter {
 
   async getAnchors(userId: string): Promise<AnchorRow[] | null> {
     try {
-      const raw = await graphQuery(
-        GRAPH_NAME,
-        `MATCH (a:Anchor { userId: $userId }) RETURN a.anchorId AS anchorId, a.payloadJson AS payloadJson`,
-        { userId },
-      );
-      const rows = parseGraphResult(raw);
+      const c = await getConnectedClient();
+      const raw = await c.hgetall(`${HASH_PREFIX}${userId}`);
       const out: AnchorRow[] = [];
-      for (const row of rows) {
-        const anchorId = typeof row.anchorId === 'string' ? row.anchorId : String(row.anchorId ?? '');
+      for (const [anchorId, json] of Object.entries(raw)) {
         let payload: unknown = null;
-        if (row.payloadJson != null && typeof row.payloadJson === 'string') {
+        if (json) {
           try {
-            payload = JSON.parse(row.payloadJson);
+            payload = JSON.parse(json);
           } catch {
             payload = null;
           }
@@ -57,34 +54,11 @@ export class FalkorAnchorAdapter {
 
   async purgeUser(userId: string): Promise<boolean> {
     try {
-      await graphQuery(
-        GRAPH_NAME,
-        `MATCH (n { userId: $userId }) DETACH DELETE n`,
-        { userId },
-      );
+      const c = await getConnectedClient();
+      await c.del(`${HASH_PREFIX}${userId}`);
       return true;
     } catch {
       return false;
     }
   }
-}
-
-/**
- * FalkorDB GRAPH.QUERY returns [header, data, metadata].
- * data is array of rows; each row is array of values in header order.
- */
-function parseGraphResult(raw: unknown): Array<Record<string, unknown>> {
-  if (!Array.isArray(raw) || raw.length < 2) return [];
-  const header = raw[0];
-  const data = raw[1];
-  if (!Array.isArray(data) || !Array.isArray(header)) return [];
-  const keys = header.map((h) => (typeof h === 'string' ? h : String(h)));
-  return data.map((row: unknown) => {
-    const arr = Array.isArray(row) ? row : [];
-    const obj: Record<string, unknown> = {};
-    keys.forEach((k, i) => {
-      obj[k] = arr[i];
-    });
-    return obj;
-  });
 }

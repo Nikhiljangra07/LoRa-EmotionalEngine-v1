@@ -1,4 +1,4 @@
-import { graphQuery } from './falkorClient';
+import { getFalkorClient } from './falkorClient';
 import type { FactAnchor } from '../factAnchorTypes';
 import type {
   FactAnchorStoreState,
@@ -11,7 +11,7 @@ import type {
 } from '../factAnchorStoreTypes';
 import { createInMemoryFactAnchorStore } from '../factAnchorStore';
 
-const GRAPH_NAME = 'lora_anchors';
+const HASH_PREFIX = 'lora:anchors:';
 const META_ANCHOR_ID = '__fact_store_meta__';
 
 /** Defensive cap: refuse to persist payloads larger than 8 KiB. */
@@ -26,20 +26,14 @@ interface StoreMeta {
 
 const pureStore = createInMemoryFactAnchorStore();
 
-function parseGraphResult(raw: unknown): Array<Record<string, unknown>> {
-  if (!Array.isArray(raw) || raw.length < 2) return [];
-  const header = raw[0];
-  const data = raw[1];
-  if (!Array.isArray(data) || !Array.isArray(header)) return [];
-  const keys = header.map((h: unknown) => (typeof h === 'string' ? h : String(h)));
-  return data.map((row: unknown) => {
-    const arr = Array.isArray(row) ? row : [];
-    const obj: Record<string, unknown> = {};
-    keys.forEach((k: string, i: number) => {
-      obj[k] = arr[i];
-    });
-    return obj;
-  });
+function hashKey(userId: string): string {
+  return `${HASH_PREFIX}${userId}`;
+}
+
+async function getConnectedClient() {
+  const c = getFalkorClient();
+  if (c.status === 'wait') await c.connect();
+  return c;
 }
 
 function isValidAnchor(obj: unknown): obj is FactAnchor {
@@ -58,27 +52,24 @@ function isValidAnchor(obj: unknown): obj is FactAnchor {
 }
 
 /**
- * FalkorDB-backed FactAnchorStore. Stores each FactAnchor as an (:Anchor) node
- * with userId, anchorId, and a payloadJson property containing the full serialized
- * anchor. Store metadata (session tracking, quarantine meta) is stored on a
- * dedicated node with anchorId = META_ANCHOR_ID.
+ * Redis-hash-backed FactAnchorStore. Uses plain HSET/HGETALL/HDEL/DEL —
+ * works on any standard Redis instance (no FalkorDB/RedisGraph module required).
+ *
+ * Data model: one hash per user at key `lora:anchors:{userId}`.
+ * Each hash field is an anchorId, value is the JSON-serialized FactAnchor.
+ * Store metadata is stored under the field `__fact_store_meta__`.
  *
  * All pure lifecycle logic is delegated to createInMemoryFactAnchorStore — this
- * adapter only handles load/save against the graph.
+ * adapter only handles load/save against Redis.
  *
  * Degraded mode: every public method catches errors and returns null/false.
- * When loadState returns null (DB unreachable), methods propagate null immediately
- * rather than falling back to an empty state.
+ * When loadState returns null (DB unreachable), methods propagate null immediately.
  */
 export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
   async loadState(userId: string): Promise<FactAnchorStoreState | null> {
     try {
-      const raw = await graphQuery(
-        GRAPH_NAME,
-        'MATCH (a:Anchor { userId: $userId }) RETURN a.anchorId AS anchorId, a.payloadJson AS payloadJson',
-        { userId },
-      );
-      const rows = parseGraphResult(raw);
+      const c = await getConnectedClient();
+      const raw = await c.hgetall(hashKey(userId));
 
       let meta: StoreMeta = {
         sessionSeen: {},
@@ -88,9 +79,7 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
       const confirmed: FactAnchor[] = [];
       const quarantined: FactAnchor[] = [];
 
-      for (const row of rows) {
-        const id = typeof row.anchorId === 'string' ? row.anchorId : String(row.anchorId ?? '');
-        const json = typeof row.payloadJson === 'string' ? row.payloadJson : null;
+      for (const [id, json] of Object.entries(raw)) {
         if (!json) continue;
 
         if (id === META_ANCHOR_ID) {
@@ -111,7 +100,7 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
           if (!isValidAnchor(anchor)) continue;
           if (anchor.status === 'confirmed') confirmed.push(anchor);
           else quarantined.push(anchor);
-        } catch { /* skip corrupt node */ }
+        } catch { /* skip corrupt entry */ }
       }
 
       confirmed.sort((a, b) => a.anchorId.localeCompare(b.anchorId));
@@ -132,57 +121,26 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
 
   async saveState(userId: string, state: FactAnchorStoreState): Promise<boolean> {
     try {
+      const c = await getConnectedClient();
+      const key = hashKey(userId);
       const allAnchors = [...state.confirmed, ...state.quarantined];
 
-      const existingRaw = await graphQuery(
-        GRAPH_NAME,
-        'MATCH (a:Anchor { userId: $userId }) RETURN a.anchorId AS anchorId',
-        { userId },
-      );
-      const existingRows = parseGraphResult(existingRaw);
-      const existingIds = new Set(
-        existingRows.map((r) => (typeof r.anchorId === 'string' ? r.anchorId : String(r.anchorId ?? ''))),
-      );
+      const existingFields = await c.hkeys(key);
+      const existingIds = new Set(existingFields);
 
       const newIds = new Set(allAnchors.map((a) => a.anchorId));
       newIds.add(META_ANCHOR_ID);
 
-      for (const oldId of existingIds) {
-        if (!newIds.has(oldId)) {
-          await graphQuery(
-            GRAPH_NAME,
-            'MATCH (a:Anchor { userId: $userId, anchorId: $anchorId }) DELETE a',
-            { userId, anchorId: oldId },
-          );
-        }
+      const toDelete = existingFields.filter((id) => !newIds.has(id));
+      if (toDelete.length > 0) {
+        await c.hdel(key, ...toDelete);
       }
 
+      const pipeline = c.pipeline();
       for (const anchor of allAnchors) {
         const payload = JSON.stringify(anchor);
         if (payload.length > MAX_PAYLOAD_BYTES) continue;
-        const type = anchor.type;
-        const slot = anchor.summary.slot;
-        const createdAt = anchor.createdAt;
-        const reinforceCount = anchor.reinforceCount;
-        const value =
-          anchor.value !== undefined ? String(anchor.value) : null;
-        await graphQuery(
-          GRAPH_NAME,
-          `MERGE (a:Anchor { userId: $userId, anchorId: $anchorId })
-           SET a.payloadJson = $payloadJson, a.type = $type, a.slot = $slot,
-               a.createdAt = $createdAt, a.reinforceCount = $reinforceCount,
-               a.value = $value`,
-          {
-            userId,
-            anchorId: anchor.anchorId,
-            payloadJson: payload,
-            type,
-            slot,
-            createdAt,
-            reinforceCount,
-            value,
-          },
-        );
+        pipeline.hset(key, anchor.anchorId, payload);
       }
 
       const metaPayload: StoreMeta = {
@@ -191,13 +149,9 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
         lastMaintenanceSessionId: state.lastMaintenanceSessionId,
         quarantineMeta: state.quarantineMeta,
       };
-      await graphQuery(
-        GRAPH_NAME,
-        `MERGE (a:Anchor { userId: $userId, anchorId: $anchorId })
-         SET a.payloadJson = $payloadJson`,
-        { userId, anchorId: META_ANCHOR_ID, payloadJson: JSON.stringify(metaPayload) },
-      );
+      pipeline.hset(key, META_ANCHOR_ID, JSON.stringify(metaPayload));
 
+      await pipeline.exec();
       return true;
     } catch {
       return false;
@@ -210,8 +164,14 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
   ): Promise<{ nextState: FactAnchorStoreState; results: UpsertResult } | null> {
     try {
       const state = await this.loadState(userId);
-      if (state === null) return null;
-      const result = pureStore.upsertFromExtraction(state, input);
+      const effectiveState = state ?? {
+        confirmed: [],
+        quarantined: [],
+        sessionSeen: {},
+        sessionAnchorCount: {},
+        quarantineMeta: {},
+      };
+      const result = pureStore.upsertFromExtraction(effectiveState, input);
       const saved = await this.saveState(userId, result.nextState);
       if (!saved) return null;
       return result;
@@ -226,7 +186,7 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
   ): Promise<FactAnchor[] | null> {
     try {
       const state = await this.loadState(userId);
-      if (state === null) return null;
+      if (state === null) return [];
       return pureStore.getCandidates(state, input);
     } catch {
       return null;
@@ -251,11 +211,8 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
 
   async purgeAll(userId: string): Promise<boolean> {
     try {
-      await graphQuery(
-        GRAPH_NAME,
-        'MATCH (n { userId: $userId }) DETACH DELETE n',
-        { userId },
-      );
+      const c = await getConnectedClient();
+      await c.del(hashKey(userId));
       return true;
     } catch {
       return false;
@@ -267,7 +224,7 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
   ): Promise<{ confirmed: FactAnchor[]; quarantined: FactAnchor[] } | null> {
     try {
       const state = await this.loadState(userId);
-      if (state === null) return null;
+      if (state === null) return { confirmed: [], quarantined: [] };
       return pureStore.exportAll(state);
     } catch {
       return null;
