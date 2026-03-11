@@ -22,6 +22,7 @@ export const ALLOWED_FACT_SCHEMAS: Record<string, string[]> = {
   ],
   person: ['friend', 'therapist', 'family_member', 'manager', 'partner', 'colleague', 'doctor', 'mentor'],
   preference: ['general_positive', 'general_negative'],
+  identity: ['user_name'],
 };
 
 export function isSlotAllowed(type: string, slot: string): boolean {
