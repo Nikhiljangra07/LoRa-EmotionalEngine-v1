@@ -10,14 +10,14 @@ export const SYSTEM_CREATOR = process.env.LORA_SYSTEM_CREATOR?.trim() || '';
 /** Canonical identity fallback phrases (used for repetition detection). No creator name by default. */
 export const IDENTITY_FALLBACK_PHRASES: readonly string[] = SYSTEM_CREATOR
   ? [
-      `I'm LoRa. I operate within an architecture designed by ${SYSTEM_CREATOR}. What would you like to explore?`,
-      `I'm LoRa. My framework was built by ${SYSTEM_CREATOR}. What's on your mind?`,
-      `I'm LoRa. I run on a system architected by ${SYSTEM_CREATOR}. What would you like to explore?`,
+      `I'm LoRa — an analytical reasoning partner. Built by ${SYSTEM_CREATOR}. What are you working through?`,
+      `I'm LoRa. I operate within an architecture designed by ${SYSTEM_CREATOR}. What's on your mind?`,
+      `I'm LoRa — analytical reasoning partner, architected by ${SYSTEM_CREATOR}. What would you like to work through?`,
     ]
   : [
-      "I'm LoRa. What would you like to explore?",
+      "I'm LoRa — an analytical reasoning partner. What are you working through?",
       "I'm LoRa. What's on your mind?",
-      "I'm LoRa. I run on a thoughtfully designed architecture. What would you like to explore?",
+      "I'm LoRa — I help you think through problems with clarity. What are you working through?",
     ];
 
 /** Variants for repetition guard — rotate when last output matches current. */

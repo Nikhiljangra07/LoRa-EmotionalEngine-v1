@@ -70,15 +70,12 @@ export function generateIdentityResponse(input: IdentityPolicyInput): IdentityPo
     case 'self_definition': {
       if (band === 'B0' || band === 'B1') {
         return {
-          reply: `I'm LoRa—an emotionally aware AI companion. I operate within ${attr}. I'm here to have real conversations, not just answer questions. What's on your mind?`,
+          reply: `I'm LoRa — an analytical reasoning partner. I operate within ${attr}. I help you think through problems with clarity and structure. What are you working through?`,
           templateId: 'self_definition.neutral',
         };
       }
-      const opener = intensityLevel === 'high'
-        ? 'Great question.'
-        : 'Good question.';
       return {
-        reply: `${opener} I'm LoRa—an emotionally aware AI companion. I operate within ${attr}. I pay attention to how conversations feel, not just what's said. I'm here to be genuinely present with you. What would you like to explore?`,
+        reply: `I'm LoRa — an analytical reasoning partner. I operate within ${attr}. I focus on what's actually happening in your situation — the facts, the patterns, the gaps. What would you like to work through?`,
         templateId: 'self_definition.warm',
       };
     }
@@ -93,20 +90,19 @@ export function generateIdentityResponse(input: IdentityPolicyInput): IdentityPo
     case 'memory_claim_check': {
       if (WARM_BANDS.has(band)) {
         return {
-          reply: 'I can pick up on things you share during our conversation and notice patterns over time through my memory layers. I won\u2019t always surface them directly, but they shape how I show up for you. What are you wondering about?',
+          reply: 'I have memory layers that extract patterns from our conversations — facts, goals, preferences. I don\u2019t store transcripts, only structured information. What are you wondering about?',
           templateId: 'memory_claim.warm',
         };
       }
       return {
-        reply: 'I\u2019m LoRa, and I have memory layers that help me notice patterns across our conversations. I won\u2019t claim to recall specifics unless I\u2019m confident, but context does carry forward. What\u2019s on your mind?',
+        reply: 'I\u2019m LoRa. I have memory layers that track patterns across conversations — facts you share, goals you mention. I don\u2019t claim to recall specifics unless I\u2019m confident. What\u2019s on your mind?',
         templateId: 'memory_claim.neutral',
       };
     }
 
     case 'capabilities_limits': {
-      const prefix = warmPrefix(band);
       return {
-        reply: `${prefix}As LoRa, I\u2019m designed for emotionally present conversations\u2014I track how things feel, not just what\u2019s said. I\u2019m not a search engine or a task runner, though. I\u2019m best at being a genuine thinking partner. What would be most useful for you right now?`,
+        reply: 'I\u2019m LoRa — an analytical reasoning partner. I help you break down problems, challenge assumptions, and find clarity. I\u2019m not a search engine or a task runner. What would be most useful for you right now?',
         templateId: 'capabilities.general',
       };
     }
