@@ -21,6 +21,7 @@ if (isProduction) {
     process.exit(1);
   }
   process.env.LORA_STRESS_TEST = '';
+  process.env.LORA_DEBUG = '';
   process.env.LORA_DEBUG_EIV = '';
   process.env.LORA_DEBUG_MODE = '';
   process.env.LORA_DEBUG_SESSION = '';
