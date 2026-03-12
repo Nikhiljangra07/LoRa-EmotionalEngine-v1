@@ -189,6 +189,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   const tierService = options?.tierService ?? sharedTierService;
   const isDev = process.env.NODE_ENV !== 'production';
 
+  const blockedUsers = new Set(
+    (process.env.LORA_BLOCKED_USERS ?? '').split(',').map(s => s.trim()).filter(Boolean),
+  );
+
   if (options?.memoryService) {
     memoryService = options.memoryService;
   } else {
@@ -300,6 +304,13 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       });
       return;
     }
+
+    if (blockedUsers.has(userId)) {
+      console.warn(`[LORA_BLOCKED] userId=${userId}`);
+      res.status(403).json({ error: 'access_restricted', message: 'Your access has been restricted. Contact support.' });
+      return;
+    }
+
     const engineKey = `${userId}::${sessionId}`;
     console.log('ENGINE KEY:', engineKey);
     if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });
