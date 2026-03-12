@@ -38,7 +38,7 @@ export function registerSessionLifecycleRoute(
     return;
   });
 
-  app.post('/api/session/terminate', (req: Request, res: Response): void => {
+  app.post('/api/session/terminate', async (req: Request, res: Response): Promise<void> => {
     const { sessionId } = req.body ?? {};
 
     if (!sessionId || typeof sessionId !== 'string' || !sessionId.trim()) {
@@ -64,7 +64,7 @@ export function registerSessionLifecycleRoute(
       if (sessionDebug) console.log('[LoRa::Session] engine evicted', { key: engineKey, evicted });
     }
 
-    const tierRecord = tierService.recordSessionCompletion(session.userId);
+    const tierRecord = await tierService.recordSessionCompletionAsync(session.userId);
 
     res.status(200).json({
       ended: true,

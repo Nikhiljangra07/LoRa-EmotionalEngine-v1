@@ -1,46 +1,126 @@
 import type { TierLevel, TierRecord } from './TierTypes';
+import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 
 const TIER_2_THRESHOLD = 3;
 const TIER_3_THRESHOLD = 10;
 
+const REDIS_PREFIX = 'lora:tier:';
+
+function redisKey(userId: string): string {
+  return `${REDIS_PREFIX}${userId}`;
+}
+
+async function getClient() {
+  const c = getFalkorClient();
+  if (c.status === 'wait') await c.connect();
+  return c;
+}
+
+function defaultRecord(userId: string): TierRecord {
+  return { userId, sessionCount: 0, tier: 'TIER_1' };
+}
+
 /**
- * In-memory tier promotion service.
+ * Tier promotion service backed by Redis.
  *
  * Tier is based ONLY on completed sessions:
  *   TIER_1 → default (0–2 sessions)
  *   TIER_2 → 3+ completed sessions
  *   TIER_3 → 10+ completed sessions
  *
- * No file storage. No database. No engine coupling.
- * No ETV. No memory. Pure promotion logic.
+ * Redis key format: lora:tier:{userId}
+ * Stored as a Redis hash with fields: sessionCount, tier.
+ *
+ * Falls back to in-memory Map if Redis is unavailable.
  */
 export class TierService {
-  private records = new Map<string, TierRecord>();
+  private fallback = new Map<string, TierRecord>();
+
+  async getTierAsync(userId: string): Promise<TierRecord> {
+    try {
+      const c = await getClient();
+      const data = await c.hgetall(redisKey(userId));
+      if (data && data.sessionCount !== undefined) {
+        const sessionCount = parseInt(data.sessionCount, 10) || 0;
+        const tier = (data.tier as TierLevel) || this.computeTier(sessionCount);
+        const record: TierRecord = { userId, sessionCount, tier };
+        this.fallback.set(userId, record);
+        return record;
+      }
+    } catch (err) {
+      console.warn('[LoRa::TierService] Redis read failed, using fallback', (err as Error).message);
+    }
+    return this.getTierFromFallback(userId);
+  }
 
   getTier(userId: string): TierRecord {
-    let record = this.records.get(userId);
-    if (!record) {
-      record = { userId, sessionCount: 0, tier: 'TIER_1' };
-      this.records.set(userId, record);
+    const cached = this.fallback.get(userId);
+    if (cached) return { ...cached };
+    return defaultRecord(userId);
+  }
+
+  async recordSessionCompletionAsync(userId: string): Promise<TierRecord> {
+    let record: TierRecord;
+    try {
+      const c = await getClient();
+      const data = await c.hgetall(redisKey(userId));
+      if (data && data.sessionCount !== undefined) {
+        record = {
+          userId,
+          sessionCount: (parseInt(data.sessionCount, 10) || 0) + 1,
+          tier: 'TIER_1',
+        };
+      } else {
+        const cached = this.fallback.get(userId);
+        record = {
+          userId,
+          sessionCount: (cached?.sessionCount ?? 0) + 1,
+          tier: 'TIER_1',
+        };
+      }
+      record.tier = this.computeTier(record.sessionCount);
+      await c.hset(redisKey(userId), 'sessionCount', String(record.sessionCount), 'tier', record.tier);
+      this.fallback.set(userId, record);
+      return { ...record };
+    } catch (err) {
+      console.warn('[LoRa::TierService] Redis write failed, using fallback', (err as Error).message);
     }
-    return { ...record };
+    return this.recordSessionFromFallback(userId);
   }
 
   recordSessionCompletion(userId: string): TierRecord {
-    let record = this.records.get(userId);
-    if (!record) {
-      record = { userId, sessionCount: 0, tier: 'TIER_1' };
-    }
-    record.sessionCount += 1;
-    record.tier = this.computeTier(record.sessionCount);
-    this.records.set(userId, record);
-    return { ...record };
+    const record = this.recordSessionFromFallback(userId);
+    this.recordSessionCompletionAsync(userId).then(
+      (r) => { this.fallback.set(userId, r); },
+      () => {},
+    );
+    return record;
   }
 
   computeTier(sessionCount: number): TierLevel {
     if (sessionCount >= TIER_3_THRESHOLD) return 'TIER_3';
     if (sessionCount >= TIER_2_THRESHOLD) return 'TIER_2';
     return 'TIER_1';
+  }
+
+  private getTierFromFallback(userId: string): TierRecord {
+    let record = this.fallback.get(userId);
+    if (!record) {
+      record = defaultRecord(userId);
+      this.fallback.set(userId, record);
+    }
+    return { ...record };
+  }
+
+  private recordSessionFromFallback(userId: string): TierRecord {
+    let record = this.fallback.get(userId);
+    if (!record) {
+      record = defaultRecord(userId);
+    }
+    record.sessionCount += 1;
+    record.tier = this.computeTier(record.sessionCount);
+    this.fallback.set(userId, record);
+    return { ...record };
   }
 }
 

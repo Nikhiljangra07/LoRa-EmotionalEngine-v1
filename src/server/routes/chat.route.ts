@@ -315,13 +315,13 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     if (messageCount >= MAX_SESSION_MESSAGES) {
       emitSessionEnd(userId, sessionId, session);
       sessions.delete(engineKey);
-      tierService.recordSessionCompletion(userId);
+      const capTier = await tierService.recordSessionCompletionAsync(userId);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
       res.status(200).json({
         reply: 'This session has reached the maximum message limit. Please start a new session to continue.',
         sessionEnded: true,
-        tier: tierService.getTier(userId).tier,
-        sessionCount: tierService.getTier(userId).sessionCount,
+        tier: capTier.tier,
+        sessionCount: capTier.sessionCount,
         debug: emptyDebug(),
         error: 'session_cap',
         details: 'Session message limit reached. Use a new sessionId to continue.',
@@ -330,7 +330,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
 
     // Tier comes ONLY from TierService (TIER_1 | TIER_2 | TIER_3). Never use band/etvBand/debug.band for top-level tier.
-    const tierRecord = tierService.getTier(userId);
+    const tierRecord = await tierService.getTierAsync(userId);
     console.log('[LoRa::TierCheck]', {
       tierFromService: tierRecord.tier,
       sessionCount: tierRecord.sessionCount,
