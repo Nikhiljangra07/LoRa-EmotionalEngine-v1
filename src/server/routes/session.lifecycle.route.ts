@@ -64,7 +64,7 @@ export function registerSessionLifecycleRoute(
       if (sessionDebug) console.log('[LoRa::Session] engine evicted', { key: engineKey, evicted });
     }
 
-    const tierRecord = await tierService.recordSessionCompletionAsync(session.userId);
+    const tierRecord = await tierService.recordSessionCompletionAsync(session.userId, trimmedId);
 
     res.status(200).json({
       ended: true,

@@ -35,6 +35,7 @@ function defaultRecord(userId: string): TierRecord {
  */
 export class TierService {
   private fallback = new Map<string, TierRecord>();
+  private countedSessions = new Set<string>();
 
   async getTierAsync(userId: string): Promise<TierRecord> {
     try {
@@ -59,7 +60,11 @@ export class TierService {
     return defaultRecord(userId);
   }
 
-  async recordSessionCompletionAsync(userId: string): Promise<TierRecord> {
+  async recordSessionCompletionAsync(userId: string, sessionId?: string): Promise<TierRecord> {
+    if (sessionId && this.countedSessions.has(sessionId)) {
+      return this.getTierAsync(userId);
+    }
+    if (sessionId) this.countedSessions.add(sessionId);
     let record: TierRecord;
     try {
       const c = await getClient();
@@ -88,9 +93,13 @@ export class TierService {
     return this.recordSessionFromFallback(userId);
   }
 
-  recordSessionCompletion(userId: string): TierRecord {
+  recordSessionCompletion(userId: string, sessionId?: string): TierRecord {
+    if (sessionId && this.countedSessions.has(sessionId)) {
+      return this.getTier(userId);
+    }
+    if (sessionId) this.countedSessions.add(sessionId);
     const record = this.recordSessionFromFallback(userId);
-    this.recordSessionCompletionAsync(userId).then(
+    this.recordSessionCompletionAsync(userId, sessionId).then(
       (r) => { this.fallback.set(userId, r); },
       () => {},
     );

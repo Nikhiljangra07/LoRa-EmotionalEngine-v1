@@ -315,7 +315,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     if (messageCount >= MAX_SESSION_MESSAGES) {
       emitSessionEnd(userId, sessionId, session);
       sessions.delete(engineKey);
-      const capTier = await tierService.recordSessionCompletionAsync(userId);
+      const capTier = await tierService.recordSessionCompletionAsync(userId, sessionId);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
       res.status(200).json({
         reply: 'This session has reached the maximum message limit. Please start a new session to continue.',
