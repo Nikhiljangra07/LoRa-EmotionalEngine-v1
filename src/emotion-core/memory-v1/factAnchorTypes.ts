@@ -121,6 +121,6 @@ export interface FactAnchor {
 
 export const MAX_ANCHORS_CONFIRMED = 15;
 export const MAX_ANCHORS_QUARANTINED = 10;
-export const MAX_ANCHORS_IN_PROMPT = 3;
+export const MAX_ANCHORS_IN_PROMPT = 5;
 
 export const QUARANTINE_THRESHOLD = 0.60;

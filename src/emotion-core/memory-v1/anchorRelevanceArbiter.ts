@@ -43,13 +43,13 @@ function bandLimit(band: BandHint): number {
   switch (band) {
     case 'B0':
     case 'B1':
-      return 2;
+      return 4;
     case 'B2':
-      return 2;
+      return 4;
     case 'B3':
-      return 3;
+      return 5;
     case 'B4':
-      return 3;
+      return 5;
   }
 }
 
@@ -81,8 +81,6 @@ export function scoreAnchors(
       W_TEMPORAL * temporalUrgency;
 
     if (totalScore < SCORE_FLOOR && a.value === undefined) continue;
-
-    if (etvBand === 'B2' && a.type !== 'date_event' && a.value === undefined) continue;
 
     scored.push({
       anchor: a,

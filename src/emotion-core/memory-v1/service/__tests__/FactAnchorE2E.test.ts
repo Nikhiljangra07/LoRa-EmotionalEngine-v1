@@ -231,11 +231,11 @@ const FORBIDDEN_PHRASES = [
       .filter((line) => line.startsWith('- ['));
     expect(anchorLines.length).toBeLessThanOrEqual(MAX_ANCHORS_IN_PROMPT);
 
-    // 9. Assert only B2+ anchors appear (no B0/B1 in content summary)
+    // 9. Assert anchors have valid band labels
     for (const a of ctx.anchors) {
       const band = a.metrics.band;
       expect(band).toBeDefined();
-      expect(['B2', 'B3', 'B4']).toContain(band);
+      expect(['B0', 'B1', 'B2', 'B3', 'B4']).toContain(band);
     }
 
     // 10. Assert no forbidden phrases in FACT CONTEXT block only

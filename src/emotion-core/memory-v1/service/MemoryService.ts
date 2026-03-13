@@ -7,6 +7,7 @@ import { scoreAnchors, type AnchorScore } from '../anchorRelevanceArbiter';
 import { filterBySchema, rankAnchors } from '../anchorRanking';
 import { MAX_ANCHORS_PER_MESSAGE } from '../anchorRanking';
 import type { FactAnchor } from '../factAnchorTypes';
+import { MAX_ANCHORS_IN_PROMPT } from '../factAnchorTypes';
 import type { SchemaRecord } from '../schemaStore';
 import type { MaintainReport, AsyncFactAnchorStore } from '../factAnchorStoreTypes';
 import {
@@ -172,7 +173,7 @@ export class MemoryService {
         if (pa !== pb) return pb - pa;
         return b.score - a.score;
       });
-      const selected = byPriority.slice(0, 3);
+      const selected = byPriority.slice(0, MAX_ANCHORS_IN_PROMPT);
       relevantAnchors = selected.map((r) => factAnchorToRecord(r.anchor, band, r.conflict, r.supersedes));
       console.log('[LoRa::AnchorPoolSize]', {
         totalAnchorsFromFalkor: rawCandidates.length,

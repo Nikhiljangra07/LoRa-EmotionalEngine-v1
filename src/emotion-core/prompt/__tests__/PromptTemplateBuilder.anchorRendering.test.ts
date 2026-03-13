@@ -147,8 +147,8 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
     });
   });
 
-  describe('MAX_ANCHORS_IN_PROMPT=3 enforcement', () => {
-    it('caps anchors at 3 even when 10 are provided', () => {
+  describe('MAX_ANCHORS_IN_PROMPT=5 enforcement', () => {
+    it('caps anchors at 5 even when 10 are provided', () => {
       const anchors = Array.from({ length: 10 }, (_, i) =>
         makeAnchor({
           anchorId: `a${i}`,
@@ -167,14 +167,16 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
         .split('\n')
         .filter((line) => line.startsWith('- [') && line.includes('Anchor summary'));
 
-      expect(anchorLines).toHaveLength(3);
+      expect(anchorLines).toHaveLength(5);
       expect(prompt).toContain('Anchor summary 0');
       expect(prompt).toContain('Anchor summary 1');
       expect(prompt).toContain('Anchor summary 2');
-      expect(prompt).not.toContain('Anchor summary 3');
+      expect(prompt).toContain('Anchor summary 3');
+      expect(prompt).toContain('Anchor summary 4');
+      expect(prompt).not.toContain('Anchor summary 5');
     });
 
-    it('renders exactly N anchors when N < 3', () => {
+    it('renders exactly N anchors when N < 5', () => {
       const anchors = [
         makeAnchor({ anchorId: 'a1', contentSummary: 'First anchor', band: 'B4' }),
         makeAnchor({ anchorId: 'a2', contentSummary: 'Second anchor', band: 'B2' }),
