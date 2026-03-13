@@ -7,7 +7,7 @@ import type {
 } from './factAnchorTypes';
 import { QUARANTINE_THRESHOLD } from './factAnchorTypes';
 
-const HAIKU_MODEL = 'claude-3-5-haiku-20241022';
+const HAIKU_MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 200;
 const TIMEOUT_MS = 5000;
 
