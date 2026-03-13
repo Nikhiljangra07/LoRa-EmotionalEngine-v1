@@ -166,7 +166,7 @@ describe('ResponsePolicy injection via responder wrapper', () => {
     expect(debug.etvBand).toBe('B4');
     expect(debug).toHaveProperty('policy');
     const pol = debug.policy as Record<string, unknown>;
-    expect(pol.maxWords).toBe(170);
+    expect(pol.maxWords).toBe(350);
     expect(pol.maxQuestions).toBe(3);
     expect(pol.tone).toBe('collaborative');
     expect(pol.reasoningDepth).toBe('clarify');
@@ -174,15 +174,15 @@ describe('ResponsePolicy injection via responder wrapper', () => {
 
   test('getResponsePolicy merges tier depth with band constraints', () => {
     const p1 = getResponsePolicy('TIER_1', 'B0');
-    expect(p1).toMatchObject({ maxWords: 120, maxQuestions: 1, reasoningDepth: 'clarify', tone: 'guarded' });
+    expect(p1).toMatchObject({ maxWords: 300, maxQuestions: 1, reasoningDepth: 'clarify', tone: 'guarded' });
     expect(p1.personality?.analytical).toBe(true);
 
     const p2 = getResponsePolicy('TIER_2', 'B2');
-    expect(p2).toMatchObject({ maxWords: 110, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'direct' });
+    expect(p2).toMatchObject({ maxWords: 250, maxQuestions: 2, reasoningDepth: 'contextual', tone: 'direct' });
     expect(p2.personality?.analytical).toBe(true);
 
     const p3 = getResponsePolicy('TIER_3', 'B4');
-    expect(p3).toMatchObject({ maxWords: 170, maxQuestions: 3, reasoningDepth: 'interpretive', tone: 'direct' });
+    expect(p3).toMatchObject({ maxWords: 350, maxQuestions: 3, reasoningDepth: 'interpretive', tone: 'direct' });
     expect(p3.personality?.blunt).toBe(true);
   });
 

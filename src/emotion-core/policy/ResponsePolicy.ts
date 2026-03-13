@@ -20,9 +20,9 @@ export interface ResponsePolicy {
 // ── Band → conversational openness ─────────────────────────────────
 
 const BAND_POLICIES: Record<string, Omit<ResponsePolicy, 'reasoningDepth'>> = {
-  B0: { maxWords: 120, maxQuestions: 1, tone: 'guarded' },
-  B2: { maxWords: 110, maxQuestions: 2, tone: 'neutral' },
-  B4: { maxWords: 170, maxQuestions: 3, tone: 'collaborative' },
+  B0: { maxWords: 300, maxQuestions: 1, tone: 'guarded' },
+  B2: { maxWords: 250, maxQuestions: 2, tone: 'neutral' },
+  B4: { maxWords: 350, maxQuestions: 3, tone: 'collaborative' },
 };
 
 // ── Tier → reasoning depth ─────────────────────────────────────────
@@ -63,7 +63,7 @@ export function getResponsePolicy(tier: string, band: string): ResponsePolicy {
 import { LORA_IDENTITY } from './LoRaIdentity';
 
 const REASONING_LABELS: Record<ResponsePolicy['reasoningDepth'], string> = {
-  clarify: 'Ask for missing information before advising.',
+  clarify: 'Gather required information BEFORE providing plans, calculations, or detailed advice. Do NOT estimate with incomplete data — ask first, then deliver.',
   contextual: 'Connect information and provide grounded suggestions.',
   interpretive: 'Offer deeper insight, pattern recognition, and strategic reasoning.',
 };

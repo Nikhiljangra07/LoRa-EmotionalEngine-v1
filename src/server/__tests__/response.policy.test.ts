@@ -69,31 +69,31 @@ function postApiChat(
 // ── Unit tests: policy resolution + post-gen guards ────────────────
 
 describe('ResponsePolicy — unit tests', () => {
-  test('Tier1/Band0 → clarify, guarded, 120 words, 1 question, analytical personality', () => {
+  test('Tier1/Band0 → clarify, guarded, 300 words, 1 question, analytical personality', () => {
     const p = getResponsePolicy('TIER_1', 'B0');
     expect(p.reasoningDepth).toBe('clarify');
     expect(p.tone).toBe('guarded');
-    expect(p.maxWords).toBe(120);
+    expect(p.maxWords).toBe(300);
     expect(p.maxQuestions).toBe(1);
     expect(p.personality?.analytical).toBe(true);
     expect(p.personality?.factualFraming).toBe(true);
   });
 
-  test('Tier2/Band2 → contextual, direct, 110 words, 2 questions, analytical personality', () => {
+  test('Tier2/Band2 → contextual, direct, 250 words, 2 questions, analytical personality', () => {
     const p = getResponsePolicy('TIER_2', 'B2');
     expect(p.reasoningDepth).toBe('contextual');
     expect(p.tone).toBe('direct');
-    expect(p.maxWords).toBe(110);
+    expect(p.maxWords).toBe(250);
     expect(p.maxQuestions).toBe(2);
     expect(p.personality?.analytical).toBe(true);
     expect(p.personality?.factualFraming).toBe(true);
   });
 
-  test('Tier3/Band4 → interpretive, direct tone, 170 words, 3 questions', () => {
+  test('Tier3/Band4 → interpretive, direct tone, 350 words, 3 questions', () => {
     const p = getResponsePolicy('TIER_3', 'B4');
     expect(p.reasoningDepth).toBe('interpretive');
     expect(p.tone).toBe('direct');
-    expect(p.maxWords).toBe(170);
+    expect(p.maxWords).toBe(350);
     expect(p.maxQuestions).toBe(3);
     expect(p.personality).toEqual({
       analytical: true,
@@ -111,7 +111,7 @@ describe('ResponsePolicy — unit tests', () => {
     const p = getResponsePolicy('TIER_3', 'B0');
     expect(p.reasoningDepth).toBe('interpretive');
     expect(p.tone).toBe('direct');
-    expect(p.maxWords).toBe(120);
+    expect(p.maxWords).toBe(300);
     expect(p.personality?.blunt).toBe(true);
     expect(p.personality?.analytical).toBe(true);
   });
@@ -120,7 +120,7 @@ describe('ResponsePolicy — unit tests', () => {
     const p = getResponsePolicy('TIER_99', 'B99');
     expect(p.reasoningDepth).toBe('clarify');
     expect(p.tone).toBe('guarded');
-    expect(p.maxWords).toBe(120);
+    expect(p.maxWords).toBe(300);
     expect(p.maxQuestions).toBe(1);
   });
 
@@ -228,7 +228,7 @@ describe('ResponsePolicy — integration (mock LLM)', () => {
     expect(res.status).toBe(200);
     const debug = res.body.debug as Record<string, unknown>;
     expect(debug.policy).toEqual({
-      maxWords: 120,
+      maxWords: 300,
       maxQuestions: 1,
       reasoningDepth: 'clarify',
       tone: 'guarded',
