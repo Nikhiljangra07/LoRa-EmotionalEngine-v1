@@ -85,6 +85,8 @@ const BASE_CONFIDENCE: Record<AnchorType, number> = {
   financial_commitment: 0.80,
   project_stage: 0.70,
   identity: 0.90,
+  business: 0.75,
+  context: 0.70,
 };
 
 // ---------------------------------------------------------------------------

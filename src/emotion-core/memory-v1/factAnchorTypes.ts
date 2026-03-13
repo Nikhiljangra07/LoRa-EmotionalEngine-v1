@@ -6,7 +6,9 @@ export type AnchorType =
   | 'deployment_plan'
   | 'financial_commitment'
   | 'project_stage'
-  | 'identity';
+  | 'identity'
+  | 'business'
+  | 'context';
 
 export type AnchorTemplate =
   | 'upcoming_event'
@@ -21,7 +23,9 @@ export type AnchorTemplate =
   | 'financial_commitment'
   | 'project_stage'
   | 'goal_objective'
-  | 'identity_user_name';
+  | 'identity_user_name'
+  | 'business_context'
+  | 'general_context';
 
 export type AnchorSlot =
   | 'job_interview'
@@ -53,7 +57,16 @@ export type AnchorSlot =
   | 'money_amount'
   | 'stage'
   | 'objective'
-  | 'user_name';
+  | 'user_name'
+  | 'business_type'
+  | 'location_type'
+  | 'channel'
+  | 'industry'
+  | 'challenge'
+  | 'occupation'
+  | 'situation'
+  | 'decision'
+  | 'topic';
 
 export type AnchorSummaryTemplate = {
   template: AnchorTemplate;

@@ -2,6 +2,7 @@ import { FalkorFactAnchorStore } from '../db/FalkorFactAnchorStore';
 import { FalkorAnchorAdapter } from '../db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../db/ChromaSchemaAdapter';
 import { extractFactAnchor } from '../factExtractor';
+import { extractFactsViaLLM } from '../llmFactExtractor';
 import { scoreAnchors, type AnchorScore } from '../anchorRelevanceArbiter';
 import { filterBySchema, rankAnchors } from '../anchorRanking';
 import { MAX_ANCHORS_PER_MESSAGE } from '../anchorRanking';
@@ -42,9 +43,11 @@ const ANCHOR_PRIORITY: Record<string, number> = {
   date_event: 95,
   financial_commitment: 85,
   person: 80,
+  business: 75,
   location: 70,
   project: 60,
   project_stage: 60,
+  context: 55,
   goal: 40,
   preference: 10,
   misc: 10,
@@ -106,6 +109,9 @@ export class MemoryService {
     } catch (err) {
       console.warn('[LoRa::MemoryServiceSave] Falkor upsert failed', err);
     }
+
+    // Phase 1b: LLM-based extraction (fire-and-forget, language-agnostic)
+    this.extractViaLLM(userId, content, sessionId, emotionVec, timestamp).catch(() => {});
 
     // Phase 2: Chroma schema upsert (never blocks Falkor)
     try {
@@ -243,6 +249,34 @@ export class MemoryService {
       falkor: falkorResult !== null,
       chroma: chromaResult,
     };
+  }
+
+  /**
+   * Background LLM-based fact extraction via Haiku.
+   * Runs after the regex extractor to catch facts the regex missed
+   * (non-English, broader categories). Never blocks the main save path.
+   */
+  private async extractViaLLM(
+    userId: string,
+    content: string,
+    sessionId: string,
+    emotionVec: number[],
+    timestamp: number,
+  ): Promise<void> {
+    try {
+      const llmAnchors = await extractFactsViaLLM(userId, content, sessionId, emotionVec, timestamp);
+      if (llmAnchors.length > 0) {
+        await this.factStore.upsertFromExtraction(userId, {
+          userId,
+          sessionId,
+          nowMs: timestamp,
+          extracted: llmAnchors,
+          maxAnchorsPerMessage: MAX_ANCHORS_PER_MESSAGE,
+        });
+      }
+    } catch {
+      // LLM extraction failure must never surface
+    }
   }
 
 }
