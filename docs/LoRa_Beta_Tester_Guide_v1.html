@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoRa Beta Tester Guide — v1.0</title>
+<style>
+  @page { margin: 1.5cm 2cm; size: A4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a1a2e; line-height: 1.7; padding: 2rem 3rem; max-width: 850px; margin: 0 auto; background: #fff; }
+  h1 { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 0.25rem; color: #0f0f12; letter-spacing: -0.5px; }
+  .subtitle { text-align: center; color: #666; font-size: 0.95rem; margin-bottom: 2.5rem; border-bottom: 2px solid #e0e0e0; padding-bottom: 1.5rem; }
+  h2 { font-size: 1.35rem; font-weight: 700; color: #1a1a2e; margin-top: 2.25rem; margin-bottom: 0.75rem; padding-bottom: 0.3rem; border-bottom: 2px solid #a78bfa; display: inline-block; }
+  h2::after { content: ''; display: block; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: #333; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+  p { margin-bottom: 0.75rem; font-size: 0.95rem; }
+  strong { font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.25rem; font-size: 0.9rem; }
+  th { background: #1a1a2e; color: #fff; font-weight: 600; text-align: left; padding: 0.6rem 0.85rem; }
+  td { padding: 0.55rem 0.85rem; border: 1px solid #ddd; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8f8fb; }
+  tr:nth-child(odd) td { background: #fff; }
+  ul, ol { margin: 0.5rem 0 1rem 1.5rem; font-size: 0.95rem; }
+  li { margin-bottom: 0.35rem; }
+  .highlight-box { background: #f5f3ff; border-left: 4px solid #a78bfa; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .highlight-box p { margin-bottom: 0.35rem; }
+  .warning-box { background: #fef3f2; border-left: 4px solid #f87171; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  .tip-box { background: #f0fdf4; border-left: 4px solid #4ade80; padding: 1rem 1.25rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+  code { font-family: 'Fira Code', 'Courier New', monospace; background: #f3f3f6; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.85rem; }
+  pre { background: #1a1a2e; color: #e4e4e7; padding: 1rem; border-radius: 6px; font-size: 0.85rem; overflow-x: auto; margin: 0.75rem 0 1rem; line-height: 1.5; }
+  .checklist { list-style: none; margin-left: 0; padding-left: 0; }
+  .checklist li { padding: 0.4rem 0; padding-left: 1.75rem; position: relative; }
+  .checklist li::before { content: '☐'; position: absolute; left: 0; font-size: 1.1rem; color: #a78bfa; }
+  .section-break { border: none; border-top: 1px solid #e0e0e0; margin: 2rem 0; }
+  .footer { text-align: center; color: #999; font-size: 0.8rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 2px solid #e0e0e0; }
+  @media print {
+    body { padding: 0; }
+    h2 { break-after: avoid; }
+    table { break-inside: avoid; }
+    .highlight-box, .warning-box, .tip-box { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>LoRa Beta Tester Guide</h1>
+<p class="subtitle">Version 1.0 &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; March 2026</p>
+
+<!-- SECTION 1 -->
+<h2>What is LoRa?</h2>
+<p>LoRa is an <strong>analytical reasoning partner</strong> — not a general-purpose chatbot. She is designed to help you think clearly about problems, not to do tasks for you.</p>
+
+<div class="highlight-box">
+  <p><strong>LoRa is for:</strong> Getting clarity on confusing situations, navigating decisions, breaking down complex problems, challenging your assumptions, and helping you see what you're missing.</p>
+</div>
+
+<div class="warning-box">
+  <p><strong>LoRa is NOT:</strong> A coding assistant, a search engine, a content writer, a therapist, or a yes-man. She will not agree with you just to be polite. She will not comfort you before diagnosing your problem. She will tell you what she sees — backed by reasoning.</p>
+</div>
+
+<hr class="section-break">
+
+<!-- SECTION 2 -->
+<h2>How LoRa Is Different</h2>
+
+<table>
+  <thead>
+    <tr><th>Standard AI</th><th>LoRa</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Gives you the most agreeable answer</td><td>Gives you the most <strong>accurate</strong> answer</td></tr>
+    <tr><td>Validates first, advises second</td><td>Diagnoses first, advises second</td></tr>
+    <tr><td>Answers everything at equal depth</td><td>Goes deeper on what actually matters</td></tr>
+    <tr><td>Treats every topic shift as a new task</td><td>Keeps you focused on solving the main problem first</td></tr>
+    <tr><td>Matches your tone</td><td>Maintains her own — direct, factual, calm</td></tr>
+  </tbody>
+</table>
+
+<h3>Best Use Cases</h3>
+<ul>
+  <li>Career decisions and confusion</li>
+  <li>Exam preparation <strong>strategy</strong> (not content — strategy)</li>
+  <li>Business problems and planning</li>
+  <li>Personal decisions where you need clarity, not comfort</li>
+  <li>Any situation where you're stuck and need someone to cut through the noise</li>
+</ul>
+
+<hr class="section-break">
+
+<!-- SECTION 3 -->
+<h2>The Tier System — How LoRa Evolves With You</h2>
+<p>LoRa has <strong>three tiers</strong> that change how she communicates with you. You start at Tier 1 and progress automatically based on completed sessions.</p>
+
+<table>
+  <thead>
+    <tr><th>Tier</th><th>Sessions Required</th><th>LoRa's Behavior</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>TIER 1</strong><br>(Sessions 1–3)</td>
+      <td>Start here</td>
+      <td>Respectful, measured, asks clarifying questions before advising. Shorter responses. She's getting to know how you communicate.</td>
+    </tr>
+    <tr>
+      <td><strong>TIER 2</strong><br>(Sessions 4–9)</td>
+      <td>Complete 3 sessions</td>
+      <td>More direct, connects patterns across your conversations, gives more concrete advice. Medium-length responses.</td>
+    </tr>
+    <tr>
+      <td><strong>TIER 3</strong><br>(Sessions 10+)</td>
+      <td>Complete 9 sessions</td>
+      <td>Fully analytical. Blunt. Challenges your thinking actively. Longest and most detailed responses. <strong>This is LoRa at full capacity.</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="warning-box">
+  <p><strong>Important:</strong> A "session" means a complete conversation — you chat, then tap <strong>Terminate Session</strong> to end it. Simply closing the tab does NOT count as completing a session.</p>
+</div>
+
+<h3>How to Progress Through Tiers for Testing</h3>
+<ol>
+  <li>Start a conversation (even just "Hi")</li>
+  <li>Get a response</li>
+  <li>Tap <strong>Terminate Session</strong></li>
+  <li>A new session starts automatically</li>
+  <li>Repeat until you reach the tier you want to test</li>
+</ol>
+
+<div class="highlight-box">
+  <p><strong>We need feedback from ALL tiers, especially Tier 2 and Tier 3.</strong> Most testers have only tested Tier 1. Please progress to Tier 3 and compare the difference in depth, tone, and directness.</p>
+</div>
+
+<hr class="section-break">
+
+<!-- SECTION 4 -->
+<h2>Memory System — What LoRa Remembers</h2>
+<p>LoRa has a <strong>pattern memory</strong> — she extracts key facts from your conversations and stores them for future sessions.</p>
+
+<h3>What She Remembers</h3>
+<ul>
+  <li>Your goals (e.g., "preparing for CGL exam", "doing a lean bulk")</li>
+  <li>Key context (e.g., your occupation, a business you're running)</li>
+  <li>Important people you mention (e.g., partner, manager)</li>
+  <li>Preferences you've stated</li>
+</ul>
+
+<h3>What She Does NOT Remember</h3>
+<ul>
+  <li>Full conversations or exact sentences you said</li>
+  <li>Details from more than 3–4 sessions ago (memory fades over time)</li>
+  <li>Anything from another user's sessions — your data is fully isolated</li>
+</ul>
+
+<div class="tip-box">
+  <p><strong>Tip:</strong> If something important isn't being remembered, restate it. Say: <em>"I'm preparing for CGL, which I mentioned before."</em> LoRa will pick it up again.</p>
+</div>
+
+<hr class="section-break">
+
+<!-- SECTION 5 -->
+<h2>Privacy</h2>
+<ul>
+  <li>LoRa does <strong>NOT</strong> store your full conversations. Transcripts are deleted.</li>
+  <li>Only extracted <strong>patterns</strong> (goals, context, preferences) are kept for memory.</li>
+  <li>Your data is isolated — no other user can see or access your information.</li>
+  <li>No conversation data is used for training.</li>
+</ul>
+
+<hr class="section-break">
+
+<!-- SECTION 6 -->
+<h2>Known Limitations (MVP)</h2>
+<p>Please <strong>do not</strong> report these as bugs — they are intentional or known constraints for this version:</p>
+
+<table>
+  <thead>
+    <tr><th style="width: 35%;">Limitation</th><th>Explanation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>Shorter responses at Tier 1</strong></td><td>Intentional. LoRa gives more detail at higher tiers. Progress to Tier 2/3 for longer responses.</td></tr>
+    <tr><td><strong>No copy-paste button for code</strong></td><td>Not available yet. LoRa is not primarily a coding tool.</td></tr>
+    <tr><td><strong>Memory fades after 3–4 sessions</strong></td><td>MVP constraint. Only the 5 strongest facts persist. Restate important context if needed.</td></tr>
+    <tr><td><strong>LoRa redirects you to the main topic</strong></td><td>By design. She keeps you focused. If you want to change topics, tell her explicitly: <em>"Different question"</em> or <em>"New topic."</em></td></tr>
+    <tr><td><strong>Doesn't explain everything in one message</strong></td><td>Intentional. She breaks information into focused parts and asks what to go deeper on.</td></tr>
+    <tr><td><strong>First response can be short</strong></td><td>At Tier 1, LoRa asks questions first to understand your situation before giving detailed advice.</td></tr>
+  </tbody>
+</table>
+
+<hr class="section-break">
+
+<!-- SECTION 7 -->
+<h2>How to Give Useful Feedback</h2>
+<p>We need feedback on <strong>LoRa's behavior</strong>, not her general knowledge. LoRa uses Claude (one of the best AI models) for intelligence — what makes her different is <strong>how</strong> she delivers it.</p>
+
+<h3>What to Observe</h3>
+<ol>
+  <li><strong>Does LoRa understand your actual problem?</strong> Not just what you said, but what you meant.</li>
+  <li><strong>Does she challenge you when your thinking is weak?</strong> Or does she just agree?</li>
+  <li><strong>Does she ask the right questions?</strong> Sharp, specific, diagnostic — not generic.</li>
+  <li><strong>Does her tone feel right?</strong> Direct but respectful — not rude, not overly soft.</li>
+  <li><strong>Does she remember your context across sessions?</strong> Mention something in session 1, reference it in session 3.</li>
+  <li><strong>Is there a noticeable difference between Tier 1 and Tier 3?</strong> In depth, tone, directness?</li>
+</ol>
+
+<h3>Feedback Format</h3>
+<pre>Session: [which session number]
+Tier: [TIER_1 / TIER_2 / TIER_3]
+What I asked: [brief summary]
+What LoRa did well: [specific]
+What felt wrong: [specific]
+Screenshot: [if possible]</pre>
+
+<hr class="section-break">
+
+<!-- SECTION 8 -->
+<h2>Quick Start Checklist</h2>
+<ul class="checklist">
+  <li>Open the link in your browser (works on mobile and desktop)</li>
+  <li>Start a conversation about something real — a problem you're actually facing</li>
+  <li>Have at least 3–4 back-and-forth messages before judging</li>
+  <li>Terminate the session when done</li>
+  <li>Repeat for at least <strong>3 sessions</strong> to reach Tier 2</li>
+  <li>Continue to <strong>10 sessions</strong> to reach Tier 3</li>
+  <li>Compare Tier 1 vs Tier 3 behavior</li>
+  <li>Test memory: mention a goal in session 2, see if LoRa recalls it in session 4</li>
+  <li>Send feedback with tier, session number, and screenshots</li>
+</ul>
+
+<hr class="section-break">
+
+<!-- SECTION 9 -->
+<h2>One Last Thing</h2>
+<p>LoRa is in beta. She's not perfect. Some responses will be too short, some too rigid, some might miss context. That's exactly why you're testing her.</p>
+
+<p>But she's also not trying to be ChatGPT. She's built to be the AI that tells you <strong>what you need to hear</strong>, not what you want to hear. Test her like you'd test a tough advisor — bring real problems, push back on her answers, and see if she holds up.</p>
+
+<p style="margin-top: 1.25rem; font-weight: 600; font-size: 1.05rem;">Thank you for testing. Your feedback shapes what LoRa becomes.</p>
+
+<div class="footer">
+  <p>LoRa Beta Tester Guide v1.0 &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; March 2026</p>
+</div>
+
+</body>
+</html>
