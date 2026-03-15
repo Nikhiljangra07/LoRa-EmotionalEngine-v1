@@ -191,7 +191,7 @@ describe('ResponsePolicy injection via responder wrapper', () => {
     expect(block).toContain('[SYSTEM POLICY]');
     expect(block).toContain('Tone: direct');
     expect(block).toContain('Reasoning mode: contextual');
-    expect(block).toContain('Maximum words: 110');
+    expect(block).toContain('Maximum words: 250');
     expect(block).toContain('analytical reasoning partner');
   });
 });
