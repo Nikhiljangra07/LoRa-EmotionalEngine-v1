@@ -9,6 +9,7 @@ import { registerSessionLifecycleRoute } from './routes/session.lifecycle.route'
 import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
 import { registerDebugMemoryRoute } from './routes/debug.memory.route';
+import { shutdownPosthog } from './analytics/posthogClient';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -120,4 +121,11 @@ app.listen(port, () => {
   if (apiChatRegistered) {
     runStartupHealthChecks().catch(() => {});
   }
+
+  if (process.env.POSTHOG_API_KEY) {
+    console.log('[LoRa] PostHog analytics active');
+  }
 });
+
+process.on('SIGTERM', () => { shutdownPosthog().catch(() => {}); });
+process.on('SIGINT', () => { shutdownPosthog().catch(() => {}); });

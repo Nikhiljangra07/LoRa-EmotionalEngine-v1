@@ -36,6 +36,11 @@ import {
   startPeriodicWrite,
 } from '../analytics/runtimeMetrics';
 import { tryAllow as rateLimitTryAllow } from '../rateLimit/slidingWindowRateLimit';
+import {
+  trackSessionStarted,
+  trackMessageSent,
+  trackSessionEnded,
+} from '../analytics/posthogClient';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -261,12 +266,18 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
     let entry = sessions.get(key);
     if (!entry) {
-      // Close any other sessions for this user (new sessionId = previous session ended)
       const prefix = userId + '::';
       for (const k of sessions.keys()) {
         if (k.startsWith(prefix) && k !== key) {
           const old = sessions.get(k)!;
-          emitSessionEnd(userId, k.slice(prefix.length), old);
+          const oldSessionId = k.slice(prefix.length);
+          emitSessionEnd(userId, oldSessionId, old);
+          trackSessionEnded(userId, oldSessionId, {
+            messagesCount: old.history.filter(t => t.role === 'user').length,
+            durationSeconds: Math.round((Date.now() - old.sessionStartedAt) / 1000),
+            tokensUsed: old.tokensUsed,
+            reason: 'new_session',
+          });
           sessions.delete(k);
         }
       }
@@ -281,6 +292,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         tokensUsed: 0,
       };
       sessions.set(key, entry);
+      trackSessionStarted(userId, sessionId);
       if (sessionDebug) console.log('[LoRa::Session] engine created', { key });
     }
     return entry;
@@ -325,6 +337,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     const messageCount = session.history.filter((t) => t.role === 'user').length;
     if (messageCount >= MAX_SESSION_MESSAGES) {
       emitSessionEnd(userId, sessionId, session);
+      trackSessionEnded(userId, sessionId, {
+        messagesCount: messageCount,
+        durationSeconds: Math.round((Date.now() - session.sessionStartedAt) / 1000),
+        tokensUsed: session.tokensUsed,
+        reason: 'session_cap',
+      });
       sessions.delete(engineKey);
       const capTier = await tierService.recordSessionCompletionAsync(userId, sessionId);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
@@ -424,6 +442,16 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       if (dailyLimit > 0) addTokens(userId, consumed);
       session.tokensUsed += consumed;
       incrementTokensToday(consumed);
+
+      trackMessageSent(userId, sessionId, {
+        messageIndex: session.history.filter(t => t.role === 'user').length,
+        tier: tierRecord.tier,
+        etvBand,
+        eiv: result.eiv?.value ?? 0,
+        anchorsUsed: debug.anchorsUsed ?? 0,
+        replyLengthChars: reply.length,
+        tokensEstimated: consumed,
+      });
 
       if (reply) {
         session.history.push({

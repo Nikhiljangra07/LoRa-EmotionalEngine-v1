@@ -1,5 +1,6 @@
 import type { TierLevel, TierRecord } from './TierTypes';
 import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
+import { trackTierChanged } from '../analytics/posthogClient';
 
 const TIER_2_THRESHOLD = 3;
 const TIER_3_THRESHOLD = 10;
@@ -83,9 +84,13 @@ export class TierService {
           tier: 'TIER_1',
         };
       }
+      const previousTier = this.fallback.get(userId)?.tier ?? 'TIER_1';
       record.tier = this.computeTier(record.sessionCount);
       await c.hset(redisKey(userId), 'sessionCount', String(record.sessionCount), 'tier', record.tier);
       this.fallback.set(userId, record);
+      if (record.tier !== previousTier) {
+        trackTierChanged(userId, { previousTier, newTier: record.tier, sessionCount: record.sessionCount });
+      }
       return { ...record };
     } catch (err) {
       console.warn('[LoRa::TierService] Redis write failed, using fallback', (err as Error).message);
