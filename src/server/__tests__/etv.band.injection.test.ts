@@ -154,8 +154,8 @@ describe('ResponsePolicy injection via responder wrapper', () => {
     const res = await postApiChat(port, { userId: 'pol-princ', sessionId: 'sess-princ', text: 'hello' });
     expect(res.status).toBe(200);
     const prompt = capturedPrompts[0];
-    expect(prompt).toContain('Prioritize clarity over validation');
-    expect(prompt).toContain('Do not endorse harmful intent');
+    expect(prompt).toContain('Prioritize diagnosis over empathy');
+    expect(prompt).toContain('Do not encourage harm');
   });
 
   test('debug contains etvBand and policy', async () => {

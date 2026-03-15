@@ -240,12 +240,11 @@ describe('LORA_IDENTITY contract', () => {
   test('identity block declares what LoRa is not', () => {
     expect(LORA_IDENTITY).toContain('NOT');
     expect(LORA_IDENTITY).toContain('therapist');
-    expect(LORA_IDENTITY).toContain('cheerleader');
   });
 
-  test('identity block contains all 10 rules', () => {
-    for (let i = 1; i <= 10; i++) {
-      expect(LORA_IDENTITY).toContain(`${i}.`);
+  test('identity block contains all 6 laws', () => {
+    for (let i = 1; i <= 6; i++) {
+      expect(LORA_IDENTITY).toContain(`LAW ${i}`);
     }
   });
 });
