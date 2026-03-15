@@ -2221,7 +2221,7 @@ export class EngineOrchestrator {
         'The canned response would have been returned instead of a real LLM reply.',
       );
     }
-    return 'I’m here with you. Let’s take this one step at a time.';
+    return 'Connection interrupted. State your question again and I will address it directly.';
   }
 
   private static generateFallbackReply(params: {
@@ -2264,27 +2264,17 @@ export class EngineOrchestrator {
     const isPositive = params.emotionalState.valence === 'POSITIVE';
 
     if (isQuestion) {
-      return [
-        "I'd start with a single next step you can finish today, then review what still feels uncertain.",
-        "What part of the decision feels most stuck right now?",
-      ].join(' ');
+      return 'Narrow it down: what is the one specific decision you need to make right now?';
     }
 
     if ((isHighArousal || strongExpressivity) && isNegative) {
-      return [
-        "That sounds really heavy. Two things to try: take a brief pause to reset your breathing, then pick one small action you can control right now.",
-        "What would feel like the smallest relief today?",
-      ].join(' ');
+      return 'State the problem in one sentence. What exactly broke down?';
     }
 
     if (isHighArousal && isPositive) {
-      return [
-        "That sounds exciting. What's the next moment you're most looking forward to?",
-      ].join(' ');
+      return 'Good. What is the next concrete step from here?';
     }
 
-    return [
-      "I hear you. What's the one part you'd like to focus on next?",
-    ].join(' ');
+    return 'What specifically do you need to work through right now?';
   }
 }

@@ -11,12 +11,20 @@ const THERAPIST_OPENERS: RegExp[] = [
   /^it sounds like you'?re\b/i,
   /^i can hold space for that\b/i,
   /^i'?m here with you\b/i,
-  /^i hear you,? and\b/i,
+  /^i hear you\b/i,
   /^i'?m so sorry you'?re\b/i,
   /^it'?s understandable that\b/i,
   /^it makes sense that you'?re\b/i,
   /^that must be difficult\b/i,
   /^that must be frustrating\b/i,
+  /^i'?m sorry to hear\b/i,
+  /^i can see where you'?re coming from\b/i,
+  /^that'?s completely (valid|normal|understandable)\b/i,
+  /^your feelings are\b/i,
+  /^i want you to know\b/i,
+  /^take your time\b/i,
+  /^let'?s take a step back\b/i,
+  /^let'?s take this one step\b/i,
 ];
 
 const NARRATIVE_OPENERS: RegExp[] = [

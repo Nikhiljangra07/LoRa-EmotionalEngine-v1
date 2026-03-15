@@ -24,6 +24,8 @@ Categories and slots:
 Rules:
 - Extract ONLY concrete facts, not emotions or opinions
 - value must be a short English label (2-5 words max), even if the message is in another language
+- user_name: ONLY extract when the user explicitly introduces themselves (e.g. "I'm John", "my name is X", "call me Y"). Do NOT extract random nouns, adjectives, genres, or common words as user_name.
+- Do NOT extract the AI assistant's words or responses as facts — only extract from the USER's own statements.
 - Return [] if nothing factual
 - Respond with ONLY the JSON array, nothing else`;
 
@@ -66,6 +68,24 @@ function templateForType(type: string): AnchorTemplate {
     case 'project_stage': return 'project_stage';
     default: return 'general_context';
   }
+}
+
+const COMMON_WORDS: ReadonlySet<string> = new Set([
+  'hello', 'hi', 'hey', 'hlo', 'hloo', 'yes', 'no', 'ok', 'okay', 'sure',
+  'thanks', 'thank', 'bye', 'good', 'bad', 'great', 'nice', 'fine', 'cool',
+  'functional', 'comedy', 'drama', 'horror', 'action', 'romance', 'thriller',
+  'student', 'teacher', 'doctor', 'engineer', 'manager', 'worker', 'user',
+  'noted', 'understood', 'clear', 'ready', 'done', 'start', 'stop', 'help',
+  'question', 'answer', 'problem', 'solution', 'topic', 'subject', 'point',
+]);
+
+function isPlausibleName(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length < 2 || trimmed.length > 30) return false;
+  if (trimmed.split(/\s+/).length > 4) return false;
+  if (COMMON_WORDS.has(trimmed.toLowerCase())) return false;
+  if (/^\d+$/.test(trimmed)) return false;
+  return true;
 }
 
 let client: Anthropic | null = null;
@@ -126,6 +146,7 @@ export async function extractFactsViaLLM(
       if (typeof f.value !== 'string' || f.value.length > 80) continue;
       if (!VALID_TYPES.has(f.type)) continue;
       if (!VALID_SLOTS[f.type]?.has(f.slot)) continue;
+      if (f.slot === 'user_name' && !isPlausibleName(f.value)) continue;
 
       const baseConfidence = 0.75;
       const status = baseConfidence < QUARANTINE_THRESHOLD ? 'quarantined' : 'confirmed';
