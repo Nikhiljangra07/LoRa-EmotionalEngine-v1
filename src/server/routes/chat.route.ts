@@ -396,14 +396,15 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       if (process.env.LORA_RELATIONAL_ROUTER === '1') {
         const classification = classifyRelationalIntent(text);
         if (classification.intent !== 'none' && classification.confidence >= RELATIONAL_CONFIDENCE_THRESHOLD) {
+          const guardedReply = enforceIdentity(RELATIONAL_REPLY);
           session.history.push({
             role: 'assistant',
-            text: RELATIONAL_REPLY,
+            text: guardedReply,
             ts: Date.now(),
           });
           const debug = emptyDebug();
           res.status(200).json({
-            reply: RELATIONAL_REPLY,
+            reply: guardedReply,
             tier: tierRecord.tier,
             sessionCount: tierRecord.sessionCount,
             debug: {
