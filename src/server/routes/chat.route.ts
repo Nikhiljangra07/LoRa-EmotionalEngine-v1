@@ -266,7 +266,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   /** Minimum user messages before a session counts toward tier promotion. */
   const MIN_MESSAGES_FOR_COMPLETION = 2;
 
-  function finalizeSession(userId: string, sessionId: string, entry: SessionEntry, reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout'): void {
+  function finalizeSession(userId: string, sessionId: string, entry: SessionEntry, reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout' | 'user_terminate'): void {
     emitSessionEnd(userId, sessionId, entry);
     const messageCount = entry.history.filter(t => t.role === 'user').length;
     trackSessionEnded(userId, sessionId, {

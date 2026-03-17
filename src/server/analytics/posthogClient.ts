@@ -49,7 +49,7 @@ export function trackSessionEnded(
     messagesCount: number;
     durationSeconds: number;
     tokensUsed: number;
-    reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout';
+    reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout' | 'user_terminate';
   },
 ): void {
   getClient()?.capture({
