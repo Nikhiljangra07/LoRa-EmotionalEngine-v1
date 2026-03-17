@@ -235,6 +235,7 @@ POSTHOG_API_KEY=...
 | Mar 17, 2026 | Fixed stale LLM invariants test fixture | Test expected old forbidden fallback text ("I'm here with you"), missing required userId, and empty signalPacket bypassed cooldown. Updated all three. 3/3 pass. | `60f66cc` |
 | Mar 17, 2026 | Skip Falkor anchor fetch when LORA_FACT_ANCHOR is off | retrieveContext always hit Falkor even when anchors were disabled — wasted DB call. Added skipAnchors option, orchestrator passes it based on flag. | `2222aa3` |
 | Mar 17, 2026 | Drain active sessions on server shutdown (SIGTERM/SIGINT) | Active sessions were silently dropped on redeploy. Now drainSessions() emits engagement logs, PostHog session_ended, and counts tier — before PostHog flush. | `a920660` |
+| Mar 17, 2026 | Perspective evaluation: anti-creep principles in RESPONSE PRINCIPLES | Added 2 lines banning consensus blending and requiring distinct path evaluation. Component 1 of 4 in perspective evaluation system. Anti-creep layer 3 (negative constraints). | `f47d01c` |
 
 ---
 
