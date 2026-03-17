@@ -432,6 +432,16 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             text: guardedReply,
             ts: Date.now(),
           });
+          trackMessageSent(userId, sessionId, {
+            messageIndex: session.history.filter(t => t.role === 'user').length,
+            tier: tierRecord.tier,
+            etvBand,
+            eiv: 0,
+            anchorsUsed: 0,
+            replyLengthChars: guardedReply.length,
+            tokensEstimated: 0,
+          });
+
           const debug = emptyDebug();
           res.status(200).json({
             reply: guardedReply,
