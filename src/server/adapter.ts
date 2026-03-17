@@ -9,7 +9,10 @@ import { registerSessionLifecycleRoute } from './routes/session.lifecycle.route'
 import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
 import { registerDebugMemoryRoute } from './routes/debug.memory.route';
-import { shutdownPosthog } from './analytics/posthogClient';
+import { shutdownPosthog, trackSessionEnded } from './analytics/posthogClient';
+import { sharedTierService } from './tier/TierService';
+import { logSessionEnd } from './analytics/engagementLogger';
+import { recordSessionEnd } from './analytics/runtimeMetrics';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -127,5 +130,40 @@ app.listen(port, () => {
   }
 });
 
-process.on('SIGTERM', () => { shutdownPosthog().catch(() => {}); });
-process.on('SIGINT', () => { shutdownPosthog().catch(() => {}); });
+/** Minimum user messages before a shutdown-finalized session counts toward tier promotion. */
+const MIN_MESSAGES_FOR_SHUTDOWN = 2;
+
+function drainSessions(): void {
+  if (!engineSessions || engineSessions.size === 0) return;
+  const now = Date.now();
+  for (const [key, entry] of engineSessions.entries()) {
+    const [userId, sessionId] = key.split('::');
+    const messagesCount = entry.history.filter(t => t.role === 'user').length;
+    const durationSeconds = Math.round((now - entry.sessionStartedAt) / 1000);
+    logSessionEnd({
+      userId,
+      sessionId,
+      sessionStart: entry.sessionStartedAt,
+      sessionEnd: now,
+      messagesCount,
+      tokensUsed: entry.tokensUsed,
+      durationSeconds: Math.round(durationSeconds * 100) / 100,
+      endedAt: Math.floor(now / 1000),
+    });
+    recordSessionEnd(messagesCount);
+    trackSessionEnded(userId, sessionId, {
+      messagesCount,
+      durationSeconds,
+      tokensUsed: entry.tokensUsed,
+      reason: 'server_shutdown',
+    });
+    if (messagesCount >= MIN_MESSAGES_FOR_SHUTDOWN) {
+      sharedTierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
+    }
+  }
+  engineSessions.clear();
+  console.log('[LoRa::Shutdown] active sessions drained');
+}
+
+process.on('SIGTERM', () => { drainSessions(); shutdownPosthog().catch(() => {}); });
+process.on('SIGINT', () => { drainSessions(); shutdownPosthog().catch(() => {}); });
