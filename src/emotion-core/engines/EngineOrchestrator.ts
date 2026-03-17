@@ -60,6 +60,7 @@ import type { NarrativeMomentumBlock } from '../narrative/NarrativeStateEngine';
 import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
 import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 import { isMaskedPressurePersistent } from './maskedPressurePersistence';
+import { enforceIdentity } from '../policy/IdentityGuard';
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -1137,10 +1138,12 @@ export class EngineOrchestrator {
           );
         }
 
+        const guardedOverride = enforceIdentity(finalOverride);
+
         const overrideResult = {
           eiv: eivResult,
           prompt: '(persona enforcer override)',
-          llmOutput: finalOverride,
+          llmOutput: guardedOverride,
           debug: {
             etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
             band: this.lastEtvPolicy?.band ?? 'B0',
@@ -1528,10 +1531,12 @@ export class EngineOrchestrator {
       });
     }
 
+    const guardedLlmOutput = enforceIdentity(llmOutput);
+
     const result = {
       eiv: eivResult,
       prompt,
-      llmOutput,
+      llmOutput: guardedLlmOutput,
       debug: {
         etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
         band: this.lastEtvPolicy?.band ?? 'B0',
