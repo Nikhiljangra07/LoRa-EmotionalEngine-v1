@@ -1,8 +1,16 @@
 import { EngineOrchestrator } from '../EngineOrchestrator';
 import type { AnalyzerOutputs } from '../../processors/EIVComponentAssembler';
 import type { EmotionalState } from '../../types/analysis.types';
+import type { SignalPacket } from '../../types/SignalPacket.types';
 import { DecisionLogger } from '../../logging/DecisionLogger';
 import { MASTER_CONSTANTS } from '../../config/master.constants';
+
+/** Long non-question text that won't trigger cooldown recovery (not short, no '?', no quick patterns). */
+const longStatement: SignalPacket = {
+  messageText: 'I have been thinking about the overall situation and reflecting on everything that has happened recently in my life and career trajectory',
+  sentences: [],
+  layer1Health: { degraded: false, reason: 'ok' },
+};
 
 const analyzerOutputs: AnalyzerOutputs = {
   expressionStrength: { score: 0.6, confidence: 0.7 },
@@ -24,7 +32,8 @@ describe('EngineOrchestrator — LLM Runtime Hardening', () => {
       { maxAttempts: 1 },
       () => ({
         generateResponse: async () => 'LLM_OK',
-      })
+      }),
+      { userId: 'test-llm-success' },
     );
 
     const failureEngine = new EngineOrchestrator(
@@ -34,7 +43,8 @@ describe('EngineOrchestrator — LLM Runtime Hardening', () => {
         generateResponse: async () => {
           throw new Error('LLM failed');
         },
-      })
+      }),
+      { userId: 'test-llm-failure' },
     );
 
     const withLlm = await successEngine.processMessage(
@@ -70,7 +80,8 @@ describe('EngineOrchestrator — LLM Runtime Hardening', () => {
       { maxAttempts: 1 },
       () => ({
         generateResponse: async () => 'LLM_OK',
-      })
+      }),
+      { userId: 'test-degrade-success' },
     );
     await successEngine.processMessage(
       lowConfidenceOutputs,
@@ -85,7 +96,8 @@ describe('EngineOrchestrator — LLM Runtime Hardening', () => {
         generateResponse: async () => {
           throw new Error('LLM failed');
         },
-      })
+      }),
+      { userId: 'test-degrade-failure' },
     );
     await failureEngine.processMessage(
       lowConfidenceOutputs,
@@ -101,13 +113,14 @@ describe('EngineOrchestrator — LLM Runtime Hardening', () => {
     let calls = 0;
     const engine = new EngineOrchestrator(
       0.5,
-      { maxAttempts: 2, cooldownMs: 1000 },
+      { maxAttempts: 2, cooldownMs: 60000 },
       () => ({
         generateResponse: async () => {
           calls += 1;
           throw new Error('LLM failed');
         },
-      })
+      }),
+      { userId: 'test-retry-bounded' },
     );
 
     const first = await engine.processMessage(
@@ -116,10 +129,13 @@ describe('EngineOrchestrator — LLM Runtime Hardening', () => {
     );
     expect(calls).toBe(2);
     expect(first.llmOutput).toBe(
-      'I’m here with you. Let’s take this one step at a time.'
+      'Connection interrupted. State your question again and I will address it directly.'
     );
 
-    await engine.processMessage(analyzerOutputs, emotionalState);
+    // Second call during cooldown: use a long non-question statement so recovery
+    // logic does not trigger (no '?', not short, not past 50% of cooldown).
+    await engine.processMessage(analyzerOutputs, emotionalState, false, {}, undefined, longStatement);
+    // Cooldown is active and recovery criteria not met — LLM should not be called again.
     expect(calls).toBe(2);
   });
 });
