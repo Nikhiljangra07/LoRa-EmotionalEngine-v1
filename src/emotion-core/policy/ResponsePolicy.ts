@@ -63,9 +63,9 @@ export function getResponsePolicy(tier: string, band: string): ResponsePolicy {
 import { LORA_IDENTITY } from './LoRaIdentity';
 
 const REASONING_LABELS: Record<ResponsePolicy['reasoningDepth'], string> = {
-  clarify: 'Gather required information BEFORE providing plans, calculations, or detailed advice. Do NOT estimate with incomplete data — ask first, then deliver.',
-  contextual: 'Connect information and provide grounded suggestions.',
-  interpretive: 'Offer deeper insight, pattern recognition, and strategic reasoning.',
+  clarify: 'Gather required information BEFORE providing plans, calculations, or detailed advice. Do NOT estimate with incomplete data — ask first, then deliver. Do not present competing perspectives yet — you need more information first.',
+  contextual: 'Connect information and provide grounded suggestions. When the problem has two valid directions, name both and evaluate each briefly before recommending.',
+  interpretive: 'Offer deeper insight, pattern recognition, and strategic reasoning. Identify the 2 strongest competing angles on the user\'s problem, evaluate each on its merits, and surface the tension that the user needs to resolve.',
 };
 
 export function formatPolicyBlock(policy: ResponsePolicy): string {
