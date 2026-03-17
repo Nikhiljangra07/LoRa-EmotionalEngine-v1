@@ -154,8 +154,9 @@ export class MemoryService {
     const band = opts?.band ?? 'B0';
     const emotionVec = opts?.emotionVec ?? [0, 0, 0, 0];
 
+    const skipAnchors = opts?.skipAnchors === true;
     const [rawCandidates, rawSchemas] = await Promise.all([
-      this.factStore.getCandidates(userId, { nowMs }).catch(() => null),
+      skipAnchors ? Promise.resolve([]) : this.factStore.getCandidates(userId, { nowMs }).catch(() => null),
       this.vectorAdapter.loadSchemas(userId).catch(() => null),
     ]);
 

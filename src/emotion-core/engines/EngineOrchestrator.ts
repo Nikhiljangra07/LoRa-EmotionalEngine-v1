@@ -1008,6 +1008,7 @@ export class EngineOrchestrator {
           ],
           nowMs: messageTimestampMs,
           band: retrieveBand,
+          skipAnchors: !featureFlags.factAnchorEnabled,
         };
 
         const msResult = await this.memoryService.retrieveContext(this.userId, userMessage, retrieveOpts);

@@ -35,6 +35,8 @@ export interface RetrieveContextOpts {
   emotionVec?: number[];
   nowMs?: number;
   band?: EmotionBand;
+  /** When true, skip the Falkor anchor fetch (saves a DB round-trip when fact anchors are disabled). */
+  skipAnchors?: boolean;
 }
 
 export interface AnchorRecord {
