@@ -26,7 +26,7 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 4. The IdentityGuard (`src/emotion-core/policy/IdentityGuard.ts`) runs on every LLM output. It strips forbidden openers and rewrites emotional questions. Never bypass it.
 5. Stability over features. LoRa is live with real users. Every change must be safe.
 6. Nikhil is solo — no team. Changes must be clean, tested, and minimal.
-
+**Git branch:** Always commit and push to `bugbot-init-review`. Never push to `main` without explicit instruction.
 ---
 
 ## ARCHITECTURE
@@ -224,7 +224,9 @@ POSTHOG_API_KEY=...
 | Mar 15, 2026 | Added knowledge cutoff banner to dev UI | Users confused about LoRa not knowing 2026 events | `876c73c` |
 | Mar 15, 2026 | PostHog JS added to frontend (presence-whispers) | Web analytics: pageviews, visitors, session duration | Frontend repo |
 | Mar 15, 2026 | Created session_analytics.ts script | Parse Railway logs → JSON analytics (backup to PostHog) | `c34b1b8` |
+| Mar 16, 2026 | Purged therapy patterns from relationalResponsePolicy, guarded persona overrides | All relational response templates contained forbidden phrases ("I'm here with you", "I hear you", "your feelings", etc.). Rewrote to analytical voice. Also added enforceIdentity() to early-return relational router path in chat.route.ts — persona overrides were bypassing the identity guard. | `842f3e8` |
 | Mar 16, 2026 | Created this CLAUDE.md handover document | Transitioning from Cursor to Claude Code — preserving institutional memory | — |
+| Mar 16, 2026 | Added enforceIdentity() inside EngineOrchestrator (defense-in-depth) | Persona enforcer override and main LLM output paths returned raw text without identity guard. chat.route.ts caught it on the outer layer, but EngineOrchestrator itself was unguarded — any direct caller would bypass identity enforcement. Now both paths run enforceIdentity() before returning. | `98a4b4c` |
 
 ---
 
