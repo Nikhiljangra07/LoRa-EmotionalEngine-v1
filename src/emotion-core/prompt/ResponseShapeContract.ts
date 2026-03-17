@@ -83,7 +83,7 @@ function explorationContract(theme: string | null): string {
   const themeRef = theme ? ` related to ${theme}` : '';
   return `Strategy: EXPLORATION
 - Presence: Isolate one specific detail from what the user described${themeRef}.
-- Momentum: Propose a lens or contrast (e.g., "work pressure vs self-expectations", "timing vs readiness").
+- Momentum: Propose two distinct lenses on the situation (e.g., "work pressure vs self-expectations"). State what each lens reveals separately \u2014 do not merge them.
 - Question: Ask a targeted question about that detail.`;
 }
 
@@ -106,14 +106,14 @@ function reframingContract(theme: string | null): string {
   const themeRef = theme ? ` around ${theme}` : '';
   return `Strategy: REFRAMING
 - Presence: State what the user described without minimizing it${themeRef}.
-- Momentum: Offer an alternative interpretation or angle they may not have considered.
+- Momentum: Offer an alternative interpretation they may not have considered. State it as a distinct angle alongside what they currently believe \u2014 not as a replacement.
 - Question: Test the reframe directly (e.g., "What changes if you look at it that way?").`;
 }
 
 function clarificationContract(): string {
   return `Strategy: CLARIFICATION
 - Presence: Name the ambiguity — point out that two things seem to be in play.
-- Momentum: State two possible interpretations directly (e.g., "Either A is happening, or B is").
+- Momentum: State two possible interpretations directly with what makes each one plausible (e.g., "If A, then X follows. If B, then Y follows"). Do not hedge between them.
 - Question: Force a choice (e.g., "Which of those is closer to what you mean?").`;
 }
 
