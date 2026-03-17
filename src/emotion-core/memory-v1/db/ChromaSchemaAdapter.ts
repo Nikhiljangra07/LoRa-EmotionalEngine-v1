@@ -7,6 +7,9 @@ const COLLECTION_NAME = 'lora_schemas';
 const ROUND_DECIMALS = 6;
 const isDev = process.env.NODE_ENV === 'development';
 
+/** Schema staleness threshold: 90 days, matching Falkor anchor TTL. */
+const SCHEMA_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
 /** Manual-embedding-only: name, metadata, and explicit null embedding function (no DefaultEmbeddingFunction). */
 const GET_OR_CREATE_OPTS = {
   name: COLLECTION_NAME,
@@ -136,7 +139,9 @@ export class ChromaSchemaAdapter {
         });
       }
 
-      return deterministicSort(schemas, 'schemaId');
+      const now = Date.now();
+      const fresh = schemas.filter(s => now - s.lastUpdatedAt < SCHEMA_MAX_AGE_MS);
+      return deterministicSort(fresh, 'schemaId');
     } catch {
       return null;
     }
