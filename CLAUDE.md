@@ -234,6 +234,7 @@ POSTHOG_API_KEY=...
 | Mar 16, 2026 | Added 90-day Redis TTL on anchor hash keys | Anchors had no expiry — inactive users' data persisted forever. Now `saveState` sets EXPIRE on every save; active users refresh naturally, inactive users auto-expire after 90 days. | `349f331` |
 | Mar 17, 2026 | Fixed stale LLM invariants test fixture | Test expected old forbidden fallback text ("I'm here with you"), missing required userId, and empty signalPacket bypassed cooldown. Updated all three. 3/3 pass. | `60f66cc` |
 | Mar 17, 2026 | Skip Falkor anchor fetch when LORA_FACT_ANCHOR is off | retrieveContext always hit Falkor even when anchors were disabled — wasted DB call. Added skipAnchors option, orchestrator passes it based on flag. | `2222aa3` |
+| Mar 17, 2026 | Drain active sessions on server shutdown (SIGTERM/SIGINT) | Active sessions were silently dropped on redeploy. Now drainSessions() emits engagement logs, PostHog session_ended, and counts tier — before PostHog flush. | `a920660` |
 
 ---
 
