@@ -263,6 +263,23 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     recordSessionEnd(messagesCount);
   }
 
+  /** Minimum user messages before a session counts toward tier promotion. */
+  const MIN_MESSAGES_FOR_COMPLETION = 2;
+
+  function finalizeSession(userId: string, sessionId: string, entry: SessionEntry, reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout'): void {
+    emitSessionEnd(userId, sessionId, entry);
+    const messageCount = entry.history.filter(t => t.role === 'user').length;
+    trackSessionEnded(userId, sessionId, {
+      messagesCount: messageCount,
+      durationSeconds: Math.round((Date.now() - entry.sessionStartedAt) / 1000),
+      tokensUsed: entry.tokensUsed,
+      reason,
+    });
+    if (messageCount >= MIN_MESSAGES_FOR_COMPLETION) {
+      tierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
+    }
+  }
+
   function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
     let entry = sessions.get(key);
     if (!entry) {
@@ -271,13 +288,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         if (k.startsWith(prefix) && k !== key) {
           const old = sessions.get(k)!;
           const oldSessionId = k.slice(prefix.length);
-          emitSessionEnd(userId, oldSessionId, old);
-          trackSessionEnded(userId, oldSessionId, {
-            messagesCount: old.history.filter(t => t.role === 'user').length,
-            durationSeconds: Math.round((Date.now() - old.sessionStartedAt) / 1000),
-            tokensUsed: old.tokensUsed,
-            reason: 'new_session',
-          });
+          finalizeSession(userId, oldSessionId, old, 'new_session');
           sessions.delete(k);
         }
       }
@@ -297,6 +308,25 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
     return entry;
   }
+
+  /** Idle session reaper: finalizes sessions with no activity for 30 minutes (browser close, tab close, etc.). */
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+  const REAPER_INTERVAL_MS = 5 * 60 * 1000;
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of sessions.entries()) {
+      const lastActivity = entry.history.length > 0
+        ? entry.history[entry.history.length - 1].ts ?? entry.sessionStartedAt
+        : entry.sessionStartedAt;
+      if (now - lastActivity >= IDLE_TIMEOUT_MS) {
+        const [userId, sessionId] = key.split('::');
+        console.log('[LoRa::SessionReaper] idle session finalized', { key, idleMinutes: Math.round((now - lastActivity) / 60000) });
+        finalizeSession(userId, sessionId, entry, 'idle_timeout');
+        sessions.delete(key);
+      }
+    }
+  }, REAPER_INTERVAL_MS).unref();
 
   app.post('/api/chat', async (req: Request, res: Response): Promise<void> => {
     const origin = req.headers.origin ?? req.headers.referer ?? '(none)';
