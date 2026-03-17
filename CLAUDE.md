@@ -239,6 +239,7 @@ POSTHOG_API_KEY=...
 | Mar 17, 2026 | Perspective evaluation: strategy contracts strengthened | Updated MOMENTUM lines in EXPLORATION, REFRAMING, CLARIFICATION strategies with "do not merge/hedge" directives. Component 2 of 4. Anti-creep layer 4 (format-level). | `4b44903` |
 | Mar 17, 2026 | Perspective evaluation: tier-scaled reasoning labels | TIER_1 blocks premature perspectives, TIER_2 names both directions, TIER_3 identifies/evaluates/surfaces tension. Component 3 of 4. Anti-creep layer 2 (policy-level). | `706f400` |
 | Mar 17, 2026 | Perspective evaluation: LAW 4 identity reinforcement | Added "evaluate each path on its own terms, never present as equal" to LAW 4. Component 4 of 4. Anti-creep layer 1 (identity-level, highest compliance weight). | `2b32e1f` |
+| Mar 17, 2026 | Consequence projection: LAW 5 + RESPONSE STRUCTURE | LAW 5 renamed to "CONSTRAINTS AND CONSEQUENCES" — project concrete consequence of each path. RESPONSE STRUCTURE gains step 3 "Project" between Analyze and Advise. Completes Perspectives → Consequences → Decision chain. | `45d47fe` |
 
 ---
 
