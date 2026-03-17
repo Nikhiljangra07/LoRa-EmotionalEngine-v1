@@ -236,6 +236,7 @@ POSTHOG_API_KEY=...
 | Mar 17, 2026 | Skip Falkor anchor fetch when LORA_FACT_ANCHOR is off | retrieveContext always hit Falkor even when anchors were disabled — wasted DB call. Added skipAnchors option, orchestrator passes it based on flag. | `2222aa3` |
 | Mar 17, 2026 | Drain active sessions on server shutdown (SIGTERM/SIGINT) | Active sessions were silently dropped on redeploy. Now drainSessions() emits engagement logs, PostHog session_ended, and counts tier — before PostHog flush. | `a920660` |
 | Mar 17, 2026 | Perspective evaluation: anti-creep principles in RESPONSE PRINCIPLES | Added 2 lines banning consensus blending and requiring distinct path evaluation. Component 1 of 4 in perspective evaluation system. Anti-creep layer 3 (negative constraints). | `f47d01c` |
+| Mar 17, 2026 | Perspective evaluation: strategy contracts strengthened | Updated MOMENTUM lines in EXPLORATION, REFRAMING, CLARIFICATION strategies with "do not merge/hedge" directives. Component 2 of 4. Anti-creep layer 4 (format-level). | `4b44903` |
 
 ---
 
