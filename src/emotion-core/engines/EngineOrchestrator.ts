@@ -85,7 +85,7 @@ type LLMResponder = {
 const DEFAULT_LLM_CONFIG: LLMConfig = {
   maxResponseMs: 2500,
   maxAttempts: 2,
-  cooldownMs: 30000,
+  cooldownMs: 15000,
 };
 
 /** Per-request abort timeout (env-configurable, default 12 s). */
@@ -1987,9 +1987,6 @@ export class EngineOrchestrator {
         this.llmCooldownStartedAt = null;
         this.logLLMEvent('cooldown_exit');
       } else {
-        if (!debugEnabled) {
-          return EngineOrchestrator.fallbackResponse();
-        }
         const normalizedUserText = fallbackContext.userText.toLowerCase();
         const quickQuestionPatterns = [
           'should i',
@@ -1997,19 +1994,21 @@ export class EngineOrchestrator {
           'what would you do',
           'how do i',
         ];
+        const pastRecoveryThreshold =
+          this.llmCooldownStartedAt !== null &&
+          this.llmCooldownUntil !== null &&
+          now >=
+            this.llmCooldownStartedAt +
+              (this.llmCooldownUntil - this.llmCooldownStartedAt) *
+                MASTER_CONSTANTS.llm.cooldownRetryRecoveryRatio;
         const shouldAttemptDuringCooldown =
+          pastRecoveryThreshold ||
           normalizedUserText.includes('?') ||
           quickQuestionPatterns.some((pattern) =>
             normalizedUserText.includes(pattern)
           ) ||
           fallbackContext.userText.length <=
-            MASTER_CONSTANTS.llm.quickMessageMaxChars ||
-          (this.llmCooldownStartedAt !== null &&
-            this.llmCooldownUntil !== null &&
-            now >=
-              this.llmCooldownStartedAt +
-                (this.llmCooldownUntil - this.llmCooldownStartedAt) *
-                  MASTER_CONSTANTS.llm.cooldownRetryRecoveryRatio);
+            MASTER_CONSTANTS.llm.quickMessageMaxChars;
 
         if (!shouldAttemptDuringCooldown) {
           this.logLLMEvent('cooldown_active', {
@@ -2119,18 +2118,21 @@ export class EngineOrchestrator {
       throw new Error(`LLM retries exhausted (${attempts} attempts): ${errMsg}`);
     }
 
-    this.llmAvailability = 'UNAVAILABLE';
-    this.llmCooldownStartedAt = now;
-    const cooldownMs = debugEnabled
-      ? Math.round(
-          this.llmConfig.cooldownMs *
-            MASTER_CONSTANTS.llm.cooldownSoftFactor
-        )
-      : this.llmConfig.cooldownMs;
-    this.llmCooldownUntil = now + cooldownMs;
-    this.logLLMEvent('cooldown_entry', {
-      cooldownUntil: this.llmCooldownUntil,
-    });
+    // If already in cooldown (recovery attempt failed), don't extend — let original timer expire.
+    const alreadyInCooldown = this.llmAvailability === 'UNAVAILABLE' && this.llmCooldownUntil !== null;
+    if (!alreadyInCooldown) {
+      this.llmAvailability = 'UNAVAILABLE';
+      this.llmCooldownStartedAt = now;
+      const cooldownMs = this.llmConfig.cooldownMs;
+      this.llmCooldownUntil = now + cooldownMs;
+      this.logLLMEvent('cooldown_entry', {
+        cooldownUntil: this.llmCooldownUntil,
+      });
+    } else {
+      this.logLLMEvent('cooldown_recovery_failed', {
+        cooldownUntil: this.llmCooldownUntil,
+      });
+    }
     if (debugEnabled && lastError instanceof Error) {
       console.log('[LoRa::Debug][LLM] retry_exhausted_error', {
         message: lastError.message,
