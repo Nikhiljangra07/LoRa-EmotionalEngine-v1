@@ -231,6 +231,7 @@ POSTHOG_API_KEY=...
 | Mar 16, 2026 | Added PostHog session_ended to /api/session/terminate | Terminate endpoint recorded tier completion but never fired session_ended PostHog event — analytics blind spot. Added trackSessionEnded with engine metrics and new 'user_terminate' reason. | `21ba24d` |
 | Mar 16, 2026 | Added PostHog message_sent for relational router replies | Relational router early-return skipped trackMessageSent — relational messages invisible in analytics. | `f70f171` |
 | Mar 16, 2026 | Fixed cooldown cascade — recovery for all users, no timer extension, 30s→15s | Production users had zero recovery path during cooldown (debug-only gate). Failed recovery attempts reset the timer, creating infinite cascade. Removed debug gate, prevented timer extension on recovery failure, halved default cooldown. | `f5951d9` |
+| Mar 16, 2026 | Added 90-day Redis TTL on anchor hash keys | Anchors had no expiry — inactive users' data persisted forever. Now `saveState` sets EXPIRE on every save; active users refresh naturally, inactive users auto-expire after 90 days. | `349f331` |
 
 ---
 
