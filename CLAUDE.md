@@ -228,6 +228,7 @@ POSTHOG_API_KEY=...
 | Mar 16, 2026 | Created this CLAUDE.md handover document | Transitioning from Cursor to Claude Code — preserving institutional memory | — |
 | Mar 16, 2026 | Added enforceIdentity() inside EngineOrchestrator (defense-in-depth) | Persona enforcer override and main LLM output paths returned raw text without identity guard. chat.route.ts caught it on the outer layer, but EngineOrchestrator itself was unguarded — any direct caller would bypass identity enforcement. Now both paths run enforceIdentity() before returning. | `98a4b4c` |
 | Mar 16, 2026 | Fixed session counting for tier promotion on browser close / new session | Sessions were only counted toward tier promotion on session cap (25 msgs). Browser close and new-session replacement never called recordSessionCompletionAsync. Added finalizeSession() with MIN_MESSAGES_FOR_COMPLETION=2 guard, and idle session reaper (30min timeout). | `dda8aaf` |
+| Mar 16, 2026 | Added PostHog session_ended to /api/session/terminate | Terminate endpoint recorded tier completion but never fired session_ended PostHog event — analytics blind spot. Added trackSessionEnded with engine metrics and new 'user_terminate' reason. | `21ba24d` |
 
 ---
 
