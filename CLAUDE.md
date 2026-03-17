@@ -237,6 +237,7 @@ POSTHOG_API_KEY=...
 | Mar 17, 2026 | Drain active sessions on server shutdown (SIGTERM/SIGINT) | Active sessions were silently dropped on redeploy. Now drainSessions() emits engagement logs, PostHog session_ended, and counts tier — before PostHog flush. | `a920660` |
 | Mar 17, 2026 | Perspective evaluation: anti-creep principles in RESPONSE PRINCIPLES | Added 2 lines banning consensus blending and requiring distinct path evaluation. Component 1 of 4 in perspective evaluation system. Anti-creep layer 3 (negative constraints). | `f47d01c` |
 | Mar 17, 2026 | Perspective evaluation: strategy contracts strengthened | Updated MOMENTUM lines in EXPLORATION, REFRAMING, CLARIFICATION strategies with "do not merge/hedge" directives. Component 2 of 4. Anti-creep layer 4 (format-level). | `4b44903` |
+| Mar 17, 2026 | Perspective evaluation: tier-scaled reasoning labels | TIER_1 blocks premature perspectives, TIER_2 names both directions, TIER_3 identifies/evaluates/surfaces tension. Component 3 of 4. Anti-creep layer 2 (policy-level). | `706f400` |
 
 ---
 
