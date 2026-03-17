@@ -125,7 +125,7 @@ POSTHOG_API_KEY=...
 - **Status:** Live in beta, observation mode
 - **Users:** ~10-15 testers (friends, family, family's circles)
 - **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: $pageview via posthog-js)
-- **Known active issue:** Fallback "Connection interrupted" fires when Anthropic API has transient hiccups. Cooldown cascade can cause 2+ consecutive fallbacks. Not yet fixed — monitoring severity.
+- **Known active issue (mitigated):** Fallback "Connection interrupted" on Anthropic API hiccups. Cooldown cascade fix deployed (`f5951d9`): recovery enabled for all users, timer no longer extends on failed recovery, cooldown halved to 15s. Monitoring for residual occurrences.
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
 
 ### What's Working
@@ -230,6 +230,7 @@ POSTHOG_API_KEY=...
 | Mar 16, 2026 | Fixed session counting for tier promotion on browser close / new session | Sessions were only counted toward tier promotion on session cap (25 msgs). Browser close and new-session replacement never called recordSessionCompletionAsync. Added finalizeSession() with MIN_MESSAGES_FOR_COMPLETION=2 guard, and idle session reaper (30min timeout). | `dda8aaf` |
 | Mar 16, 2026 | Added PostHog session_ended to /api/session/terminate | Terminate endpoint recorded tier completion but never fired session_ended PostHog event — analytics blind spot. Added trackSessionEnded with engine metrics and new 'user_terminate' reason. | `21ba24d` |
 | Mar 16, 2026 | Added PostHog message_sent for relational router replies | Relational router early-return skipped trackMessageSent — relational messages invisible in analytics. | `f70f171` |
+| Mar 16, 2026 | Fixed cooldown cascade — recovery for all users, no timer extension, 30s→15s | Production users had zero recovery path during cooldown (debug-only gate). Failed recovery attempts reset the timer, creating infinite cascade. Removed debug gate, prevented timer extension on recovery failure, halved default cooldown. | `f5951d9` |
 
 ---
 
