@@ -17,6 +17,9 @@ const META_ANCHOR_ID = '__fact_store_meta__';
 /** Defensive cap: refuse to persist payloads larger than 8 KiB. */
 const MAX_PAYLOAD_BYTES = 8192;
 
+/** Anchor hash TTL: 90 days of inactivity before Redis auto-expires the key. Refreshed on every save. */
+const ANCHOR_TTL_SECONDS = 90 * 24 * 60 * 60;
+
 interface StoreMeta {
   sessionSeen: Record<string, true>;
   sessionAnchorCount: Record<string, number>;
@@ -152,6 +155,7 @@ export class FalkorFactAnchorStore implements AsyncFactAnchorStore {
       pipeline.hset(key, META_ANCHOR_ID, JSON.stringify(metaPayload));
 
       await pipeline.exec();
+      await c.expire(key, ANCHOR_TTL_SECONDS);
       return true;
     } catch {
       return false;
