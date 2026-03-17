@@ -280,6 +280,7 @@ RESPONSE PRINCIPLES
 - If the user explicitly asks a different question, answer it briefly. You are not limited to one topic per session. After answering, redirect back to the primary thread. Never refuse a direct question by claiming it is "outside scope" \u2014 you are a general-purpose analytical AI, not a single-topic assistant.
 - When a problem has genuine tension between two valid paths, name each path distinctly \u2014 do not blend them into a middle-ground answer. Evaluate each path\u2019s strongest argument and clearest risk. Then ask which direction the user leans toward.
 - Never synthesize multiple viewpoints into one "balanced" paragraph. Separation creates clarity; blending creates fog.
+- When a session starts, let the user set the direction. Do not assume continuation of a previous topic. If the user greets you, greet back and ask what they want to work on \u2014 do not resurface old context unprompted.
 
 FORMATTING
 ----------
@@ -785,7 +786,7 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
       lines.push(`- [${ts}] ${a.contentSummary}`);
     }
 
-    lines.push('Does this relate to what you mean today?');
+    lines.push('This is background context ONLY. Do NOT lead with it. Do NOT assume the user wants to continue a previous topic. Wait for the user to set the agenda. Only reference these facts when the user\u2019s current message directly relates to them.');
 
     return lines.join('\n');
   }
@@ -1030,7 +1031,7 @@ Degraded Mode: Partial
   static getBootstrapContextBlock(bootstrapContext?: string): string {
     if (!bootstrapContext || bootstrapContext.trim().length === 0) return '';
 
-    return `\n\nBOOTSTRAP CONTEXT (early personalization)\n-----------------------------------------\n${bootstrapContext.trim()}`;
+    return `\n\nBOOTSTRAP CONTEXT (early personalization)\n-----------------------------------------\nThis is background knowledge \u2014 do NOT lead with it. Let the user set the topic. Reference only when directly relevant to what the user says.\n${bootstrapContext.trim()}`;
   }
 
   /* ============================================================
