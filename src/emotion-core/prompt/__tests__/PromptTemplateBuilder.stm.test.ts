@@ -80,7 +80,7 @@ describe('PromptTemplateBuilder — Session Transcript Memory', () => {
     });
 
     it('truncates at limit with ellipsis', () => {
-      const long = 'x'.repeat(600);
+      const long = 'x'.repeat(STM_MAX_TEXT_LENGTH + 100);
       const result = truncateTurnText(long);
       expect(result.length).toBe(STM_MAX_TEXT_LENGTH);
       expect(result.endsWith('\u2026')).toBe(true);

@@ -20,9 +20,9 @@ export interface ResponsePolicy {
 // ── Band → conversational openness ─────────────────────────────────
 
 const BAND_POLICIES: Record<string, Omit<ResponsePolicy, 'reasoningDepth'>> = {
-  B0: { maxWords: 300, maxQuestions: 1, tone: 'guarded' },
-  B2: { maxWords: 250, maxQuestions: 2, tone: 'neutral' },
-  B4: { maxWords: 350, maxQuestions: 3, tone: 'collaborative' },
+  B0: { maxWords: 450, maxQuestions: 1, tone: 'guarded' },
+  B2: { maxWords: 400, maxQuestions: 2, tone: 'neutral' },
+  B4: { maxWords: 500, maxQuestions: 3, tone: 'collaborative' },
 };
 
 // ── Tier → reasoning depth ─────────────────────────────────────────
@@ -97,7 +97,26 @@ export function formatPolicyBlock(policy: ResponsePolicy): string {
 export function enforceWordLimit(text: string, maxWords: number): string {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length <= maxWords) return text;
-  return words.slice(0, maxWords).join(' ');
+
+  // Find the last sentence boundary at or before the word limit
+  const truncated = words.slice(0, maxWords).join(' ');
+  const lastSentenceEnd = Math.max(
+    truncated.lastIndexOf('. '),
+    truncated.lastIndexOf('.\n'),
+    truncated.lastIndexOf('?\n'),
+    truncated.lastIndexOf('? '),
+  );
+
+  // If we found a sentence boundary in the last 40% of the text, cut there
+  // Otherwise fall back to word boundary (better than cutting at 60% of content)
+  if (lastSentenceEnd > truncated.length * 0.6) {
+    return truncated.slice(0, lastSentenceEnd + 1).trim();
+  }
+
+  // Check for trailing period at the very end
+  if (truncated.endsWith('.') || truncated.endsWith('?')) return truncated;
+
+  return truncated;
 }
 
 export function enforceQuestionLimit(text: string, maxQuestions: number): string {

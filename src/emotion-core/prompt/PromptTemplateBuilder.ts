@@ -30,8 +30,8 @@ export type ChatTurn = {
   ts: number;
 };
 
-export const STM_MAX_TURNS = 8;
-export const STM_MAX_TEXT_LENGTH = 500;
+export const STM_MAX_TURNS = 16;
+export const STM_MAX_TEXT_LENGTH = 800;
 
 export function truncateTurnText(text: string): string {
   if (text.length <= STM_MAX_TEXT_LENGTH) return text;

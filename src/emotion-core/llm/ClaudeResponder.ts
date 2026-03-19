@@ -4,7 +4,7 @@ import { debugEnabled } from '../debug/debugGate';
 import type { ChatTurn } from '../prompt/PromptTemplateBuilder';
 
 const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 800;
+const MAX_TOKENS = 1024;
 const TEMPERATURE = 0.6;
 
 export type GenerateResponseOptions = {
