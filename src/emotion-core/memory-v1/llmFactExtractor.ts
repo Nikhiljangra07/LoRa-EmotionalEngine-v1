@@ -77,6 +77,16 @@ const COMMON_WORDS: ReadonlySet<string> = new Set([
   'student', 'teacher', 'doctor', 'engineer', 'manager', 'worker', 'user',
   'noted', 'understood', 'clear', 'ready', 'done', 'start', 'stop', 'help',
   'question', 'answer', 'problem', 'solution', 'topic', 'subject', 'point',
+  // greetings & slang
+  'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam', 'ayo', 'heya', 'hiya',
+  'howdy', 'wassup', 'whatup', 'ciao',
+  // filler & reactions
+  'yup', 'yep', 'ya', 'nah', 'nope', 'hm', 'hmm', 'ah', 'oh', 'ugh',
+  'lol', 'haha', 'damn', 'shit', 'fuck', 'wow', 'whoa',
+  // common question words
+  'what', 'whats', 'how', 'why', 'who', 'when', 'where',
+  // time greetings
+  'morning', 'evening', 'night', 'afternoon',
 ]);
 
 function isPlausibleName(value: string): boolean {

@@ -157,6 +157,16 @@ const NOT_A_NAME = new Set([
   'yes', 'no', 'ok', 'okay', 'hi', 'hey', 'hello', 'thanks', 'sure', 'bye',
   'maybe', 'please', 'sorry', 'right', 'wrong', 'true', 'false', 'fine',
   'good', 'great', 'cool', 'nice', 'test', 'testing', 'done', 'help',
+  // greetings & slang
+  'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam', 'ayo', 'heya', 'hiya',
+  'howdy', 'wassup', 'whatup', 'ciao',
+  // filler & reactions
+  'yup', 'yep', 'ya', 'nah', 'nope', 'hm', 'hmm', 'ah', 'oh', 'ugh',
+  'lol', 'haha', 'damn', 'shit', 'fuck', 'wow', 'whoa',
+  // common question words (prevent "What" / "How" as bare name)
+  'what', 'whats', 'how', 'why', 'who', 'when', 'where',
+  // time greetings
+  'morning', 'evening', 'night', 'afternoon',
 ]);
 
 function tryUserName(message: string): string | null {
