@@ -20,9 +20,9 @@ export interface ResponsePolicy {
 // ── Band → conversational openness ─────────────────────────────────
 
 const BAND_POLICIES: Record<string, Omit<ResponsePolicy, 'reasoningDepth'>> = {
-  B0: { maxWords: 450, maxQuestions: 1, tone: 'guarded' },
-  B2: { maxWords: 400, maxQuestions: 2, tone: 'neutral' },
-  B4: { maxWords: 500, maxQuestions: 3, tone: 'collaborative' },
+  B0: { maxWords: 450, maxQuestions: 2, tone: 'guarded' },
+  B2: { maxWords: 400, maxQuestions: 3, tone: 'neutral' },
+  B4: { maxWords: 500, maxQuestions: 4, tone: 'collaborative' },
 };
 
 // ── Tier → reasoning depth ─────────────────────────────────────────
@@ -120,9 +120,24 @@ export function enforceWordLimit(text: string, maxWords: number): string {
 }
 
 export function enforceQuestionLimit(text: string, maxQuestions: number): string {
+  // Find question marks that are actual questions TO the user,
+  // not section headings ("**Do I believe in God?**") or rhetorical questions mid-paragraph.
   const positions: number[] = [];
   for (let i = 0; i < text.length; i++) {
-    if (text[i] === '?') positions.push(i);
+    if (text[i] !== '?') continue;
+
+    // Skip questions inside bold/heading markers (e.g. "**Question?**")
+    // These are section headings, not questions to the user.
+    const before20 = text.slice(Math.max(0, i - 40), i);
+    const after5 = text.slice(i + 1, i + 4);
+    if (before20.includes('**') && (after5.includes('**') || after5.startsWith('*'))) continue;
+
+    // Only count question marks at the end of a line or at the end of text
+    // (questions TO the user end a paragraph; mid-paragraph ? are rhetorical)
+    const charAfter = text[i + 1] ?? '';
+    if (charAfter === '\n' || charAfter === '' || charAfter === ' ') {
+      positions.push(i);
+    }
   }
   if (positions.length <= maxQuestions) return text;
   return text.slice(0, positions[maxQuestions - 1] + 1).trim();

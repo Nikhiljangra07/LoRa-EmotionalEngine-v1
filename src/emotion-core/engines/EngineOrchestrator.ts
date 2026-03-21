@@ -88,10 +88,10 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   cooldownMs: 15000,
 };
 
-/** Per-request abort timeout (env-configurable, default 12 s). */
+/** Per-request abort timeout (env-configurable, default 18 s). */
 const llmTimeoutMs = Math.max(
   1000,
-  parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 12000
+  parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 18000
 );
 
 /**
