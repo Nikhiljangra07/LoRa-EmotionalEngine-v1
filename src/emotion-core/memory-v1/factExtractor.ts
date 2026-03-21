@@ -167,6 +167,16 @@ const NOT_A_NAME = new Set([
   'what', 'whats', 'how', 'why', 'who', 'when', 'where',
   // time greetings
   'morning', 'evening', 'night', 'afternoon',
+  // common English words that get capitalized and misidentified as names
+  'not', 'never', 'nothing', 'none', 'just', 'only', 'also', 'very',
+  'well', 'much', 'more', 'less', 'most', 'some', 'any', 'all',
+  'going', 'preparing', 'working', 'looking', 'trying', 'waiting',
+  'thinking', 'feeling', 'getting', 'making', 'coming', 'leaving',
+  'starting', 'running', 'talking', 'asking', 'telling', 'reading',
+  'actually', 'really', 'basically', 'honestly', 'literally', 'totally',
+  'like', 'love', 'hate', 'want', 'need', 'know', 'think', 'feel',
+  'today', 'tomorrow', 'yesterday', 'always', 'sometimes', 'everything',
+  'something', 'anything', 'everyone', 'someone', 'anyone', 'nobody',
 ]);
 
 function tryUserName(message: string): string | null {
