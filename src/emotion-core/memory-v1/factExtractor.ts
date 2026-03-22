@@ -162,7 +162,7 @@ const NOT_A_NAME = new Set([
   'howdy', 'wassup', 'whatup', 'ciao',
   // filler & reactions
   'yup', 'yep', 'ya', 'nah', 'nope', 'hm', 'hmm', 'ah', 'oh', 'ugh',
-  'lol', 'haha', 'damn', 'shit', 'fuck', 'wow', 'whoa',
+  'lol', 'haha', 'damn', 'shit', 'fuck', 'fucked', 'fucking', 'wow', 'whoa',
   // common question words (prevent "What" / "How" as bare name)
   'what', 'whats', 'how', 'why', 'who', 'when', 'where',
   // time greetings
