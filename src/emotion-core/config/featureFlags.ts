@@ -52,6 +52,7 @@ const rawFlags = Object.freeze({
   bootstrapMemorySessionThreshold: parseInt(process.env.LORA_BOOTSTRAP_SESSIONS ?? '5', 10),
   memoryV2Enabled: flag(process.env.LORA_MEMORY_V2, 'memoryV2Enabled'),
   memoryV2ShadowEnabled: flag(process.env.LORA_MEMORY_V2_SHADOW, 'memoryV2ShadowEnabled'),
+  multiPerspectiveEnabled: flag(process.env.LORA_MULTI_PERSPECTIVE, 'multiPerspectiveEnabled'),
 });
 
 /**

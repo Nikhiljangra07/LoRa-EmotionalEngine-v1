@@ -34,6 +34,8 @@ import type { EkmanWeightResult } from '../../appraisal-bridge/ekmanWeighting';
 import { GradientEscalationTracker } from '../../appraisal-bridge/gradientEscalation';
 import type { GradientEscalationResult, GradientEscalationState } from '../../appraisal-bridge/gradientEscalation';
 import { AVIScorer } from '../scorers/AVIScorer';
+import { fetchPerspectiveAnalysis } from '../analysis/perspectiveClient';
+import type { PerspectiveAnalyzeResponse } from '../analysis/types';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1, ETVPolicy } from '../etv';
 import type { MemoryV1State, ProcessMessageInput as MemoryProcessMessageInput, ProcessMessageOutput as MemoryProcessMessageOutput } from '../memory-v1/memoryV1EngineTypes';
@@ -1201,6 +1203,20 @@ export class EngineOrchestrator {
       });
     }
 
+    // ── Multi-Perspective Engine (external Python microservice) ──
+    let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
+    if (featureFlags.multiPerspectiveEnabled) {
+      try {
+        perspectiveAnalysis = await fetchPerspectiveAnalysis(
+          userMessage,
+          sessionHistory,
+        );
+      } catch (err) {
+        // Swallow — LoRa works without perspectives
+        console.warn('[LoRa::Perspective] Unexpected error:', err);
+      }
+    }
+
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -1248,6 +1264,18 @@ export class EngineOrchestrator {
       } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
+      ...(perspectiveAnalysis ? {
+        perspectiveAnalysis: {
+          perspectives: perspectiveAnalysis.perspectives.map(p => ({
+            framework: p.framework,
+            label: p.label,
+            condensed: p.condensed,
+            strength: p.strength,
+          })),
+          tension: perspectiveAnalysis.tension,
+          decision_point: perspectiveAnalysis.decision_point,
+        },
+      } : {}),
     });
 
     // ── Memory V1: debug snapshot (zero behavior impact) ──

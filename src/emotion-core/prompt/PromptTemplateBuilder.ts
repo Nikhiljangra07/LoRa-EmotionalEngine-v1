@@ -131,6 +131,16 @@ export class PromptTemplateBuilder {
       };
       messageId?: string;
       userId?: string;
+      perspectiveAnalysis?: {
+        perspectives: Array<{
+          framework: string;
+          label: string;
+          condensed: string;
+          strength: number;
+        }>;
+        tension: string;
+        decision_point: string;
+      };
     }
   ): string {
     if (
@@ -245,6 +255,7 @@ export class PromptTemplateBuilder {
     const bootstrapBlock = this.getBootstrapContextBlock(options?.bootstrapContext);
     const narrativeMomentumBlock = this.getNarrativeMomentumBlock(options?.narrativeMomentum);
     const responseShapeBlock = this.getResponseShapeContractBlock(options?.responseShapeContract);
+    const perspectiveBlock = this.getPerspectiveAnalysisBlock(options?.perspectiveAnalysis);
     const ekmanSignalLine = this.getEkmanSignalLine(emotionalState.ekmanDominant);
     const volatilityLine = this.getVolatilityLine(options?.volatility);
     const appraisalSignalBlock = this.getAppraisalSignalBlock(options?.signalContext);
@@ -294,7 +305,7 @@ ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${p
 
 BAND CALIBRATION
 ----------------
-${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}${appraisalSignalBlock}
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}${appraisalSignalBlock}${perspectiveBlock}
 
 GLOBAL SAFETY CONSTRAINTS
 -------------------------
@@ -1069,6 +1080,47 @@ This is internal guidance. Do not expose these labels to the user.`;
 RESPONSE SHAPE CONTRACT
 -----------------------
 ${rsc.blockText}`;
+  }
+
+  static getPerspectiveAnalysisBlock(
+    analysis?: {
+      perspectives: Array<{
+        framework: string;
+        label: string;
+        condensed: string;
+        strength: number;
+      }>;
+      tension: string;
+      decision_point: string;
+    },
+  ): string {
+    if (!analysis || analysis.perspectives.length === 0) return '';
+
+    const lines: string[] = [
+      '',
+      '',
+      'ANALYTICAL FRAMEWORK (generated — do NOT quote or reference frameworks by name)',
+      '--------------------------------------------------------------------------------',
+      'Use these insights to inform your response. Weave them into your own voice.',
+      'Do NOT say "the regression lens shows" or "from a game theory perspective."',
+      'Do NOT present these as a list of options. Synthesize into your analysis.',
+      '',
+    ];
+
+    for (const p of analysis.perspectives) {
+      lines.push(`[${p.label}] (relevance: ${Math.round(p.strength * 100)}%)`);
+      lines.push(p.condensed);
+      lines.push('');
+    }
+
+    if (analysis.tension) {
+      lines.push(`Core tension: ${analysis.tension}`);
+    }
+    if (analysis.decision_point) {
+      lines.push(`Decision point: ${analysis.decision_point}`);
+    }
+
+    return lines.join('\n');
   }
 
   /* ============================================================
