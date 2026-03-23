@@ -120,18 +120,19 @@ POSTHOG_API_KEY=...
 
 ---
 
-## CURRENT STATE (as of March 16, 2026)
+## CURRENT STATE (as of March 23, 2026)
 
 - **Status:** Live in beta, observation mode
 - **Users:** ~10-15 testers (friends, family, family's circles)
 - **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: $pageview via posthog-js)
-- **Known active issue (mitigated):** Fallback "Connection interrupted" on Anthropic API hiccups. Cooldown cascade fix deployed (`f5951d9`): recovery enabled for all users, timer no longer extends on failed recovery, cooldown halved to 15s. Monitoring for residual occurrences.
+- **Memory V2:** Shadow mode deployed (`LORA_MEMORY_V2_SHADOW=1`). Absorbs session data (summarize → extract → verify → store) on session end. Does NOT influence responses. Code in `src/emotion-core/memory-v2/`. Next: validate shadow logs 1-2 weeks → enable active mode (Component 3: retrieval wiring).
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
 
 ### What's Working
 
 - Session lifecycle: create, chat, terminate, tier promotion
-- Memory: Falkor anchors persist across sessions, Chroma schemas for context
+- Memory V1: Falkor anchors persist across sessions, Chroma schemas for context
+- Memory V2 shadow: end-of-session extraction pipeline (summarizer + dual extractor + verifier), 11 components, 218 tests
 - LLM fact extraction via Haiku (with user_name validation guard)
 - Identity enforcement: 22 therapist patterns + 11 narrative patterns + semantic detection + emotional question rewrite
 - ETV engine: trust value evolves per session
@@ -143,7 +144,7 @@ POSTHOG_API_KEY=...
 
 - Appraisal bridge: code exists but minimally active in pipeline
 - Appraisal lab engines (collapse, escalation, family, mood, pressure, vector-pressure, post-clarity, time): research code, not in production path
-- Memory v1 shadow mode: disabled
+- Memory V2 active mode: code exists, flags off — enable after shadow validation
 - ETV policy prompt shadow: disabled
 
 ---
@@ -248,6 +249,9 @@ POSTHOG_API_KEY=...
 | Mar 19, 2026 | Expanded name extraction blocklists — "yo" bug | User said "yo" as greeting, LoRa extracted it as user_name and called them "Yo" all session. Added 40+ words to both blocklists (factExtractor.ts + llmFactExtractor.ts): greetings (yo, sup, bruh, howdy), slang (dude, bro, fam), filler (yup, nah, hmm, lol), profanity (damn, shit, fuck), question words (what, how, why), time greetings (morning, evening). | `abd91f7` |
 | Mar 21, 2026 | Fixed enforceQuestionLimit killing responses at section headings | LoRa wrote "**Do I believe in God?**" as a section heading before answering — enforceQuestionLimit treated the `?` as a question TO the user and cut everything after it. Response appeared 4× as just the heading with no answer. Fix: skip `?` inside bold markers (`**`) and only count `?` at end of lines/paragraphs. Also raised question limits (B0: 1→2, B2: 2→3, B4: 3→4) and increased LLM timeout from 12s→18s to reduce "Connection interrupted" fallbacks with longer responses. | `37648ae` |
 | Mar 21, 2026 | Expanded name blocklists — "Not" and "Preparing" extracted as user_name | Railway logs showed user_name="Not" (from "not fair") and user_name="Preparing" (from "preparing for SSB"). Added 50+ common English words to both blocklists: negations (not, never, nothing), gerunds (going, preparing, working, trying, thinking, feeling), adverbs (actually, really, basically), pronouns (something, everyone, nobody), common verbs (like, want, need, know, think, feel). | — |
+| Mar 21, 2026 | Blocked "fucked"/"fucking" from name extraction | Tester said "I'm fucked" → Haiku extracted "Fucked" as user_name. Added profanity to blocklists. | `d6a4f5f` |
+| Mar 22, 2026 | Memory V2 architecture designed + implemented | End-of-session summary-based extraction (McGaugh consolidation), emotion-anchored retrieval (Bower mood-congruent), Graph-Vector Hybrid (GraphRAG). 11 components, 218 tests, live-validated with real API (10.9s, $0.02). Built in isolated `~/Desktop/MemoryArchitecture` repo. | MemoryArchitecture repo |
+| Mar 23, 2026 | Integrated Memory V2 into backend — shadow mode | Copied V2 code to `src/emotion-core/memory-v2/`. Added `memoryV2Enabled` + `memoryV2ShadowEnabled` flags. Wired `finalizeSession()` to call `processSessionEnd()` (fire-and-forget, MIN_MESSAGES=3). Added `getSessionEIVs()` getter to EngineOrchestrator. Shared existing Falkor client to avoid duplicate connection timeout. | `f7cbe3c`, `dff2970` |
 
 ---
 
