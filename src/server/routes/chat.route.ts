@@ -41,6 +41,9 @@ import {
   trackMessageSent,
   trackSessionEnded,
 } from '../analytics/posthogClient';
+import { MemoryV2Pipeline } from '../../emotion-core/memory-v2/pipeline';
+import { ChromaVectorStore } from '../../emotion-core/memory-v2/storage/vector/chroma-adapter';
+import { FalkorGraphStore } from '../../emotion-core/memory-v2/storage/graph/falkor-adapter';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -214,6 +217,24 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     memoryService = new MemoryService(anchorAdapter, chromaAdapter, factStore);
   }
 
+  // ── Memory V2 (shadow or active mode) ──
+  const memoryV2Enabled = process.env.LORA_MEMORY_V2 === '1';
+  const memoryV2ShadowEnabled = process.env.LORA_MEMORY_V2_SHADOW === '1';
+  const memoryV2Service = (memoryV2Enabled || memoryV2ShadowEnabled)
+    ? new MemoryV2Pipeline(
+        new ChromaVectorStore({ url: process.env.LORA_CHROMA_URL ?? 'http://localhost:8000' }),
+        new FalkorGraphStore({ url: process.env.LORA_FALKOR_URL ?? 'redis://localhost:6379' }),
+        {
+          summarizerModel: 'claude-sonnet-4-20250514',
+          extractorModel: 'claude-haiku-4-5-20251001',
+          apiKey: process.env.ANTHROPIC_API_KEY!,
+        },
+      )
+    : null;
+  if (memoryV2Service) {
+    console.log('[LoRa::MemoryV2] initialized', { mode: memoryV2Enabled ? 'active' : 'shadow' });
+  }
+
   const sessions = new Map<string, SessionEntry>();
   const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
@@ -277,6 +298,32 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     });
     if (messageCount >= MIN_MESSAGES_FOR_COMPLETION) {
       tierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
+    }
+
+    // ── Memory V2 consolidation (end-of-session extraction) ──
+    const MIN_MESSAGES_FOR_MEMORY = 3;
+    if (memoryV2Service && messageCount >= MIN_MESSAGES_FOR_MEMORY) {
+      const eivCurve = entry.engine.getSessionEIVs();
+      memoryV2Service.processSessionEnd({
+        userId,
+        sessionId,
+        conversationHistory: entry.history.map(t => ({
+          role: t.role === 'user' ? 'user' as const : 'lora' as const,
+          content: t.text,
+        })),
+        eivCurve,
+      }).then(result => {
+        console.log('[LoRa::MemoryV2] session consolidated', {
+          userId: userId.slice(0, 8),
+          sessionId: sessionId.slice(0, 8),
+          factsCount: result.factsCount,
+          fingerprintStored: result.fingerprintStored,
+          profileUpdated: result.profileUpdated,
+          reExtracted: result.reExtracted,
+        });
+      }).catch(err => {
+        console.error('[LoRa::MemoryV2] consolidation failed', (err as Error).message);
+      });
     }
   }
 

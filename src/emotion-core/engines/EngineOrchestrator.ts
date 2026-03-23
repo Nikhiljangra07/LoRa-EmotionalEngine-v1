@@ -113,6 +113,11 @@ export class EngineOrchestrator {
   private etvState: ETVState;
   private sessionEIVs: number[] = [];
   private sessionAVIs: number[] = [];
+
+  /** Return a copy of the session EIV curve (used by Memory V2 consolidation). */
+  getSessionEIVs(): number[] {
+    return [...this.sessionEIVs];
+  }
   private sessionStartedAt: number = 0;
   private sessionHasViolation = false;
   private messageCount = 0;
