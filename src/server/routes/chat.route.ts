@@ -223,7 +223,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
   const memoryV2Service = (memoryV2Enabled || memoryV2ShadowEnabled)
     ? new MemoryV2Pipeline(
         new ChromaVectorStore({ url: process.env.LORA_CHROMA_URL ?? 'http://localhost:8000' }),
-        new FalkorGraphStore({ url: process.env.LORA_FALKOR_URL ?? 'redis://localhost:6379' }),
+        new FalkorGraphStore({ client: getFalkorClient() }),
         {
           summarizerModel: 'claude-sonnet-4-20250514',
           extractorModel: 'claude-haiku-4-5-20251001',
