@@ -41,7 +41,8 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 | Memory — schemas | ChromaDB | Railway service "chroma" |
 | Tier persistence | Redis hashes at `lora:tier:{userId}` | Same FalkorDB instance |
 | Frontend | React + Vite + Tailwind + shadcn/ui | `presence-whispers` repo |
-| Hosting | Railway (4 services: Redis, Chroma, LoRa-EmotionalEngine-v1, presence-whispers) |
+| Multi-Perspective Engine | LoRaMaths — Python FastAPI microservice (5 mathematical frameworks) | Railway service "LoRaMaths" (`loramaths.railway.internal`) |
+| Hosting | Railway (5 services: Redis, Chroma, LoRa-EmotionalEngine-v1, LoRaMaths, presence-whispers) |
 | Analytics | PostHog (backend: `posthog-node`, frontend: `posthog-js`) |
 | Domain | `presence-whispers-production.up.railway.app` |
 
@@ -61,6 +62,8 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 | `src/server/analytics/posthogClient.ts` | PostHog event capture: session_started, message_sent, session_ended, tier_changed. |
 | `src/emotion-core/config/master.constants.ts` | All tuning constants: EIV weights, ETV recovery, LLM timeouts, cooldown settings. |
 | `src/emotion-core/config/featureFlags.ts` | ~35 feature flags controlled by env vars. |
+| `src/emotion-core/analysis/perspectiveClient.ts` | HTTP client for LoRaMaths microservice. 8s timeout, null fallback. |
+| `src/emotion-core/analysis/types.ts` | TypeScript types mirroring LoRaMaths Python response models. |
 | `public/index.html` | Dev/debug chat UI (not the production frontend). |
 
 ### Request Flow
@@ -126,6 +129,7 @@ POSTHOG_API_KEY=...
 - **Users:** ~10-15 testers (friends, family, family's circles)
 - **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: $pageview via posthog-js)
 - **Memory V2:** Shadow mode deployed (`LORA_MEMORY_V2_SHADOW=1`). Absorbs session data (summarize → extract → verify → store) on session end. Does NOT influence responses. Code in `src/emotion-core/memory-v2/`. Next: validate shadow logs 1-2 weeks → enable active mode (Component 3: retrieval wiring).
+- **Multi-Perspective Engine:** Live (`LORA_MULTI_PERSPECTIVE=1`). LoRaMaths Python microservice on Railway (`loramaths.railway.internal`). 5 mathematical frameworks (regression, Bayesian, game theory, constraint, causal loop) analyze each user message. Condensed insights injected into prompt as invisible analytical context. Feature-flagged with 8s timeout + null fallback.
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
 
 ### What's Working
@@ -255,6 +259,11 @@ POSTHOG_API_KEY=...
 | Mar 23, 2026 | Added V2 shadow debug logging | Temporary scaffolding: logs each pipeline step (summary, facts, fingerprint, verify, complete) with timing and extracted data. Active when `LORA_MEMORY_V2_SHADOW=1`. Remove after shadow validation. | `1d7bd85` |
 | Mar 23, 2026 | Multi-Perspective Engine built + validated (LoRaMaths repo) | 4 mathematical reasoning frameworks (regression, Bayesian, game theory, constraint) built in isolated `~/Desktop/LoRaMaths` repo. 10 components, 129 tests, Python. Tested against 3 real tester conversations — frameworks produced genuinely different perspectives with 0 consequence overlap. Frameworks diagnosed LoRa's own rigidity on SSB context bleed test. | LoRaMaths repo |
 | Mar 23, 2026 | Added re-contact risk principle | Game theory framework on real breakup conversation caught that LoRa never warned user about breadcrumbing vulnerability. Added response principle: when relationship ends with unresolved attachment, proactively surface re-contact risk. First framework-driven improvement to production LoRa. | `68d0246` |
+| Mar 23, 2026 | Built 5th framework: Causal Loop Analysis | Feedback loops, leverage points, accumulations. Catches circular causation the other 4 miss (isolation→distrust→more isolation). 20 tests passing. Validated on breakup fixture — found self-harm normalization loop, medication tolerance drift, rumination cycle. | LoRaMaths repo |
+| Mar 23, 2026 | Built condenser — framework output → 2-3 sentences | Haiku call shrinks 200-800 word framework output to max 75 words. Strips jargon, speaks in LoRa's voice. 5/5 frameworks condensed successfully on breakup fixture. | LoRaMaths repo |
+| Mar 23, 2026 | Deployed LoRaMaths as Railway microservice | FastAPI server (POST /api/analyze). Python service on Railway with private networking (`loramaths.railway.internal`). LoRa backend calls it via HTTP before prompt build. | LoRaMaths repo |
+| Mar 23, 2026 | Multi-perspective bridge integrated into backend | HTTP client with 8s timeout + null fallback. Feature-flagged (`LORA_MULTI_PERSPECTIVE=1`). Perspectives injected into PromptTemplateBuilder as ANALYTICAL FRAMEWORK block after BAND CALIBRATION. If Python service is down, LoRa works exactly as before. | `5fe86c8` |
+| Mar 23, 2026 | Fixed conversational flow — removed template structure | First live test showed LoRa presenting "Path 1 / Path 2" report format. Rewrote RESPONSE PRINCIPLES: "surface tension naturally, don't present a menu." Rewrote framework block: "these insights are your thinking, not your output. Absorb them, then CONVERSE." | `9683145` |
 
 ---
 
@@ -340,6 +349,6 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 
 ---
 
-*Last updated: March 16, 2026*
+*Last updated: March 23, 2026*
 *Total commits in repo: 584*
 *Branch: bugbot-init-review*
