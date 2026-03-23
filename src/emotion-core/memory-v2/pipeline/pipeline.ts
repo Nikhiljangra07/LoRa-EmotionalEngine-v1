@@ -17,6 +17,13 @@ import { retrieveMemory } from '../retrieval/retriever';
 import { isVisible, touchAccess } from '../decay/decay-engine';
 import { updateProfile } from '../profile/profile-manager';
 
+// ── Shadow debug logging (temporary scaffolding — remove after validation) ──
+const V2_DEBUG = process.env.LORA_MEMORY_V2_DEBUG === '1' || process.env.LORA_MEMORY_V2_SHADOW === '1';
+const v2log = (msg: string, data?: unknown) => {
+  if (!V2_DEBUG) return;
+  console.log(`[LoRa::MemoryV2] ${msg}`, data !== undefined ? data : '');
+};
+
 // ──────────────────────────────────────────────────────
 // MemoryV2Pipeline — wires all components together
 //
@@ -64,27 +71,62 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
 
   async processSessionEnd(sessionData: SessionEndData): Promise<ProcessResult> {
     const { userId, sessionId, conversationHistory, eivCurve } = sessionData;
+    const t0 = Date.now();
+    const uid = userId.slice(0, 8);
+    const sid = sessionId.slice(0, 8);
+
+    v2log(`begin`, { uid, sid, turns: conversationHistory.length, eivPoints: eivCurve.length });
 
     // ── Step 1: Summarize ──
     // Summary exists ONLY in memory — never persisted
+    const t1 = Date.now();
     let summary: SessionSummary | null = await summarizeSession(
       conversationHistory,
       { model: this.config.summarizerModel, apiKey: this.config.apiKey },
     );
+    v2log(`summary`, {
+      uid, ms: Date.now() - t1,
+      primaryTopic: summary.primaryTopic,
+      keyFacts: summary.keyFacts.length,
+      direction: summary.currentDirection,
+      unresolved: summary.unresolved.length,
+    });
 
     // ── Step 2: Dual extraction (parallel) ──
     const extractorConfig = { model: this.config.extractorModel, apiKey: this.config.apiKey };
     const metadata = { turns: conversationHistory, sessionId, userId };
 
+    const t2 = Date.now();
     const [facts, fingerprint] = await Promise.all([
       extractFacts(summary, extractorConfig),
       extractFingerprint(summary, eivCurve, metadata, extractorConfig),
     ]);
+    v2log(`facts`, {
+      uid, ms: Date.now() - t2, count: facts.length,
+      items: facts.map(f => `${f.type}:${f.slot}=${f.value}`),
+    });
+    v2log(`fingerprint`, {
+      uid, ms: Date.now() - t2,
+      primary: fingerprint.emotionalFingerprint.primary,
+      undertones: fingerprint.emotionalFingerprint.undertones,
+      context: fingerprint.emotionalFingerprint.contextCategory,
+      tension: fingerprint.decisionPattern.primaryTension,
+      importance: fingerprint.importanceScore,
+      peakEIV: fingerprint.peakIntensity,
+      resolution: fingerprint.resolution,
+    });
 
     // ── Step 3: Verify ──
+    const t3 = Date.now();
     let verificationResult = await verifyExtraction(
       summary, facts, fingerprint, extractorConfig,
     );
+    v2log(`verify`, {
+      uid, ms: Date.now() - t3,
+      verified: verificationResult.verified,
+      flaggedFacts: verificationResult.flaggedFacts.length,
+      fingerprintIssues: verificationResult.fingerprintIssues,
+    });
 
     let finalFacts: FactAnchor[] = facts;
     let finalFingerprint: SessionFingerprint = fingerprint;
@@ -93,6 +135,7 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
     // ── Step 4/5: Re-extract if flagged (max 1 retry) ──
     if (!verificationResult.verified) {
       reExtracted = true;
+      v2log(`re-extracting`, { uid, flaggedFacts: verificationResult.flaggedFacts.length, fingerprintIssues: verificationResult.fingerprintIssues.length });
 
       // Re-extract only what was flagged
       if (verificationResult.flaggedFacts.length > 0) {
@@ -109,6 +152,7 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
       verificationResult = await verifyExtraction(
         summary, finalFacts, finalFingerprint, extractorConfig,
       );
+      v2log(`re-verify`, { uid, verified: verificationResult.verified });
 
       // If still failing after retry, store what we have anyway
       // (the extraction validation already filters out invalid data)
@@ -128,6 +172,14 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
     // ── Step 8: DISCARD summary ──
     // This is the critical privacy step: the summary is transient
     summary = null;
+
+    v2log(`complete`, {
+      uid, sid,
+      totalMs: Date.now() - t0,
+      factsCount: finalFacts.length,
+      reExtracted,
+      verified: verificationResult.verified,
+    });
 
     return {
       stored: true,
