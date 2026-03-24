@@ -71,7 +71,7 @@ function templateForType(type: string): AnchorTemplate {
 }
 
 const COMMON_WORDS: ReadonlySet<string> = new Set([
-  'hello', 'hi', 'hey', 'hlo', 'hloo', 'yes', 'no', 'ok', 'okay', 'sure',
+  'hello', 'hi', 'hey', 'hlo', 'hloo', 'hii', 'hnji', 'lora', 'yes', 'no', 'ok', 'okay', 'sure',
   'thanks', 'thank', 'bye', 'good', 'bad', 'great', 'nice', 'fine', 'cool',
   'functional', 'comedy', 'drama', 'horror', 'action', 'romance', 'thriller',
   'student', 'teacher', 'doctor', 'engineer', 'manager', 'worker', 'user',

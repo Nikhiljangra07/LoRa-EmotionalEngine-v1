@@ -160,6 +160,8 @@ const NOT_A_NAME = new Set([
   // greetings & slang
   'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam', 'ayo', 'heya', 'hiya',
   'howdy', 'wassup', 'whatup', 'ciao',
+  // greeting variants (informal/Hindi-inflected)
+  'hlo', 'hii', 'hnji', 'lora',
   // filler & reactions
   'yup', 'yep', 'ya', 'nah', 'nope', 'hm', 'hmm', 'ah', 'oh', 'ugh',
   'lol', 'haha', 'damn', 'shit', 'fuck', 'fucked', 'fucking', 'wow', 'whoa',
