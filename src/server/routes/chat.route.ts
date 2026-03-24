@@ -44,6 +44,7 @@ import {
 import { MemoryV2Pipeline } from '../../emotion-core/memory-v2/pipeline';
 import { ChromaVectorStore } from '../../emotion-core/memory-v2/storage/vector/chroma-adapter';
 import { FalkorGraphStore } from '../../emotion-core/memory-v2/storage/graph/falkor-adapter';
+import { buildCurrentFingerprint } from '../../emotion-core/memory-v2/retrieval/build-current-fingerprint';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -506,6 +507,41 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       }
 
       const historyForPrompt = session.history.slice(-STM_MAX_TURNS);
+
+      // ── Memory V2 retrieval (active mode only, not shadow) ──
+      if (memoryV2Enabled && memoryV2Service) {
+        try {
+          const { analyzerOutputs: preAnalysis } = InputProcessor.process(text);
+          const fingerprint = buildCurrentFingerprint({
+            eiv: preAnalysis.expressionStrength.score,
+            arousal: preAnalysis.arousal.score,
+            valence: preAnalysis.valence.score,
+            userMessage: text,
+            turnCount: session.history.length,
+          });
+          const v2Context = await memoryV2Service.retrieveContext(userId, fingerprint);
+          if (v2Context.relatedFacts.length > 0) {
+            session.engine.setMemoryV2Context({
+              matchedSessions: v2Context.matchedSessions.map(m => ({ similarity: m.similarity })),
+              relatedFacts: v2Context.relatedFacts.map(f => ({
+                type: f.type,
+                value: f.value,
+                confidence: f.confidence,
+              })),
+              responseMode: v2Context.responseMode,
+              topSimilarity: v2Context.topSimilarity,
+            });
+            console.log('[LoRa::MemoryV2] retrieved', {
+              userId: userId.slice(0, 8),
+              facts: v2Context.relatedFacts.length,
+              mode: v2Context.responseMode,
+              similarity: v2Context.topSimilarity.toFixed(2),
+            });
+          }
+        } catch (err) {
+          console.warn('[LoRa::MemoryV2] retrieval failed:', (err as Error).message);
+        }
+      }
 
       const { analyzerOutputs, signalPacket } = InputProcessor.process(text);
       const result = await session.engine.processMessage(

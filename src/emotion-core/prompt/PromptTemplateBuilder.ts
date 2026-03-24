@@ -141,6 +141,12 @@ export class PromptTemplateBuilder {
         tension: string;
         decision_point: string;
       };
+      memoryV2?: {
+        matchedSessions: Array<{ similarity: number }>;
+        relatedFacts: Array<{ type: string; value: string; confidence: number }>;
+        responseMode: 'silent' | 'subtle' | 'direct';
+        topSimilarity: number;
+      };
     }
   ): string {
     if (
@@ -256,6 +262,7 @@ export class PromptTemplateBuilder {
     const narrativeMomentumBlock = this.getNarrativeMomentumBlock(options?.narrativeMomentum);
     const responseShapeBlock = this.getResponseShapeContractBlock(options?.responseShapeContract);
     const perspectiveBlock = this.getPerspectiveAnalysisBlock(options?.perspectiveAnalysis);
+    const memoryV2Block = this.getMemoryV2Block(options?.memoryV2);
     const ekmanSignalLine = this.getEkmanSignalLine(emotionalState.ekmanDominant);
     const volatilityLine = this.getVolatilityLine(options?.volatility);
     const appraisalSignalBlock = this.getAppraisalSignalBlock(options?.signalContext);
@@ -277,7 +284,7 @@ Engagement depth: ${bandLabel}
 Emotional intensity (current turn): ${intensity}${ekmanSignalLine}${volatilityLine}${this.getVolatilityTrendLine(options?.signalContext?.volatilityTrend)}
 
 Use this to calibrate tone and depth \u2014 not to restrict personality.
-${microContextBlock}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}
+${microContextBlock}${sessionContextBlock}${memoryContextBlock}${anchorContextBlock}${bootstrapBlock}${memoryV2Block}
 
 RESPONSE PRINCIPLES
 -------------------
@@ -1123,6 +1130,48 @@ ${rsc.blockText}`;
     }
     if (analysis.decision_point) {
       lines.push(`Decision point: ${analysis.decision_point}`);
+    }
+
+    return lines.join('\n');
+  }
+
+  static getMemoryV2Block(
+    memory?: {
+      matchedSessions: Array<{ similarity: number }>;
+      relatedFacts: Array<{ type: string; value: string; confidence: number }>;
+      responseMode: 'silent' | 'subtle' | 'direct';
+      topSimilarity: number;
+    },
+  ): string {
+    if (!memory || memory.relatedFacts.length === 0) return '';
+
+    const lines: string[] = [
+      '',
+      '',
+      'RECALLED CONTEXT (from past sessions — do NOT say "I remember" or "you told me")',
+      '---------------------------------------------------------------------------------',
+    ];
+
+    if (memory.responseMode === 'silent') {
+      lines.push('Use this context to adjust tone and depth. Do not reference it explicitly.');
+    } else if (memory.responseMode === 'subtle') {
+      lines.push('You may acknowledge familiarity subtly — "this feels like something you\u2019ve worked through before."');
+    } else if (memory.responseMode === 'direct') {
+      lines.push('You may reference this directly — "you had this same energy when..." — if it serves the conversation.');
+    }
+
+    lines.push('');
+
+    // Group facts by type
+    const grouped: Record<string, string[]> = {};
+    for (const fact of memory.relatedFacts) {
+      if (fact.confidence < 0.6) continue; // Skip low-confidence facts
+      if (!grouped[fact.type]) grouped[fact.type] = [];
+      grouped[fact.type]!.push(fact.value);
+    }
+
+    for (const [type, values] of Object.entries(grouped)) {
+      lines.push(`[${type}]: ${values.join('; ')}`);
     }
 
     return lines.join('\n');

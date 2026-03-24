@@ -184,6 +184,19 @@ export class EngineOrchestrator {
   private lastStickyHints: StickyHints = {};
   private hintHoldsRemaining: Partial<Record<StickyHintKey, number>> = {};
 
+  // ── Memory V2 retrieval context (set by chat.route before processMessage) ──
+  private memoryV2Context: {
+    matchedSessions: Array<{ similarity: number }>;
+    relatedFacts: Array<{ type: string; value: string; confidence: number }>;
+    responseMode: 'silent' | 'subtle' | 'direct';
+    topSimilarity: number;
+  } | null = null;
+
+  /** Set V2 memory context before calling processMessage */
+  setMemoryV2Context(ctx: typeof this.memoryV2Context): void {
+    this.memoryV2Context = ctx;
+  }
+
   // ── Guidance dwell lock (gated by guidanceDwellLockEnabled) ──
   private guidanceDwellRemaining: number = 0;
   private guidanceDwellMode: 'STABILIZE' | 'DE_ESCALATE' | null = null;
@@ -1275,6 +1288,9 @@ export class EngineOrchestrator {
           tension: perspectiveAnalysis.tension,
           decision_point: perspectiveAnalysis.decision_point,
         },
+      } : {}),
+      ...(this.memoryV2Context && this.memoryV2Context.relatedFacts.length > 0 ? {
+        memoryV2: this.memoryV2Context,
       } : {}),
     });
 
