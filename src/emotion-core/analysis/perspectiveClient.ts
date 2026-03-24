@@ -24,7 +24,7 @@ const PERSPECTIVE_SERVICE_URL =
 
 /** Max wait time for the perspective engine (ms). */
 const PERSPECTIVE_TIMEOUT_MS = parseInt(
-  process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '8000',
+  process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '12000',
   10,
 );
 
