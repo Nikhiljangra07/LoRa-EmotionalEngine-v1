@@ -23,10 +23,12 @@ const PERSPECTIVE_SERVICE_URL =
   process.env.LORA_PERSPECTIVE_URL || 'http://localhost:8000';
 
 /** Max wait time for the perspective engine (ms). */
-const PERSPECTIVE_TIMEOUT_MS = parseInt(
+const PERSPECTIVE_TIMEOUT_QUICK_MS = parseInt(
   process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '12000',
   10,
 );
+/** Deep mode gets more time — 5 frameworks + condensation. */
+const PERSPECTIVE_TIMEOUT_DEEP_MS = 20_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -65,6 +67,7 @@ export async function fetchPerspectiveAnalysis(
 ): Promise<PerspectiveAnalyzeResponse | null> {
   const url = `${PERSPECTIVE_SERVICE_URL}/api/analyze`;
   const start = Date.now();
+  const timeoutMs = mode === 'deep' ? PERSPECTIVE_TIMEOUT_DEEP_MS : PERSPECTIVE_TIMEOUT_QUICK_MS;
 
   const requestBody: PerspectiveAnalyzeRequest = {
     text: userMessage,
@@ -78,7 +81,7 @@ export async function fetchPerspectiveAnalysis(
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      PERSPECTIVE_TIMEOUT_MS,
+      timeoutMs,
     );
 
     const response = await fetch(url, {
@@ -118,7 +121,7 @@ export async function fetchPerspectiveAnalysis(
     // AbortError = timeout
     if (message.includes('abort')) {
       console.warn(
-        `[LoRa::Perspective] Timeout after ${elapsed}ms (limit: ${PERSPECTIVE_TIMEOUT_MS}ms)`,
+        `[LoRa::Perspective] Timeout after ${elapsed}ms (limit: ${timeoutMs}ms)`,
       );
     } else {
       console.warn(
