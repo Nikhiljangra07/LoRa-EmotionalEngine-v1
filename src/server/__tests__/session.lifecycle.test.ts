@@ -107,7 +107,7 @@ describe('Session Lifecycle — /api/session/start + /api/session/terminate', ()
     expect(typeof res.body.error).toBe('string');
   });
 
-  test('terminate returns tier and sessionCount — no LLM, no ETV', async () => {
+  test('terminate returns tier and sessionCount — 0-message session does NOT count toward tier', async () => {
     const startRes = await httpPost(port, '/api/session/start', { userId: 'u4' });
     expect(startRes.status).toBe(200);
     const sessionId = startRes.body.sessionId as string;
@@ -116,7 +116,8 @@ describe('Session Lifecycle — /api/session/start + /api/session/terminate', ()
     expect(endRes.status).toBe(200);
     expect(endRes.body.ended).toBe(true);
     expect(endRes.body.tier).toBe('TIER_1');
-    expect(endRes.body.sessionCount).toBe(1);
+    // 0-message session should NOT increment sessionCount (MIN_MESSAGES_FOR_COMPLETION guard)
+    expect(endRes.body.sessionCount).toBe(0);
     expect(endRes.body).not.toHaveProperty('reply');
   });
 });

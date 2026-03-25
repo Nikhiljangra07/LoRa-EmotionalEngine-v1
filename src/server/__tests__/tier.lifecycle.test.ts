@@ -1,6 +1,7 @@
 import http from 'http';
 import express from 'express';
 import { registerSessionLifecycleRoute } from '../routes/session.lifecycle.route';
+import { sharedTierService } from '../tier/TierService';
 
 function httpPost(
   port: number,
@@ -52,6 +53,8 @@ describe('Tier Promotion — via /api/session/terminate', () => {
   beforeAll((done) => {
     const app = express();
     app.use(express.json());
+    // No engineSessions provided — terminate can't find engine entries.
+    // This tests the guard: 0-message sessions should NOT count toward tier.
     registerSessionLifecycleRoute(app);
 
     server = app.listen(0, () => {
@@ -66,77 +69,68 @@ describe('Tier Promotion — via /api/session/terminate', () => {
     else done();
   });
 
-  test('user starts at TIER_1 with sessionCount 0 (before any termination)', async () => {
-    const startRes = await httpPost(port, '/api/session/start', { userId: 'tier-user-0' });
-    const sessionId = startRes.body.sessionId as string;
-    // First termination → sessionCount becomes 1
-    const endRes = await httpPost(port, '/api/session/terminate', { sessionId });
-    expect(endRes.body.ended).toBe(true);
-    expect(endRes.body.tier).toBe('TIER_1');
-    expect(endRes.body.sessionCount).toBe(1);
-  });
-
-  test('after 3 terminations → TIER_2', async () => {
-    const userId = 'tier-user-3';
-    let body: Record<string, unknown> = {};
-
-    for (let i = 0; i < 3; i++) {
-      body = await startAndTerminate(port, userId);
-    }
-
+  test('0-message session does NOT increment tier (MIN_MESSAGES guard)', async () => {
+    const body = await startAndTerminate(port, 'tier-guard-user');
     expect(body.ended).toBe(true);
-    expect(body.tier).toBe('TIER_2');
-    expect(body.sessionCount).toBe(3);
+    expect(body.tier).toBe('TIER_1');
+    // No engine entry → no messages → sessionCount stays 0
+    expect(body.sessionCount).toBe(0);
   });
 
-  test('after 10 terminations → TIER_3', async () => {
-    const userId = 'tier-user-10';
-    let body: Record<string, unknown> = {};
-
-    for (let i = 0; i < 10; i++) {
-      body = await startAndTerminate(port, userId);
-    }
-
-    expect(body.ended).toBe(true);
-    expect(body.tier).toBe('TIER_3');
-    expect(body.sessionCount).toBe(10);
-  });
-
-  test('terminating non-existent session does NOT increment tier', async () => {
-    const userId = 'tier-user-ghost';
-
-    // One real session first
-    await startAndTerminate(port, userId);
-
-    // Try to terminate a fake session
+  test('terminating non-existent session returns ended:false', async () => {
     const fakeRes = await httpPost(port, '/api/session/terminate', { sessionId: 'does-not-exist' });
     expect(fakeRes.body.ended).toBe(false);
     expect(fakeRes.body).not.toHaveProperty('tier');
     expect(fakeRes.body).not.toHaveProperty('sessionCount');
-
-    // Next real session should still be at sessionCount 2 (not 3)
-    const body = await startAndTerminate(port, userId);
-    expect(body.sessionCount).toBe(2);
-    expect(body.tier).toBe('TIER_1');
   });
 
-  test('different users have isolated tier state', async () => {
-    const userA = 'tier-user-A';
-    const userB = 'tier-user-B';
+  test('different users have isolated tier state (via TierService directly)', async () => {
+    const tierService = sharedTierService;
+    const userA = 'tier-direct-A';
+    const userB = 'tier-direct-B';
 
-    // userA completes 3 sessions → TIER_2
+    // Simulate 3 completed sessions for userA via TierService
     for (let i = 0; i < 3; i++) {
-      await startAndTerminate(port, userA);
+      await tierService.recordSessionCompletionAsync(userA, `sess-a-${i}`);
     }
 
-    // userB completes 1 session → still TIER_1
-    const bodyB = await startAndTerminate(port, userB);
-    expect(bodyB.tier).toBe('TIER_1');
-    expect(bodyB.sessionCount).toBe(1);
+    // userB has 1 session
+    await tierService.recordSessionCompletionAsync(userB, 'sess-b-0');
 
-    // Verify userA is independently at TIER_2
-    const bodyA = await startAndTerminate(port, userA);
-    expect(bodyA.tier).toBe('TIER_2');
-    expect(bodyA.sessionCount).toBe(4);
+    const tierA = await tierService.getTierAsync(userA);
+    const tierB = await tierService.getTierAsync(userB);
+
+    expect(tierA.tier).toBe('TIER_2');
+    expect(tierA.sessionCount).toBe(3);
+    expect(tierB.tier).toBe('TIER_1');
+    expect(tierB.sessionCount).toBe(1);
+  });
+
+  test('TIER_1 → TIER_2 at 3 sessions, TIER_3 at 10 (via TierService directly)', async () => {
+    const tierService = sharedTierService;
+    const userId = 'tier-direct-promo';
+
+    for (let i = 0; i < 10; i++) {
+      const result = await tierService.recordSessionCompletionAsync(userId, `sess-promo-${i}`);
+      if (i < 2) expect(result.tier).toBe('TIER_1');
+      else if (i < 9) expect(result.tier).toBe('TIER_2');
+      else expect(result.tier).toBe('TIER_3');
+    }
+  });
+
+  test('same sessionId is not double-counted (TierService dedup)', async () => {
+    const tierService = sharedTierService;
+    const userId = 'tier-dedup-user';
+
+    const r1 = await tierService.recordSessionCompletionAsync(userId, 'sess-dedup-1');
+    expect(r1.sessionCount).toBe(1);
+
+    // Same sessionId again — should NOT increment
+    const r2 = await tierService.recordSessionCompletionAsync(userId, 'sess-dedup-1');
+    expect(r2.sessionCount).toBe(1);
+
+    // Different sessionId — should increment
+    const r3 = await tierService.recordSessionCompletionAsync(userId, 'sess-dedup-2');
+    expect(r3.sessionCount).toBe(2);
   });
 });

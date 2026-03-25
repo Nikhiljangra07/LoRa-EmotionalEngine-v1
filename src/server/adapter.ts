@@ -13,6 +13,7 @@ import { shutdownPosthog, trackSessionEnded } from './analytics/posthogClient';
 import { sharedTierService } from './tier/TierService';
 import { logSessionEnd } from './analytics/engagementLogger';
 import { recordSessionEnd } from './analytics/runtimeMetrics';
+import { MIN_MESSAGES_FOR_COMPLETION } from './session/constants';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -130,8 +131,7 @@ app.listen(port, () => {
   }
 });
 
-/** Minimum user messages before a shutdown-finalized session counts toward tier promotion. */
-const MIN_MESSAGES_FOR_SHUTDOWN = 2;
+// Uses shared MIN_MESSAGES_FOR_COMPLETION from session/constants.ts
 
 function drainSessions(): void {
   if (!engineSessions || engineSessions.size === 0) return;
@@ -157,7 +157,7 @@ function drainSessions(): void {
       tokensUsed: entry.tokensUsed,
       reason: 'server_shutdown',
     });
-    if (messagesCount >= MIN_MESSAGES_FOR_SHUTDOWN) {
+    if (messagesCount >= MIN_MESSAGES_FOR_COMPLETION) {
       sharedTierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
     }
   }

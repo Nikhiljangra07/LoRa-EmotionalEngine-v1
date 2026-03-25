@@ -46,6 +46,8 @@ import { MemoryV2Pipeline } from '../../emotion-core/memory-v2/pipeline';
 import { ChromaVectorStore } from '../../emotion-core/memory-v2/storage/vector/chroma-adapter';
 import { FalkorGraphStore } from '../../emotion-core/memory-v2/storage/graph/falkor-adapter';
 import { buildCurrentFingerprint } from '../../emotion-core/memory-v2/retrieval/build-current-fingerprint';
+import { MIN_MESSAGES_FOR_COMPLETION, MIN_MESSAGES_FOR_MEMORY } from '../session/constants';
+import type { TierRecord } from '../tier/TierTypes';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -67,6 +69,21 @@ const DEFAULT_ETV = 0.5;
 
 /** Maximum messages per session; exceeding terminates the session and requires a new sessionId. */
 const MAX_SESSION_MESSAGES = 25;
+
+// ── Exported session finalizer (set inside registerChatRoute, used by terminate endpoint) ──
+export type SessionFinalizerFn = (
+  userId: string,
+  sessionId: string,
+  entry: SessionEntry,
+  reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout' | 'user_terminate',
+) => Promise<TierRecord | null>;
+
+let _registeredFinalizer: SessionFinalizerFn | null = null;
+
+/** Get the session finalizer. Only available after registerChatRoute() has been called. */
+export function getSessionFinalizer(): SessionFinalizerFn | null {
+  return _registeredFinalizer;
+}
 
 /** Optional injection for tests (mock LLM + memory so no real DB). */
 export interface ChatRouteOptions {
@@ -290,10 +307,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     recordSessionEnd(messagesCount);
   }
 
-  /** Minimum user messages before a session counts toward tier promotion. */
-  const MIN_MESSAGES_FOR_COMPLETION = 2;
-
-  function finalizeSession(userId: string, sessionId: string, entry: SessionEntry, reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout' | 'user_terminate'): void {
+  /**
+   * Finalize a session: engagement logging, PostHog, tier increment (if ≥2 msgs),
+   * Memory V2 consolidation (if ≥3 msgs). Single code path for all session-end reasons.
+   * Returns the updated TierRecord if tier was incremented, null otherwise.
+   */
+  async function finalizeSession(userId: string, sessionId: string, entry: SessionEntry, reason: 'new_session' | 'session_cap' | 'server_shutdown' | 'idle_timeout' | 'user_terminate'): Promise<TierRecord | null> {
     emitSessionEnd(userId, sessionId, entry);
     const messageCount = entry.history.filter(t => t.role === 'user').length;
     trackSessionEnded(userId, sessionId, {
@@ -302,12 +321,15 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       tokensUsed: entry.tokensUsed,
       reason,
     });
+
+    let tierRecord: TierRecord | null = null;
     if (messageCount >= MIN_MESSAGES_FOR_COMPLETION) {
-      tierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
+      try {
+        tierRecord = await tierService.recordSessionCompletionAsync(userId, sessionId);
+      } catch { /* tier increment failed — non-fatal */ }
     }
 
     // ── Memory V2 consolidation (end-of-session extraction) ──
-    const MIN_MESSAGES_FOR_MEMORY = 3;
     if (memoryV2Service && messageCount >= MIN_MESSAGES_FOR_MEMORY) {
       const eivCurve = entry.engine.getSessionEIVs();
       memoryV2Service.processSessionEnd({
@@ -331,7 +353,13 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         console.error('[LoRa::MemoryV2] consolidation failed', (err as Error).message);
       });
     }
+
+    return tierRecord;
   }
+
+  // Expose finalizeSession for session.lifecycle.route.ts (terminate endpoint).
+  _registeredFinalizer = (userId, sessionId, entry, reason) =>
+    finalizeSession(userId, sessionId, entry, reason);
 
   function getSession(userId: string, sessionId: string, key = `${userId}::${sessionId}`): SessionEntry {
     let entry = sessions.get(key);
@@ -341,7 +369,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         if (k.startsWith(prefix) && k !== key) {
           const old = sessions.get(k)!;
           const oldSessionId = k.slice(prefix.length);
-          finalizeSession(userId, oldSessionId, old, 'new_session');
+          finalizeSession(userId, oldSessionId, old, 'new_session').catch(() => {});
           sessions.delete(k);
         }
       }
@@ -375,7 +403,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       if (now - lastActivity >= IDLE_TIMEOUT_MS) {
         const [userId, sessionId] = key.split('::');
         console.log('[LoRa::SessionReaper] idle session finalized', { key, idleMinutes: Math.round((now - lastActivity) / 60000) });
-        finalizeSession(userId, sessionId, entry, 'idle_timeout');
+        finalizeSession(userId, sessionId, entry, 'idle_timeout').catch(() => {});
         sessions.delete(key);
       }
     }
@@ -419,21 +447,15 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     const session = getSession(userId, sessionId, engineKey);
     const messageCount = session.history.filter((t) => t.role === 'user').length;
     if (messageCount >= MAX_SESSION_MESSAGES) {
-      emitSessionEnd(userId, sessionId, session);
-      trackSessionEnded(userId, sessionId, {
-        messagesCount: messageCount,
-        durationSeconds: Math.round((Date.now() - session.sessionStartedAt) / 1000),
-        tokensUsed: session.tokensUsed,
-        reason: 'session_cap',
-      });
+      const capTier = await finalizeSession(userId, sessionId, session, 'session_cap');
       sessions.delete(engineKey);
-      const capTier = await tierService.recordSessionCompletionAsync(userId, sessionId);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
+      const currentTier = capTier ?? await tierService.getTierAsync(userId);
       res.status(200).json({
         reply: 'This session has reached the maximum message limit. Please start a new session to continue.',
         sessionEnded: true,
-        tier: capTier.tier,
-        sessionCount: capTier.sessionCount,
+        tier: currentTier.tier,
+        sessionCount: currentTier.sessionCount,
         debug: emptyDebug(),
         error: 'session_cap',
         details: 'Session message limit reached. Use a new sessionId to continue.',

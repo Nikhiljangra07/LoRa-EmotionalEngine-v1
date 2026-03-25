@@ -1,8 +1,8 @@
 import type { Express, Request, Response } from 'express';
 import { SessionManager } from '../session/SessionManager';
 import { sharedTierService } from '../tier/TierService';
-import { trackSessionEnded } from '../analytics/posthogClient';
 import type { SessionEntry } from './chat.route';
+import { getSessionFinalizer } from './chat.route';
 
 const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
@@ -57,31 +57,29 @@ export function registerSessionLifecycleRoute(
       return;
     }
 
-    // Evict the engine entry so subsequent messages on a new session get a fresh engine.
-    let messagesCount = 0;
-    let durationSeconds = 0;
-    let tokensUsed = 0;
-    if (engineSessions) {
-      const engineKey = `${session.userId}::${trimmedId}`;
-      const engineEntry = engineSessions.get(engineKey);
-      if (engineEntry) {
-        messagesCount = engineEntry.history.filter(t => t.role === 'user').length;
-        durationSeconds = Math.round((Date.now() - engineEntry.sessionStartedAt) / 1000);
-        tokensUsed = engineEntry.tokensUsed;
-      }
-      const evicted = engineSessions.delete(engineKey);
-      console.log('ENGINE EVICTED:', engineKey);
-      if (sessionDebug) console.log('[LoRa::Session] engine evicted', { key: engineKey, evicted });
+    // Use the shared finalizeSession — single code path for all session-end reasons.
+    // Handles: engagement logging, PostHog, tier increment (if ≥2 msgs), Memory V2 (if ≥3 msgs).
+    const finalizer = getSessionFinalizer();
+    const engineKey = `${session.userId}::${trimmedId}`;
+    const engineEntry = engineSessions?.get(engineKey);
+
+    let tierRecord: { tier: string; sessionCount: number } | null = null;
+
+    if (finalizer && engineEntry) {
+      tierRecord = await finalizer(session.userId, trimmedId, engineEntry, 'user_terminate');
+      engineSessions!.delete(engineKey);
+      if (sessionDebug) console.log('[LoRa::Session] engine evicted via finalizer', { key: engineKey });
+    } else if (engineSessions) {
+      // Fallback: finalizer not registered yet (shouldn't happen in production)
+      engineSessions.delete(engineKey);
+      if (sessionDebug) console.log('[LoRa::Session] engine evicted (no finalizer)', { key: engineKey });
     }
 
-    trackSessionEnded(session.userId, trimmedId, {
-      messagesCount,
-      durationSeconds,
-      tokensUsed,
-      reason: 'user_terminate',
-    });
-
-    const tierRecord = await tierService.recordSessionCompletionAsync(session.userId, trimmedId);
+    // If finalizer didn't return a tier record (session too short or no engine), get current tier.
+    if (!tierRecord) {
+      const current = await tierService.getTierAsync(session.userId);
+      tierRecord = { tier: current.tier, sessionCount: current.sessionCount };
+    }
 
     res.status(200).json({
       ended: true,
