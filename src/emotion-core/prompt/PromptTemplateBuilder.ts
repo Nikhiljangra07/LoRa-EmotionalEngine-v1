@@ -793,8 +793,8 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
     // Runtime guard: filter out user_name anchors with invalid values
     // Uses morphological suffix detection — catches any English word, not just a hardcoded list.
     // Covers old bad data persisting in Falkor from before structural fix.
-    const ENGLISH_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|edly|ized|ised|ling|ting|ual|ety|ity|ory)$/i;
-    const RUNTIME_NOT_A_NAME = /^(hi|hey|hello|yo|sup|bro|dude|hlo|hii|hnji|lora|yes|no|ok|okay|sure|bye|what|how|why|who|when|where|not|the|a|i|my|me|it|he|she|we|they|good|bad|nice|cool|fine|done|help|well|like|love|hate|want|need|know|test|damn|shit|fuck|fucked)$/i;
+    const ENGLISH_SUFFIX_RE = /(?:ing|tion|tional|sional|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|tly|stly|dly|edly|sed|ied|ized|ised|ling|ting|ual|ety|ity|ory|edy|lem|ror|ller|noon|ood|body|day|row)$/i;
+    const RUNTIME_NOT_A_NAME = /^(hi|hey|hello|yo|sup|bro|dude|hlo|hii|hnji|lora|yes|no|ok|okay|sure|bye|what|how|why|who|when|where|not|the|a|i|my|me|it|he|she|we|they|good|bad|nice|cool|fine|done|help|well|like|love|hate|want|need|know|test|damn|shit|fuck|fucked|everyone|someone|anyone|everybody|somebody|nobody|drama|action)$/i;
     const filteredFacts = knownFacts.filter((a) => {
       if (!a.slotValue) return false;
       const match = a.slotValue.match(/^user_name:\s*(.+)$/i);

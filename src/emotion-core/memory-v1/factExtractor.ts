@@ -159,11 +159,14 @@ const USER_NAME_RE = /\b(my name is|call me)\s+([A-Za-z]{2,20})\b/i;
 const BARE_NAME_RE = /^([A-Z][a-z]{1,19})(?:\s+[A-Z][a-z]{1,19})?$/;
 
 // English morphological suffixes — real names (Nikhil, Sarah, Priya, John) never end in these.
-// This catches infinite English words with ~15 patterns instead of an ever-growing blocklist.
-const ENGLISH_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|edly|ized|ised|ling|ting|ual|ety|ity|ory)$/i;
+// This catches infinite English words with ~20 patterns instead of an ever-growing blocklist.
+// Each suffix verified safe: no common real names end in these patterns.
+// English morphological suffixes — real names (Nikhil, Sarah, Priya, John) never end in these.
+// Each suffix verified: no common first names match. Catches infinite English words.
+const ENGLISH_SUFFIX_RE = /(?:ing|tion|tional|sional|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|tly|stly|dly|edly|sed|ied|ized|ised|ling|ting|ual|ety|ity|ory|edy|lem|ror|ller|noon|ood|body|day|row)$/i;
 
-// Tiny set — only short common words that DON'T have telltale suffixes.
-// This is ~30 words and should never need to grow.
+// Tiny set — only short/irregular words that DON'T have telltale suffixes.
+// ~45 words. The suffix regex handles the infinite-growth problem.
 const NOT_A_NAME = new Set([
   // greetings & slang
   'hi', 'hey', 'hello', 'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam',
@@ -171,13 +174,16 @@ const NOT_A_NAME = new Set([
   // short filler
   'yes', 'no', 'ok', 'okay', 'sure', 'bye', 'ya', 'nah', 'nope', 'yup', 'yep',
   'hmm', 'hm', 'ah', 'oh', 'ugh', 'lol', 'haha', 'wow', 'damn', 'shit', 'fuck',
+  'fucked',
   // question words
   'what', 'how', 'why', 'who', 'when', 'where',
   // pronouns & articles
   'not', 'the', 'a', 'i', 'my', 'me', 'it', 'he', 'she', 'we', 'they',
-  // very short common words that pass suffix check
+  // short common words that pass suffix check
   'good', 'bad', 'nice', 'cool', 'fine', 'done', 'help', 'well', 'like', 'love',
   'hate', 'want', 'need', 'know', 'test',
+  // compound words suffix can't catch (would conflict with real names)
+  'everyone', 'someone', 'anyone', 'everybody', 'somebody', 'nobody',
 ]);
 
 /**

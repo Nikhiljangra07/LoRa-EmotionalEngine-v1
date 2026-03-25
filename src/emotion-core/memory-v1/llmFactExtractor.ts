@@ -72,9 +72,9 @@ function templateForType(type: string): AnchorTemplate {
 
 // English morphological suffixes — real names never end in these.
 // Catches infinite English words with ~15 patterns instead of an ever-growing blocklist.
-const ENGLISH_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|edly|ized|ised|ling|ting|ual|ety|ity|ory)$/i;
+const ENGLISH_SUFFIX_RE = /(?:ing|tion|tional|sional|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|tly|stly|dly|edly|sed|ied|ized|ised|ling|ting|ual|ety|ity|ory|edy|lem|ror|ller|noon|ood|body|day|row)$/i;
 
-// Tiny set of short common words that DON'T have telltale suffixes.
+// Tiny set of short/irregular words that DON'T have telltale suffixes.
 const NOT_A_NAME: ReadonlySet<string> = new Set([
   // greetings & slang
   'hi', 'hey', 'hello', 'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam',
@@ -89,8 +89,10 @@ const NOT_A_NAME: ReadonlySet<string> = new Set([
   'not', 'the', 'a', 'i', 'my', 'me', 'it', 'he', 'she', 'we', 'they',
   // short common words that pass suffix check
   'good', 'bad', 'nice', 'cool', 'fine', 'done', 'help', 'well', 'like', 'love',
-  'hate', 'want', 'need', 'know', 'test', 'comedy', 'drama', 'horror', 'action',
-  'romance', 'start', 'stop', 'clear', 'ready', 'point',
+  'hate', 'want', 'need', 'know', 'test', 'drama', 'action', 'start', 'stop',
+  'clear', 'ready', 'point',
+  // compound words suffix can't catch
+  'everyone', 'someone', 'anyone', 'everybody', 'somebody', 'nobody',
 ]);
 
 function isPlausibleName(value: string): boolean {
