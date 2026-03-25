@@ -200,7 +200,10 @@ export class EngineOrchestrator {
     if (this.messageCount < 3) return false;
     if (this.sessionEIVs.length === 0) return false;
     const avgEIV = this.sessionEIVs.reduce((a, b) => a + b, 0) / this.sessionEIVs.length;
-    return avgEIV > 0.3;
+    // Trigger on emotional intensity OR sustained analytical engagement
+    // EIV > 0.3 = emotionally complex problem
+    // messageCount >= 5 = user keeps digging (analytically complex, low EIV)
+    return avgEIV > 0.3 || this.messageCount >= 5;
   }
 
   /** Mark that the deep analysis offer was made this session. */

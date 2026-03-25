@@ -790,9 +790,19 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 
     const lines: string[] = ['', ''];
 
-    if (knownFacts.length > 0) {
+    // Runtime guard: filter out user_name anchors with invalid values
+    // (old bad data from before blocklist fixes — persists in Falkor until TTL)
+    const BAD_NAME_PATTERNS = /^(getting|seeing|having|being|preparing|going|working|looking|trying|starting|hlo|lora|yo|hi|hello|not|the|a|i|my|me|it|he|she|we|they)$/i;
+    const filteredFacts = knownFacts.filter((a) => {
+      if (!a.slotValue) return false;
+      const match = a.slotValue.match(/^user_name:\s*(.+)$/i);
+      if (match && BAD_NAME_PATTERNS.test(match[1].trim())) return false;
+      return true;
+    });
+
+    if (filteredFacts.length > 0) {
       lines.push('Known facts:');
-      for (const a of knownFacts) {
+      for (const a of filteredFacts) {
         if (a.slotValue) lines.push(`- ${a.slotValue}`);
       }
       lines.push('');
