@@ -147,55 +147,72 @@ function anchorTypeFromTemplate(template: AnchorTemplate): AnchorType {
 // Identity: user_name (onboarding — captured once, reused across sessions)
 // ---------------------------------------------------------------------------
 
-// Explicit phrases ("my name is Nikhil") OR a bare name response (just "Nikhil").
-const USER_NAME_RE = /\b(my name is|call me|i am|i'm|this is)\s+([A-Za-z]{2,20})\b/i;
+// ---------------------------------------------------------------------------
+// Identity: user_name — structural approach (morphological filter, not blocklist)
+// ---------------------------------------------------------------------------
+
+// Only unambiguous name-introduction patterns. "i am" / "i'm" removed —
+// they almost always precede verbs ("I'm seeing…", "I am going…"), not names.
+const USER_NAME_RE = /\b(my name is|call me)\s+([A-Za-z]{2,20})\b/i;
 
 // Bare name: entire message is 1–2 words, each starting uppercase, no digits/punctuation.
-// Matches "Nikhil", "Nikhil J", but not "hello", "yes", "ok", "no", "hey", "hi", "thanks".
 const BARE_NAME_RE = /^([A-Z][a-z]{1,19})(?:\s+[A-Z][a-z]{1,19})?$/;
+
+// English morphological suffixes — real names (Nikhil, Sarah, Priya, John) never end in these.
+// This catches infinite English words with ~15 patterns instead of an ever-growing blocklist.
+const ENGLISH_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|edly|ized|ised|ling|ting|ual|ety|ity|ory)$/i;
+
+// Tiny set — only short common words that DON'T have telltale suffixes.
+// This is ~30 words and should never need to grow.
 const NOT_A_NAME = new Set([
-  'yes', 'no', 'ok', 'okay', 'hi', 'hey', 'hello', 'thanks', 'sure', 'bye',
-  'maybe', 'please', 'sorry', 'right', 'wrong', 'true', 'false', 'fine',
-  'good', 'great', 'cool', 'nice', 'test', 'testing', 'done', 'help',
   // greetings & slang
-  'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam', 'ayo', 'heya', 'hiya',
-  'howdy', 'wassup', 'whatup', 'ciao',
-  // greeting variants (informal/Hindi-inflected)
-  'hlo', 'hii', 'hnji', 'lora',
-  // filler & reactions
-  'yup', 'yep', 'ya', 'nah', 'nope', 'hm', 'hmm', 'ah', 'oh', 'ugh',
-  'lol', 'haha', 'damn', 'shit', 'fuck', 'fucked', 'fucking', 'wow', 'whoa',
-  // common question words (prevent "What" / "How" as bare name)
-  'what', 'whats', 'how', 'why', 'who', 'when', 'where',
-  // time greetings
-  'morning', 'evening', 'night', 'afternoon',
-  // common English words that get capitalized and misidentified as names
-  'not', 'never', 'nothing', 'none', 'just', 'only', 'also', 'very',
-  'well', 'much', 'more', 'less', 'most', 'some', 'any', 'all',
-  'going', 'preparing', 'working', 'looking', 'trying', 'waiting',
-  'thinking', 'feeling', 'getting', 'making', 'coming', 'leaving',
-  'starting', 'running', 'talking', 'asking', 'telling', 'reading',
-  'seeing', 'having', 'being', 'giving', 'saying', 'building',
-  'choosing', 'launching', 'learning', 'playing', 'doing', 'using',
-  'buying', 'selling', 'moving', 'sitting', 'standing', 'writing',
-  'actually', 'really', 'basically', 'honestly', 'literally', 'totally',
-  'like', 'love', 'hate', 'want', 'need', 'know', 'think', 'feel',
-  'today', 'tomorrow', 'yesterday', 'always', 'sometimes', 'everything',
-  'something', 'anything', 'everyone', 'someone', 'anyone', 'nobody',
+  'hi', 'hey', 'hello', 'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam',
+  'howdy', 'ciao', 'hlo', 'hii', 'hnji', 'lora', 'heya', 'hiya', 'ayo',
+  // short filler
+  'yes', 'no', 'ok', 'okay', 'sure', 'bye', 'ya', 'nah', 'nope', 'yup', 'yep',
+  'hmm', 'hm', 'ah', 'oh', 'ugh', 'lol', 'haha', 'wow', 'damn', 'shit', 'fuck',
+  // question words
+  'what', 'how', 'why', 'who', 'when', 'where',
+  // pronouns & articles
+  'not', 'the', 'a', 'i', 'my', 'me', 'it', 'he', 'she', 'we', 'they',
+  // very short common words that pass suffix check
+  'good', 'bad', 'nice', 'cool', 'fine', 'done', 'help', 'well', 'like', 'love',
+  'hate', 'want', 'need', 'know', 'test',
 ]);
+
+/**
+ * Structural name validation — morphological filter instead of blocklist.
+ * Rejects words that look like English vocabulary (suffix-based) and a tiny
+ * set of short common words. Accepts words that look like proper nouns.
+ */
+function looksLikeName(word: string): boolean {
+  const lower = word.toLowerCase();
+  if (lower.length < 2 || lower.length > 20) return false;
+  if (NOT_A_NAME.has(lower)) return false;
+  if (ENGLISH_SUFFIX_RE.test(lower)) return false;
+  if (/^\d+$/.test(word)) return false;
+  return true;
+}
 
 function tryUserName(message: string): string | null {
   const trimmed = message.trim();
 
+  // Match explicit "my name is X" / "call me X"
   const m = trimmed.match(USER_NAME_RE);
   if (m && m[2]) {
     const name = m[2].trim();
-    if (name.length >= 2) return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    if (name.length >= 2 && looksLikeName(name)) {
+      return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    }
   }
 
+  // Bare name: entire message is just a capitalized word (e.g. "Nikhil")
   const bare = trimmed.match(BARE_NAME_RE);
-  if (bare && !NOT_A_NAME.has(trimmed.toLowerCase())) {
-    return bare[0];
+  if (bare) {
+    const words = trimmed.split(/\s+/);
+    if (words.every(w => looksLikeName(w))) {
+      return bare[0];
+    }
   }
 
   return null;

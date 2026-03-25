@@ -70,44 +70,41 @@ function templateForType(type: string): AnchorTemplate {
   }
 }
 
-const COMMON_WORDS: ReadonlySet<string> = new Set([
-  'hello', 'hi', 'hey', 'hlo', 'hloo', 'hii', 'hnji', 'lora', 'yes', 'no', 'ok', 'okay', 'sure',
-  'thanks', 'thank', 'bye', 'good', 'bad', 'great', 'nice', 'fine', 'cool',
-  'functional', 'comedy', 'drama', 'horror', 'action', 'romance', 'thriller',
-  'student', 'teacher', 'doctor', 'engineer', 'manager', 'worker', 'user',
-  'noted', 'understood', 'clear', 'ready', 'done', 'start', 'stop', 'help',
-  'question', 'answer', 'problem', 'solution', 'topic', 'subject', 'point',
+// English morphological suffixes — real names never end in these.
+// Catches infinite English words with ~15 patterns instead of an ever-growing blocklist.
+const ENGLISH_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|edly|ized|ised|ling|ting|ual|ety|ity|ory)$/i;
+
+// Tiny set of short common words that DON'T have telltale suffixes.
+const NOT_A_NAME: ReadonlySet<string> = new Set([
   // greetings & slang
-  'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam', 'ayo', 'heya', 'hiya',
-  'howdy', 'wassup', 'whatup', 'ciao',
-  // filler & reactions
-  'yup', 'yep', 'ya', 'nah', 'nope', 'hm', 'hmm', 'ah', 'oh', 'ugh',
-  'lol', 'haha', 'damn', 'shit', 'fuck', 'fucked', 'fucking', 'wow', 'whoa',
-  // common question words
-  'what', 'whats', 'how', 'why', 'who', 'when', 'where',
-  // time greetings
-  'morning', 'evening', 'night', 'afternoon',
-  // common English words that get capitalized and misidentified as names
-  'not', 'never', 'nothing', 'none', 'just', 'only', 'also', 'very',
-  'well', 'much', 'more', 'less', 'most', 'some', 'any', 'all',
-  'going', 'preparing', 'working', 'looking', 'trying', 'waiting',
-  'thinking', 'feeling', 'getting', 'making', 'coming', 'leaving',
-  'starting', 'running', 'talking', 'asking', 'telling', 'reading',
-  'seeing', 'having', 'being', 'giving', 'saying', 'building',
-  'choosing', 'launching', 'learning', 'playing', 'doing', 'using',
-  'buying', 'selling', 'moving', 'sitting', 'standing', 'writing',
-  'actually', 'really', 'basically', 'honestly', 'literally', 'totally',
-  'like', 'love', 'hate', 'want', 'need', 'know', 'think', 'feel',
-  'today', 'tomorrow', 'yesterday', 'always', 'sometimes', 'everything',
-  'something', 'anything', 'everyone', 'someone', 'anyone', 'nobody',
+  'hi', 'hey', 'hello', 'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam',
+  'howdy', 'ciao', 'hlo', 'hii', 'hnji', 'lora', 'heya', 'hiya', 'ayo',
+  // short filler
+  'yes', 'no', 'ok', 'okay', 'sure', 'bye', 'ya', 'nah', 'nope', 'yup', 'yep',
+  'hmm', 'hm', 'ah', 'oh', 'ugh', 'lol', 'haha', 'wow', 'damn', 'shit', 'fuck',
+  'fucked',
+  // question words
+  'what', 'how', 'why', 'who', 'when', 'where',
+  // pronouns & articles
+  'not', 'the', 'a', 'i', 'my', 'me', 'it', 'he', 'she', 'we', 'they',
+  // short common words that pass suffix check
+  'good', 'bad', 'nice', 'cool', 'fine', 'done', 'help', 'well', 'like', 'love',
+  'hate', 'want', 'need', 'know', 'test', 'comedy', 'drama', 'horror', 'action',
+  'romance', 'start', 'stop', 'clear', 'ready', 'point',
 ]);
 
 function isPlausibleName(value: string): boolean {
   const trimmed = value.trim();
   if (trimmed.length < 2 || trimmed.length > 30) return false;
   if (trimmed.split(/\s+/).length > 4) return false;
-  if (COMMON_WORDS.has(trimmed.toLowerCase())) return false;
   if (/^\d+$/.test(trimmed)) return false;
+  // Check each word against morphological filter + tiny blocklist
+  const words = trimmed.split(/\s+/);
+  for (const w of words) {
+    const lower = w.toLowerCase();
+    if (NOT_A_NAME.has(lower)) return false;
+    if (ENGLISH_SUFFIX_RE.test(lower)) return false;
+  }
   return true;
 }
 

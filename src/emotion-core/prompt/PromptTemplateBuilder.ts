@@ -791,12 +791,18 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
     const lines: string[] = ['', ''];
 
     // Runtime guard: filter out user_name anchors with invalid values
-    // (old bad data from before blocklist fixes — persists in Falkor until TTL)
-    const BAD_NAME_PATTERNS = /^(getting|seeing|having|being|preparing|going|working|looking|trying|starting|hlo|lora|yo|hi|hello|not|the|a|i|my|me|it|he|she|we|they)$/i;
+    // Uses morphological suffix detection — catches any English word, not just a hardcoded list.
+    // Covers old bad data persisting in Falkor from before structural fix.
+    const ENGLISH_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ious|ful|less|able|ible|ive|ally|edly|ized|ised|ling|ting|ual|ety|ity|ory)$/i;
+    const RUNTIME_NOT_A_NAME = /^(hi|hey|hello|yo|sup|bro|dude|hlo|hii|hnji|lora|yes|no|ok|okay|sure|bye|what|how|why|who|when|where|not|the|a|i|my|me|it|he|she|we|they|good|bad|nice|cool|fine|done|help|well|like|love|hate|want|need|know|test|damn|shit|fuck|fucked)$/i;
     const filteredFacts = knownFacts.filter((a) => {
       if (!a.slotValue) return false;
       const match = a.slotValue.match(/^user_name:\s*(.+)$/i);
-      if (match && BAD_NAME_PATTERNS.test(match[1].trim())) return false;
+      if (match) {
+        const name = match[1].trim();
+        if (RUNTIME_NOT_A_NAME.test(name)) return false;
+        if (ENGLISH_SUFFIX_RE.test(name.toLowerCase())) return false;
+      }
       return true;
     });
 
