@@ -27,7 +27,7 @@ function stripCodeFences(text: string): string {
 /**
  * Try to extract a JSON object or array from text that may contain
  * surrounding prose. Finds the first `{` or `[` and the matching
- * closing `}` or `]` using a bracket-depth scan.
+ * closing bracket using a bracket-depth scan that tracks ALL bracket types.
  */
 function extractJsonFromText(text: string): string | null {
   const start = text.search(/[{\[]/);
@@ -36,7 +36,8 @@ function extractJsonFromText(text: string): string | null {
   const openChar = text[start] as '{' | '[';
   const closeChar = openChar === '{' ? '}' : ']';
 
-  let depth = 0;
+  let curlyDepth = 0;
+  let squareDepth = 0;
   let inString = false;
   let escaped = false;
 
@@ -60,11 +61,16 @@ function extractJsonFromText(text: string): string | null {
 
     if (inString) continue;
 
-    if (ch === openChar) {
-      depth++;
-    } else if (ch === closeChar) {
-      depth--;
-      if (depth === 0) {
+    if (ch === '{') curlyDepth++;
+    else if (ch === '}') curlyDepth--;
+    else if (ch === '[') squareDepth++;
+    else if (ch === ']') squareDepth--;
+
+    // Top-level object/array closed when its specific depth returns to 0
+    // and the other bracket type is also balanced
+    if (ch === closeChar) {
+      const relevantDepth = openChar === '{' ? curlyDepth : squareDepth;
+      if (relevantDepth === 0 && curlyDepth === 0 && squareDepth === 0) {
         return text.slice(start, i + 1);
       }
     }
@@ -82,15 +88,37 @@ function extractJsonFromText(text: string): string | null {
 export function parseLLMJson(text: string): unknown {
   const cleaned = stripCodeFences(text);
 
+  // Attempt 1: direct parse
   try {
     return JSON.parse(cleaned);
   } catch {
-    // First pass failed — try to extract just the JSON from the text
-    const extracted = extractJsonFromText(cleaned);
-    if (extracted !== null) {
-      return JSON.parse(extracted);
-    }
-    // Re-throw the original error if we couldn't extract anything
-    return JSON.parse(cleaned);
+    // continue to fallback
   }
+
+  // Attempt 2: bracket-depth extraction from cleaned text
+  const extracted = extractJsonFromText(cleaned);
+  if (extracted !== null) {
+    try {
+      return JSON.parse(extracted);
+    } catch {
+      // continue to fallback
+    }
+  }
+
+  // Attempt 3: bracket-depth on original (pre-fence-strip) text
+  // Handles edge cases where fence stripping corrupts the JSON
+  const rawExtracted = extractJsonFromText(text.trim());
+  if (rawExtracted !== null && rawExtracted !== extracted) {
+    try {
+      return JSON.parse(rawExtracted);
+    } catch {
+      // continue to final throw
+    }
+  }
+
+  // All attempts failed — throw with context
+  throw new Error(
+    `parseLLMJson: all parse attempts failed (input length=${text.length}, ` +
+    `extracted length=${extracted?.length ?? 0})`
+  );
 }

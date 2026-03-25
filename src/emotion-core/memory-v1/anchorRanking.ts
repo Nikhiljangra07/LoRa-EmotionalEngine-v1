@@ -33,9 +33,34 @@ export function isSlotAllowed(type: string, slot: string): boolean {
   return slots.includes(slot);
 }
 
-/** Filter anchors to only allowed (type, slot) per schema. */
+// Short words that are not names — catches stale bad anchors from Falkor
+const NAME_BLOCKLIST = new Set([
+  'hi', 'hey', 'hello', 'yo', 'sup', 'bruh', 'bro', 'dude', 'mate', 'fam',
+  'howdy', 'hlo', 'hii', 'hnji', 'lora', 'heya', 'hiya', 'ayo',
+  'yes', 'no', 'ok', 'okay', 'sure', 'bye', 'ya', 'nah', 'nope', 'yup', 'yep',
+  'hmm', 'lol', 'haha', 'wow', 'damn', 'shit', 'fuck', 'fucked',
+  'what', 'how', 'why', 'who', 'when', 'where',
+  'not', 'the', 'a', 'i', 'my', 'me', 'it', 'he', 'she', 'we', 'they',
+  'good', 'bad', 'nice', 'cool', 'fine', 'done', 'help', 'well',
+]);
+const NAME_SUFFIX_RE = /(?:ing|tion|sion|ment|ness|ence|ance|ous|ful|less|able|ible|ive|ally|sed|ied|ized)$/i;
+
+function isValidUserName(value: string): boolean {
+  const lower = value.trim().toLowerCase();
+  if (lower.length < 2 || lower.length > 20) return false;
+  if (NAME_BLOCKLIST.has(lower)) return false;
+  if (NAME_SUFFIX_RE.test(lower)) return false;
+  return true;
+}
+
+/** Filter anchors to only allowed (type, slot) per schema. Also rejects bad user_name values. */
 export function filterBySchema(anchors: FactAnchor[]): FactAnchor[] {
-  return anchors.filter((a) => isSlotAllowed(a.type, a.summary.slot));
+  return anchors.filter((a) => {
+    if (!isSlotAllowed(a.type, a.summary.slot)) return false;
+    // Reject stale bad user_name anchors persisted before name validation was added
+    if (a.summary.slot === 'user_name' && !isValidUserName(String(a.value ?? ''))) return false;
+    return true;
+  });
 }
 
 /** Confidence for ranking; use optional confidence or fall back to extractionConfidence. */
