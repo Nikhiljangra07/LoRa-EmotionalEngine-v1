@@ -184,6 +184,36 @@ export class EngineOrchestrator {
   private lastStickyHints: StickyHints = {};
   private hintHoldsRemaining: Partial<Record<StickyHintKey, number>> = {};
 
+  // ── Deep analysis offer tracking ──
+  private deepAnalysisPending: boolean = false;
+  private deepAnalysisOffered: boolean = false;
+
+  /** Mark whether a deep analysis has been accepted/declined by the user. */
+  setDeepAnalysisPending(pending: boolean): void {
+    this.deepAnalysisPending = pending;
+  }
+
+  /** Check whether LoRa should offer a deep analysis to the user this turn. */
+  shouldOfferDeepAnalysis(): boolean {
+    if (this.deepAnalysisOffered) return false;
+    if (this.deepAnalysisPending) return false;
+    if (this.messageCount < 3) return false;
+    if (this.sessionEIVs.length === 0) return false;
+    const avgEIV = this.sessionEIVs.reduce((a, b) => a + b, 0) / this.sessionEIVs.length;
+    return avgEIV > 0.3;
+  }
+
+  /** Mark that the deep analysis offer was made this session. */
+  markDeepAnalysisOffered(): void {
+    this.deepAnalysisOffered = true;
+    this.deepAnalysisPending = true;
+  }
+
+  /** Whether the engine is waiting for the user to accept/decline a deep analysis offer. */
+  isDeepAnalysisPending(): boolean {
+    return this.deepAnalysisPending;
+  }
+
   // ── Memory V2 retrieval context (set by chat.route before processMessage) ──
   private memoryV2Context: {
     matchedSessions: Array<{ similarity: number }>;
@@ -283,6 +313,7 @@ export class EngineOrchestrator {
     userFeedback?: 'positive' | 'neutral' | 'negative',
     signalPacket?: SignalPacket,
     sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
+    perspectiveMode?: 'quick' | 'deep',
   ) {
     const executionToken = Symbol('LLM_EXECUTION');
     if (this.activeExecution) {
@@ -1223,6 +1254,8 @@ export class EngineOrchestrator {
         perspectiveAnalysis = await fetchPerspectiveAnalysis(
           userMessage,
           sessionHistory,
+          undefined,
+          perspectiveMode,
         );
       } catch (err) {
         // Swallow — LoRa works without perspectives
@@ -1292,6 +1325,11 @@ export class EngineOrchestrator {
       ...(this.memoryV2Context && this.memoryV2Context.relatedFacts.length > 0 ? {
         memoryV2: this.memoryV2Context,
       } : {}),
+      ...(() => {
+        const offerDeep = featureFlags.perspectiveDeepModeEnabled && this.shouldOfferDeepAnalysis();
+        if (offerDeep) this.markDeepAnalysisOffered();
+        return offerDeep ? { deepAnalysisOfferHint: true } : {};
+      })(),
     });
 
     // ── Memory V1: debug snapshot (zero behavior impact) ──
@@ -1804,6 +1842,8 @@ export class EngineOrchestrator {
     this.recentPacingHints = [];
     this.recentEscalationLevels = [];
     this.driftWarningActive = false;
+    this.deepAnalysisPending = false;
+    this.deepAnalysisOffered = false;
     this.overrideCooldownRemaining = 0;
     this.lastStickyHints = {};
     this.hintHoldsRemaining = {};

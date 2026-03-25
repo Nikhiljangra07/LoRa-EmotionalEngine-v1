@@ -41,6 +41,7 @@ import {
   trackMessageSent,
   trackSessionEnded,
 } from '../analytics/posthogClient';
+import { featureFlags } from '../../emotion-core/config/featureFlags';
 import { MemoryV2Pipeline } from '../../emotion-core/memory-v2/pipeline';
 import { ChromaVectorStore } from '../../emotion-core/memory-v2/storage/vector/chroma-adapter';
 import { FalkorGraphStore } from '../../emotion-core/memory-v2/storage/graph/falkor-adapter';
@@ -56,6 +57,10 @@ export interface SessionEntry {
   sessionStartedAt: number;
   /** Tokens used in this session (incremented after each LLM reply). */
   tokensUsed: number;
+  /** True when LoRa has offered deep analysis and is awaiting user's yes/no. */
+  deepAnalysisPending?: boolean;
+  /** Message index when the deep analysis offer was made. */
+  deepAnalysisOfferedAt?: number;
 }
 
 const DEFAULT_ETV = 0.5;
@@ -543,6 +548,22 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         }
       }
 
+      // ── Deep analysis mode detection ──
+      let perspectiveMode: 'quick' | 'deep' | undefined;
+      if (featureFlags.perspectiveDeepModeEnabled && session.deepAnalysisPending) {
+        const yesPattern = /^(yes|yeah|yep|ok|sure|haan|ha|go ahead|do it|full|deep)\b/i;
+        if (yesPattern.test(text.trim())) {
+          perspectiveMode = 'deep';
+          session.deepAnalysisPending = false;
+          session.engine.setDeepAnalysisPending(false);
+          console.log('[LoRa::DeepAnalysis] user accepted — firing deep mode');
+        } else {
+          // User moved on, reset pending state
+          session.deepAnalysisPending = false;
+          session.engine.setDeepAnalysisPending(false);
+        }
+      }
+
       const { analyzerOutputs, signalPacket } = InputProcessor.process(text);
       const result = await session.engine.processMessage(
         analyzerOutputs,
@@ -552,9 +573,16 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         undefined,
         signalPacket,
         historyForPrompt,
+        perspectiveMode,
       );
 
       const debug = result.debug ?? emptyDebug();
+
+      // Sync deep analysis pending state from engine → session
+      if (featureFlags.perspectiveDeepModeEnabled && session.engine.isDeepAnalysisPending()) {
+        session.deepAnalysisPending = true;
+        session.deepAnalysisOfferedAt = session.history.filter(t => t.role === 'user').length;
+      }
 
       let reply = result.llmOutput ?? '';
       reply = enforceIdentity(reply);

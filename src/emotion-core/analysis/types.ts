@@ -19,6 +19,7 @@ export interface PerspectiveAnalyzeRequest {
   conversation_context: PerspectiveConversationTurn[];
   known_variables: string[];
   domain: string | null;
+  mode?: 'quick' | 'deep';
 }
 
 // ---------------------------------------------------------------------------

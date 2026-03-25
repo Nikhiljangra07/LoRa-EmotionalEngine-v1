@@ -61,6 +61,7 @@ export async function fetchPerspectiveAnalysis(
   userMessage: string,
   sessionHistory?: ChatTurn[],
   domain?: string | null,
+  mode?: 'quick' | 'deep',
 ): Promise<PerspectiveAnalyzeResponse | null> {
   const url = `${PERSPECTIVE_SERVICE_URL}/api/analyze`;
   const start = Date.now();
@@ -70,6 +71,7 @@ export async function fetchPerspectiveAnalysis(
     conversation_context: mapSessionHistory(sessionHistory),
     known_variables: [],
     domain: domain ?? null,
+    ...(mode ? { mode } : {}),
   };
 
   try {
