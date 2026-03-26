@@ -274,16 +274,39 @@ describe('Fingerprint Extractor', () => {
       expect(result.emotionalFingerprint.primary).toBe('sadness');
     });
 
-    it('rejects invalid primary emotion', () => {
+    it('maps non-Ekman emotions to nearest Ekman equivalent', () => {
+      // 'melancholy' should map to 'sadness', not throw
+      const result = validateLLMExtraction({
+        ...BREAKUP_LLM_RESPONSE,
+        emotionalFingerprint: {
+          ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
+          primary: 'melancholy',
+        },
+      });
+      expect(result.emotionalFingerprint.primary).toBe('sadness');
+    });
+
+    it('maps hope to joy', () => {
+      const result = validateLLMExtraction({
+        ...BREAKUP_LLM_RESPONSE,
+        emotionalFingerprint: {
+          ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
+          primary: 'hope',
+        },
+      });
+      expect(result.emotionalFingerprint.primary).toBe('joy');
+    });
+
+    it('rejects completely unmappable primary emotion', () => {
       expect(() =>
         validateLLMExtraction({
           ...BREAKUP_LLM_RESPONSE,
           emotionalFingerprint: {
             ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
-            primary: 'melancholy',
+            primary: 'xyzzy_not_an_emotion',
           },
         }),
-      ).toThrow('Invalid primary emotion');
+      ).toThrow('Cannot map primary emotion');
     });
 
     it('rejects empty undertones', () => {

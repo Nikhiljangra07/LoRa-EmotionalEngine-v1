@@ -27,6 +27,84 @@ import {
 } from './prompts/fingerprint-extraction.prompt';
 
 // ──────────────────────────────────────────────────────
+// Emotion mapping — LLMs frequently return non-Ekman emotions.
+// Map them to the closest Ekman-6 equivalent instead of crashing.
+// ──────────────────────────────────────────────────────
+
+const EMOTION_MAP: Record<string, EkmanEmotion> = {
+  // Direct Ekman-6 (pass-through)
+  joy: 'joy', anger: 'anger', fear: 'fear',
+  sadness: 'sadness', disgust: 'disgust', surprise: 'surprise',
+
+  // Joy family
+  hope: 'joy', optimism: 'joy', happiness: 'joy', excitement: 'joy',
+  relief: 'joy', contentment: 'joy', gratitude: 'joy', pride: 'joy',
+  amusement: 'joy', love: 'joy', elation: 'joy', delight: 'joy',
+
+  // Sadness family
+  grief: 'sadness', sorrow: 'sadness', melancholy: 'sadness',
+  disappointment: 'sadness', loneliness: 'sadness', despair: 'sadness',
+  helplessness: 'sadness', regret: 'sadness', nostalgia: 'sadness',
+  resignation: 'sadness', emptiness: 'sadness',
+
+  // Fear family
+  anxiety: 'fear', worry: 'fear', dread: 'fear', panic: 'fear',
+  nervousness: 'fear', apprehension: 'fear', insecurity: 'fear',
+  vulnerability: 'fear', uncertainty: 'fear', overwhelm: 'fear',
+  terror: 'fear',
+
+  // Anger family
+  frustration: 'anger', irritation: 'anger', resentment: 'anger',
+  rage: 'anger', annoyance: 'anger', bitterness: 'anger',
+  hostility: 'anger', contempt: 'anger', indignation: 'anger',
+  betrayal: 'anger',
+
+  // Disgust family
+  revulsion: 'disgust', repulsion: 'disgust', aversion: 'disgust',
+  shame: 'disgust', embarrassment: 'disgust', guilt: 'disgust',
+  'self-loathing': 'disgust',
+
+  // Surprise family
+  shock: 'surprise', confusion: 'surprise', disbelief: 'surprise',
+  bewilderment: 'surprise', astonishment: 'surprise',
+
+  // Ambiguous — map by common usage
+  determination: 'anger',  // shares activation energy with anger
+  tension: 'fear',          // tension is anticipatory = fear-adjacent
+  numbness: 'sadness',      // emotional shutdown = sadness family
+  ambivalence: 'surprise',  // conflicting signals = surprise-adjacent
+  neutral: 'surprise',      // neutral mapped to least-valenced
+};
+
+/**
+ * Map a raw emotion string to the nearest Ekman-6 emotion.
+ * Returns the EkmanEmotion or null if completely unmappable.
+ */
+function mapToEkman(raw: string): EkmanEmotion | null {
+  if (!raw) return null;
+  const lower = raw.toLowerCase().trim();
+
+  // Direct match
+  if (EKMAN_EMOTIONS.includes(lower as EkmanEmotion)) {
+    return lower as EkmanEmotion;
+  }
+
+  // Map via lookup
+  if (lower in EMOTION_MAP) {
+    return EMOTION_MAP[lower]!;
+  }
+
+  // Partial match — check if any key is a substring
+  for (const [key, mapped] of Object.entries(EMOTION_MAP)) {
+    if (lower.includes(key) || key.includes(lower)) {
+      return mapped;
+    }
+  }
+
+  return null;
+}
+
+// ──────────────────────────────────────────────────────
 // Fingerprint Extractor — SessionSummary + EIV curve → SessionFingerprint
 // Combines LLM extraction (emotional + decision pattern)
 // with pure-math computation (EIV curve stats, style snapshot).
@@ -173,9 +251,10 @@ function validateLLMExtraction(raw: unknown): RawLLMExtraction {
   }
   const efObj = ef as Record<string, unknown>;
 
-  const primary = efObj['primary'] as string;
-  if (!EKMAN_EMOTIONS.includes(primary as EkmanEmotion)) {
-    throw new Error(`Invalid primary emotion: ${primary}`);
+  const rawPrimary = (efObj['primary'] as string || '').toLowerCase().trim();
+  const primary = mapToEkman(rawPrimary);
+  if (!primary) {
+    throw new Error(`Cannot map primary emotion: ${rawPrimary}`);
   }
 
   const rawUndertones = efObj['undertones'];
