@@ -117,6 +117,10 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
     });
 
     // ── Step 3: Verify ──
+    // Verification is a safety net, not a gate. If it crashes,
+    // we still store the extracted data — the extractors already
+    // have their own validation. A broken verifier should never
+    // prevent consolidation.
     const t3 = Date.now();
     let verificationResult = await verifyExtraction(
       summary, facts, fingerprint, extractorConfig,
@@ -137,22 +141,31 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
       reExtracted = true;
       v2log(`re-extracting`, { uid, flaggedFacts: verificationResult.flaggedFacts.length, fingerprintIssues: verificationResult.fingerprintIssues.length });
 
-      // Re-extract only what was flagged
-      if (verificationResult.flaggedFacts.length > 0) {
-        finalFacts = await extractFacts(summary, extractorConfig);
-      }
+      try {
+        // Re-extract only what was flagged
+        if (verificationResult.flaggedFacts.length > 0) {
+          finalFacts = await extractFacts(summary, extractorConfig);
+        }
 
-      if (verificationResult.fingerprintIssues.length > 0) {
-        finalFingerprint = await extractFingerprint(
-          summary, eivCurve, metadata, extractorConfig,
+        if (verificationResult.fingerprintIssues.length > 0) {
+          finalFingerprint = await extractFingerprint(
+            summary, eivCurve, metadata, extractorConfig,
+          );
+        }
+
+        // Re-verify (but don't retry again — avoid infinite loops)
+        verificationResult = await verifyExtraction(
+          summary, finalFacts, finalFingerprint, extractorConfig,
         );
+        v2log(`re-verify`, { uid, verified: verificationResult.verified });
+      } catch (reExtractErr) {
+        // Re-extraction failed — store original extraction anyway
+        v2log(`re-extract failed, using original extraction`, {
+          uid, error: (reExtractErr as Error).message,
+        });
+        finalFacts = facts;
+        finalFingerprint = fingerprint;
       }
-
-      // Re-verify (but don't retry again — avoid infinite loops)
-      verificationResult = await verifyExtraction(
-        summary, finalFacts, finalFingerprint, extractorConfig,
-      );
-      v2log(`re-verify`, { uid, verified: verificationResult.verified });
 
       // If still failing after retry, store what we have anyway
       // (the extraction validation already filters out invalid data)
