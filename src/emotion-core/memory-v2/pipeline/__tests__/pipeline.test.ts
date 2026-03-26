@@ -393,6 +393,136 @@ describe('MemoryV2Pipeline', () => {
     });
   });
 
+  describe('resilience', () => {
+    it('returns stored=false when summarization fails (API error)', async () => {
+      mockCreate.mockRejectedValueOnce(new Error('Anthropic API timeout'));
+
+      const result = await pipeline.processSessionEnd(SESSION_DATA);
+
+      expect(result.stored).toBe(false);
+      expect(result.factsCount).toBe(0);
+      expect(result.fingerprintStored).toBe(false);
+    });
+
+    it('stores fingerprint even when fact extraction fails', async () => {
+      // Summary succeeds
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_SUMMARY) }],
+      });
+      // Fact extraction fails
+      mockCreate.mockRejectedValueOnce(new Error('fact extraction timeout'));
+      // Fingerprint extraction succeeds
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_FINGERPRINT_LLM) }],
+      });
+      // Verification succeeds
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(VERIFIED_OK) }],
+      });
+
+      const result = await pipeline.processSessionEnd(SESSION_DATA);
+
+      expect(result.stored).toBe(true);
+      expect(result.factsCount).toBe(0);
+      expect(result.fingerprintStored).toBe(true);
+    });
+
+    it('stores facts even when fingerprint extraction fails', async () => {
+      // Summary succeeds
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_SUMMARY) }],
+      });
+      // Fact extraction succeeds
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_FACTS) }],
+      });
+      // Fingerprint extraction fails
+      mockCreate.mockRejectedValueOnce(new Error('fingerprint extraction timeout'));
+
+      const result = await pipeline.processSessionEnd(SESSION_DATA);
+
+      expect(result.stored).toBe(true);
+      expect(result.factsCount).toBeGreaterThan(0);
+      expect(result.fingerprintStored).toBe(false);
+      expect(result.profileUpdated).toBe(false);
+    });
+
+    it('returns stored=false when both extractions fail', async () => {
+      // Summary succeeds
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_SUMMARY) }],
+      });
+      // Both extractions fail
+      mockCreate.mockRejectedValueOnce(new Error('fact timeout'));
+      mockCreate.mockRejectedValueOnce(new Error('fingerprint timeout'));
+
+      const result = await pipeline.processSessionEnd(SESSION_DATA);
+
+      expect(result.stored).toBe(false);
+      expect(result.factsCount).toBe(0);
+      expect(result.fingerprintStored).toBe(false);
+    });
+
+    it('stores data even when verifier crashes', async () => {
+      // Summary
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_SUMMARY) }],
+      });
+      // Facts + fingerprint
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_FACTS) }],
+      });
+      mockCreate.mockResolvedValueOnce({
+        content: [{ type: 'text', text: JSON.stringify(CAREER_FINGERPRINT_LLM) }],
+      });
+      // Verifier crashes
+      mockCreate.mockRejectedValueOnce(new Error('verifier API crash'));
+
+      const result = await pipeline.processSessionEnd(SESSION_DATA);
+
+      expect(result.stored).toBe(true);
+      expect(result.factsCount).toBeGreaterThan(0);
+      expect(result.fingerprintStored).toBe(true);
+    });
+
+    it('retries storage on transient failure', async () => {
+      setupMockCalls({});
+
+      // Make graph store fail once then succeed
+      let graphCallCount = 0;
+      (graphStore.storeAnchors as jest.Mock).mockImplementation(
+        async (_u: string, sid: string, facts: FactAnchor[]) => {
+          graphCallCount++;
+          if (graphCallCount === 1) throw new Error('Redis connection reset');
+          graphStore.anchors.set(sid, facts);
+        },
+      );
+
+      const result = await pipeline.processSessionEnd(SESSION_DATA);
+
+      expect(result.stored).toBe(true);
+      expect(graphCallCount).toBe(2); // 1 fail + 1 retry
+    });
+
+    it('retrieval returns empty context on store failure', async () => {
+      // Make vector store throw
+      (vectorStore.querySimilar as jest.Mock).mockRejectedValueOnce(
+        new Error('ChromaDB connection refused'),
+      );
+
+      const currentState: EmotionalFingerprint = {
+        primary: 'fear', undertones: ['tension'], intensity: 0.5,
+        contextCategory: 'career', relationalTone: 'open',
+      };
+
+      const context = await pipeline.retrieveContext('user_001', currentState);
+
+      expect(context.matchedSessions).toHaveLength(0);
+      expect(context.topSimilarity).toBe(0);
+      expect(context.responseMode).toBe('silent');
+    });
+  });
+
   describe('purgeUser', () => {
     it('removes all data from both stores', async () => {
       setupMockCalls({});

@@ -14,6 +14,7 @@ import { sharedTierService } from './tier/TierService';
 import { logSessionEnd } from './analytics/engagementLogger';
 import { recordSessionEnd } from './analytics/runtimeMetrics';
 import { MIN_MESSAGES_FOR_COMPLETION } from './session/constants';
+import { getSessionFinalizer } from './routes/chat.route';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -135,30 +136,42 @@ app.listen(port, () => {
 
 function drainSessions(): void {
   if (!engineSessions || engineSessions.size === 0) return;
+
+  // Use the shared finalizer so V2 consolidation fires on shutdown.
+  // Falls back to lightweight drain if finalizer not available.
+  const finalizer = getSessionFinalizer();
+
   const now = Date.now();
   for (const [key, entry] of engineSessions.entries()) {
     const [userId, sessionId] = key.split('::');
-    const messagesCount = entry.history.filter(t => t.role === 'user').length;
-    const durationSeconds = Math.round((now - entry.sessionStartedAt) / 1000);
-    logSessionEnd({
-      userId,
-      sessionId,
-      sessionStart: entry.sessionStartedAt,
-      sessionEnd: now,
-      messagesCount,
-      tokensUsed: entry.tokensUsed,
-      durationSeconds: Math.round(durationSeconds * 100) / 100,
-      endedAt: Math.floor(now / 1000),
-    });
-    recordSessionEnd(messagesCount);
-    trackSessionEnded(userId, sessionId, {
-      messagesCount,
-      durationSeconds,
-      tokensUsed: entry.tokensUsed,
-      reason: 'server_shutdown',
-    });
-    if (messagesCount >= MIN_MESSAGES_FOR_COMPLETION) {
-      sharedTierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
+
+    if (finalizer && userId && sessionId) {
+      // Full path: tier + PostHog + V2 consolidation (fire-and-forget)
+      finalizer(userId, sessionId, entry, 'server_shutdown').catch(() => {});
+    } else {
+      // Fallback: lightweight drain (no V2)
+      const messagesCount = entry.history.filter(t => t.role === 'user').length;
+      const durationSeconds = Math.round((now - entry.sessionStartedAt) / 1000);
+      logSessionEnd({
+        userId,
+        sessionId,
+        sessionStart: entry.sessionStartedAt,
+        sessionEnd: now,
+        messagesCount,
+        tokensUsed: entry.tokensUsed,
+        durationSeconds: Math.round(durationSeconds * 100) / 100,
+        endedAt: Math.floor(now / 1000),
+      });
+      recordSessionEnd(messagesCount);
+      trackSessionEnded(userId, sessionId, {
+        messagesCount,
+        durationSeconds,
+        tokensUsed: entry.tokensUsed,
+        reason: 'server_shutdown',
+      });
+      if (messagesCount >= MIN_MESSAGES_FOR_COMPLETION) {
+        sharedTierService.recordSessionCompletionAsync(userId, sessionId).catch(() => {});
+      }
     }
   }
   engineSessions.clear();

@@ -101,7 +101,7 @@ export async function summarizeSession(
     throw new Error('Cannot summarize an empty conversation');
   }
 
-  const client = new Anthropic({ apiKey: config.apiKey });
+  const client = new Anthropic({ apiKey: config.apiKey, timeout: 15_000 });
 
   const transcript = formatConversation(history);
 
@@ -116,6 +116,11 @@ export async function summarizeSession(
       },
     ],
   });
+
+  // Detect truncation — incomplete JSON will fail parsing downstream
+  if (response.stop_reason === 'max_tokens') {
+    console.warn('[LoRa::MemoryV2::Summarizer] response truncated (max_tokens)');
+  }
 
   const textBlock = response.content.find((block) => block.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {

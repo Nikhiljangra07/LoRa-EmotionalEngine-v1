@@ -89,8 +89,9 @@ export function computeSimilarity(
     W_INTENSITY * intensityDistance(current, past) +
     W_CONTEXT * contextSimilarity(current, past);
 
-  // Clamp to [0, 1] — should already be in range but be safe
-  return Math.max(0, Math.min(1, score));
+  // Clamp to [0, 1] — NaN from corrupted intensity falls to 0
+  const clamped = Math.max(0, Math.min(1, score));
+  return Number.isFinite(clamped) ? clamped : 0;
 }
 
 // Export sub-functions for testing

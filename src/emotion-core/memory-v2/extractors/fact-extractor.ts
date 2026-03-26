@@ -131,7 +131,7 @@ export async function extractFacts(
   summary: SessionSummary,
   config: FactExtractorConfig,
 ): Promise<FactAnchor[]> {
-  const client = new Anthropic({ apiKey: config.apiKey });
+  const client = new Anthropic({ apiKey: config.apiKey, timeout: 15_000 });
 
   const response = await client.messages.create({
     model: config.model,
@@ -144,6 +144,10 @@ export async function extractFacts(
       },
     ],
   });
+
+  if (response.stop_reason === 'max_tokens') {
+    console.warn('[LoRa::MemoryV2::FactExtractor] response truncated (max_tokens)');
+  }
 
   const textBlock = response.content.find((block) => block.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {

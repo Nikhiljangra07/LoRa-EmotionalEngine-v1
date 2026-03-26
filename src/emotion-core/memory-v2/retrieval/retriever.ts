@@ -31,6 +31,7 @@ const VECTOR_QUERY_LIMIT = 10;
  */
 function recencyBoost(pastTimestamp: string, nowMs: number): number {
   const pastMs = new Date(pastTimestamp).getTime();
+  if (!Number.isFinite(pastMs)) return 0; // Invalid timestamp → no boost
   const daysSince = (nowMs - pastMs) / (24 * 60 * 60 * 1000);
 
   if (daysSince <= 0) return 1.0;

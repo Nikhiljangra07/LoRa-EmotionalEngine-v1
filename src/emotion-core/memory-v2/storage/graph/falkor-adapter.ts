@@ -78,7 +78,15 @@ export class FalkorGraphStore implements IGraphStore {
       }
     }
 
-    await pipeline.exec();
+    const results = await pipeline.exec();
+    // Check for pipeline-level errors
+    if (results) {
+      for (const [err] of results) {
+        if (err) {
+          throw new Error(`Falkor pipeline error during storeAnchors: ${err.message}`);
+        }
+      }
+    }
   }
 
   async getAnchorsForSessions(userId: string, sessionIds: string[]): Promise<FactAnchor[]> {
@@ -95,8 +103,14 @@ export class FalkorGraphStore implements IGraphStore {
     if (results) {
       for (const [err, val] of results) {
         if (!err && typeof val === 'string') {
-          const parsed = JSON.parse(val) as FactAnchor[];
-          allAnchors.push(...parsed);
+          try {
+            const parsed = JSON.parse(val) as FactAnchor[];
+            if (Array.isArray(parsed)) {
+              allAnchors.push(...parsed);
+            }
+          } catch {
+            // Corrupted JSON in Redis — skip this session's anchors
+          }
         }
       }
     }

@@ -225,7 +225,7 @@ export async function verifyExtraction(
   fingerprint: SessionFingerprint,
   config: VerifierConfig,
 ): Promise<VerificationResult> {
-  const client = new Anthropic({ apiKey: config.apiKey });
+  const client = new Anthropic({ apiKey: config.apiKey, timeout: 15_000 });
   const prompt = buildVerificationPrompt(summary, facts, fingerprint);
 
   // Attempt 1: standard call

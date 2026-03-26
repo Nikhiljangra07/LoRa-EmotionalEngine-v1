@@ -1,5 +1,6 @@
 import type { IMemoryAdapter, SessionEndData, ProcessResult } from './adapter-interface';
 import type {
+  ConversationTurn,
   EmotionalFingerprint,
   MemoryContext,
   SessionSummary,
@@ -77,13 +78,61 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
 
     v2log(`begin`, { uid, sid, turns: conversationHistory.length, eivPoints: eivCurve.length });
 
+    try {
+      // Pipeline-level timeout: 45s max. Individual LLM calls have 15s timeout.
+      // 45s accommodates: summary (~8s) + extraction (~8s) + verify (~5s) + re-extract (~8s) + storage (~2s)
+      const PIPELINE_TIMEOUT_MS = 45_000;
+      let timeoutHandle: ReturnType<typeof setTimeout>;
+      const result = await Promise.race([
+        this._processSessionEndInner(
+          userId, sessionId, conversationHistory, eivCurve, uid, sid, t0,
+        ),
+        new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(
+            () => reject(new Error(`Pipeline timeout after ${PIPELINE_TIMEOUT_MS}ms`)),
+            PIPELINE_TIMEOUT_MS,
+          );
+        }),
+      ]);
+      clearTimeout(timeoutHandle!);
+      return result;
+    } catch (fatalErr) {
+      // Absolute last resort — no session should silently vanish
+      const errMsg = fatalErr instanceof Error ? fatalErr.message : String(fatalErr);
+      console.error(
+        `[LoRa::MemoryV2] FATAL consolidation failure`,
+        { uid, sid, ms: Date.now() - t0, error: errMsg },
+      );
+      return {
+        stored: false,
+        factsCount: 0,
+        fingerprintStored: false,
+        profileUpdated: false,
+        reExtracted: false,
+      };
+    }
+  }
+
+  private async _processSessionEndInner(
+    userId: string, sessionId: string,
+    conversationHistory: ConversationTurn[], eivCurve: number[],
+    uid: string, sid: string, t0: number,
+  ): Promise<ProcessResult> {
     // ── Step 1: Summarize ──
-    // Summary exists ONLY in memory — never persisted
+    // Summary exists ONLY in memory — never persisted.
+    // If summarization fails, we cannot extract anything — bail early.
     const t1 = Date.now();
-    let summary: SessionSummary | null = await summarizeSession(
-      conversationHistory,
-      { model: this.config.summarizerModel, apiKey: this.config.apiKey },
-    );
+    let summary: SessionSummary | null;
+    try {
+      summary = await summarizeSession(
+        conversationHistory,
+        { model: this.config.summarizerModel, apiKey: this.config.apiKey },
+      );
+    } catch (sumErr) {
+      const errMsg = sumErr instanceof Error ? sumErr.message : String(sumErr);
+      console.error(`[LoRa::MemoryV2] summarization failed — session lost`, { uid, sid, ms: Date.now() - t1, error: errMsg });
+      return { stored: false, factsCount: 0, fingerprintStored: false, profileUpdated: false, reExtracted: false };
+    }
     v2log(`summary`, {
       uid, ms: Date.now() - t1,
       primaryTopic: summary.primaryTopic,
@@ -92,141 +141,239 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
       unresolved: summary.unresolved.length,
     });
 
-    // ── Step 2: Dual extraction (parallel) ──
+    // ── Step 2: Dual extraction (parallel, independent) ──
+    // Use allSettled so one failure doesn't kill the other.
     const extractorConfig = { model: this.config.extractorModel, apiKey: this.config.apiKey };
     const metadata = { turns: conversationHistory, sessionId, userId };
 
     const t2 = Date.now();
-    const [facts, fingerprint] = await Promise.all([
+    const [factsResult, fingerprintResult] = await Promise.allSettled([
       extractFacts(summary, extractorConfig),
       extractFingerprint(summary, eivCurve, metadata, extractorConfig),
     ]);
-    v2log(`facts`, {
-      uid, ms: Date.now() - t2, count: facts.length,
-      items: facts.map(f => `${f.type}:${f.slot}=${f.value}`),
-    });
-    v2log(`fingerprint`, {
+
+    const facts: FactAnchor[] = factsResult.status === 'fulfilled' ? factsResult.value : [];
+    const fingerprint: SessionFingerprint | null = fingerprintResult.status === 'fulfilled' ? fingerprintResult.value : null;
+
+    if (factsResult.status === 'rejected') {
+      console.error(`[LoRa::MemoryV2] fact extraction failed`, { uid, error: factsResult.reason?.message ?? String(factsResult.reason) });
+    }
+    if (fingerprintResult.status === 'rejected') {
+      console.error(`[LoRa::MemoryV2] fingerprint extraction failed`, { uid, error: fingerprintResult.reason?.message ?? String(fingerprintResult.reason) });
+    }
+
+    // If BOTH failed, bail — nothing to store
+    if (facts.length === 0 && !fingerprint) {
+      console.error(`[LoRa::MemoryV2] both extractions failed — session lost`, { uid, sid });
+      return { stored: false, factsCount: 0, fingerprintStored: false, profileUpdated: false, reExtracted: false };
+    }
+
+    v2log(`extraction`, {
       uid, ms: Date.now() - t2,
-      primary: fingerprint.emotionalFingerprint.primary,
-      undertones: fingerprint.emotionalFingerprint.undertones,
-      context: fingerprint.emotionalFingerprint.contextCategory,
-      tension: fingerprint.decisionPattern.primaryTension,
-      importance: fingerprint.importanceScore,
-      peakEIV: fingerprint.peakIntensity,
-      resolution: fingerprint.resolution,
+      factsOk: factsResult.status === 'fulfilled', factsCount: facts.length,
+      fingerprintOk: fingerprintResult.status === 'fulfilled',
     });
+    if (facts.length > 0) {
+      v2log(`facts`, { uid, items: facts.map(f => `${f.type}:${f.slot}=${f.value}`) });
+    }
+    if (fingerprint) {
+      v2log(`fingerprint`, {
+        uid,
+        primary: fingerprint.emotionalFingerprint.primary,
+        undertones: fingerprint.emotionalFingerprint.undertones,
+        context: fingerprint.emotionalFingerprint.contextCategory,
+        tension: fingerprint.decisionPattern.primaryTension,
+        importance: fingerprint.importanceScore,
+        peakEIV: fingerprint.peakIntensity,
+        resolution: fingerprint.resolution,
+      });
+    }
 
     // ── Step 3: Verify ──
     // Verification is a safety net, not a gate. If it crashes,
-    // we still store the extracted data — the extractors already
-    // have their own validation. A broken verifier should never
-    // prevent consolidation.
-    const t3 = Date.now();
-    let verificationResult = await verifyExtraction(
-      summary, facts, fingerprint, extractorConfig,
-    );
-    v2log(`verify`, {
-      uid, ms: Date.now() - t3,
-      verified: verificationResult.verified,
-      flaggedFacts: verificationResult.flaggedFacts.length,
-      fingerprintIssues: verificationResult.fingerprintIssues,
-    });
-
+    // we still store the extracted data. A broken verifier should
+    // never prevent consolidation.
     let finalFacts: FactAnchor[] = facts;
-    let finalFingerprint: SessionFingerprint = fingerprint;
+    let finalFingerprint: SessionFingerprint | null = fingerprint;
     let reExtracted = false;
 
-    // ── Step 4/5: Re-extract if flagged (max 1 retry) ──
-    if (!verificationResult.verified) {
-      reExtracted = true;
-      v2log(`re-extracting`, { uid, flaggedFacts: verificationResult.flaggedFacts.length, fingerprintIssues: verificationResult.fingerprintIssues.length });
-
+    if (fingerprint && facts.length > 0) {
+      const t3 = Date.now();
+      let verificationResult;
       try {
-        // Re-extract only what was flagged
-        if (verificationResult.flaggedFacts.length > 0) {
-          finalFacts = await extractFacts(summary, extractorConfig);
-        }
-
-        if (verificationResult.fingerprintIssues.length > 0) {
-          finalFingerprint = await extractFingerprint(
-            summary, eivCurve, metadata, extractorConfig,
-          );
-        }
-
-        // Re-verify (but don't retry again — avoid infinite loops)
         verificationResult = await verifyExtraction(
-          summary, finalFacts, finalFingerprint, extractorConfig,
+          summary, facts, fingerprint, extractorConfig,
         );
-        v2log(`re-verify`, { uid, verified: verificationResult.verified });
-      } catch (reExtractErr) {
-        // Re-extraction failed — store original extraction anyway
-        v2log(`re-extract failed, using original extraction`, {
-          uid, error: (reExtractErr as Error).message,
+        v2log(`verify`, {
+          uid, ms: Date.now() - t3,
+          verified: verificationResult.verified,
+          flaggedFacts: verificationResult.flaggedFacts.length,
+          fingerprintIssues: verificationResult.fingerprintIssues,
         });
-        finalFacts = facts;
-        finalFingerprint = fingerprint;
+      } catch (verifyErr) {
+        console.error(`[LoRa::MemoryV2] verifier crashed — storing unverified`, {
+          uid, error: (verifyErr as Error).message,
+        });
+        verificationResult = null;
       }
 
-      // If still failing after retry, store what we have anyway
-      // (the extraction validation already filters out invalid data)
+      // ── Step 4/5: Re-extract if flagged (max 1 retry) ──
+      if (verificationResult && !verificationResult.verified) {
+        reExtracted = true;
+        v2log(`re-extracting`, { uid, flaggedFacts: verificationResult.flaggedFacts.length, fingerprintIssues: verificationResult.fingerprintIssues.length });
+
+        try {
+          if (verificationResult.flaggedFacts.length > 0) {
+            finalFacts = await extractFacts(summary, extractorConfig);
+          }
+          if (verificationResult.fingerprintIssues.length > 0) {
+            finalFingerprint = await extractFingerprint(
+              summary, eivCurve, metadata, extractorConfig,
+            );
+          }
+
+          // Re-verify (but don't retry again — avoid infinite loops)
+          const reVerify = await verifyExtraction(
+            summary, finalFacts, finalFingerprint!, extractorConfig,
+          );
+          v2log(`re-verify`, { uid, verified: reVerify.verified });
+        } catch (reExtractErr) {
+          v2log(`re-extract failed, using original extraction`, {
+            uid, error: (reExtractErr as Error).message,
+          });
+          finalFacts = facts;
+          finalFingerprint = fingerprint;
+        }
+      }
     }
 
-    // ── Step 6: Store ──
-    await Promise.all([
-      this.graphStore.storeAnchors(userId, sessionId, finalFacts),
-      this.vectorStore.store(userId, finalFingerprint),
-    ]);
+    // ── Step 6: Store (independent — one failure doesn't block the other) ──
+    let factsStored = false;
+    let fingerprintStored = false;
 
-    // ── Step 7: Update profile ──
-    const existingProfile = this.userProfiles.get(userId) ?? null;
-    const updatedProfile = updateProfile(existingProfile, finalFingerprint);
-    this.userProfiles.set(userId, updatedProfile);
+    const storeOps: Promise<void>[] = [];
+
+    if (finalFacts.length > 0) {
+      storeOps.push(
+        this._storeWithRetry(
+          () => this.graphStore.storeAnchors(userId, sessionId, finalFacts),
+          'facts', uid,
+        ).then(() => { factsStored = true; }),
+      );
+    }
+
+    if (finalFingerprint) {
+      storeOps.push(
+        this._storeWithRetry(
+          () => this.vectorStore.store(userId, finalFingerprint!),
+          'fingerprint', uid,
+        ).then(() => { fingerprintStored = true; }),
+      );
+    }
+
+    await Promise.allSettled(storeOps);
+
+    // ── Step 7: Update profile (only if fingerprint stored) ──
+    let profileUpdated = false;
+    if (fingerprintStored && finalFingerprint) {
+      const existingProfile = this.userProfiles.get(userId) ?? null;
+      const updatedProfile = updateProfile(existingProfile, finalFingerprint);
+      this.userProfiles.set(userId, updatedProfile);
+      profileUpdated = true;
+    }
 
     // ── Step 8: DISCARD summary ──
-    // This is the critical privacy step: the summary is transient
     summary = null;
 
     v2log(`complete`, {
       uid, sid,
       totalMs: Date.now() - t0,
       factsCount: finalFacts.length,
+      factsStored,
+      fingerprintStored,
       reExtracted,
-      verified: verificationResult.verified,
     });
 
     return {
-      stored: true,
-      factsCount: finalFacts.length,
-      fingerprintStored: true,
-      profileUpdated: true,
+      stored: factsStored || fingerprintStored,
+      factsCount: factsStored ? finalFacts.length : 0,
+      fingerprintStored,
+      profileUpdated,
       reExtracted,
     };
+  }
+
+  /**
+   * Store with 1 retry after 500ms backoff.
+   * DB connections can hiccup on Railway — one retry catches transients.
+   */
+  private async _storeWithRetry(
+    op: () => Promise<void>,
+    label: string,
+    uid: string,
+  ): Promise<void> {
+    try {
+      await op();
+    } catch (firstErr) {
+      console.warn(`[LoRa::MemoryV2] ${label} store failed, retrying in 500ms`, {
+        uid, error: (firstErr as Error).message,
+      });
+      await new Promise((r) => setTimeout(r, 500));
+      try {
+        await op();
+      } catch (retryErr) {
+        console.error(`[LoRa::MemoryV2] ${label} store FAILED after retry`, {
+          uid, error: (retryErr as Error).message,
+        });
+        throw retryErr;
+      }
+    }
   }
 
   async retrieveContext(
     userId: string,
     currentState: EmotionalFingerprint,
   ): Promise<MemoryContext> {
+    const EMPTY_CONTEXT: MemoryContext = {
+      matchedSessions: [],
+      relatedFacts: [],
+      responseMode: 'silent',
+      topSimilarity: 0,
+    };
+
     // ── Step 1: Retrieve raw matches ──
-    const rawContext = await retrieveMemory(
-      userId, currentState, this.vectorStore, this.graphStore,
-    );
+    let rawContext;
+    try {
+      rawContext = await retrieveMemory(
+        userId, currentState, this.vectorStore, this.graphStore,
+      );
+    } catch (retrieveErr) {
+      console.error(`[LoRa::MemoryV2] retrieval failed — returning empty context`, {
+        uid: userId.slice(0, 8), error: (retrieveErr as Error).message,
+      });
+      return EMPTY_CONTEXT;
+    }
 
     // ── Step 2: Filter through fog logic ──
     const nowMs = Date.now();
-    const visibleSessions = rawContext.matchedSessions.filter(
-      (match) => isVisible(match.fingerprint, nowMs),
-    );
+    const visibleSessions = rawContext.matchedSessions.filter((match) => {
+      try {
+        return isVisible(match.fingerprint, nowMs);
+      } catch {
+        return false; // Malformed timestamp — hide rather than crash
+      }
+    });
 
     // ── Step 3: Touch access on visible fingerprints ──
-    // This lifts the fog and resets decay timers
     for (const match of visibleSessions) {
-      const touched = touchAccess(match.fingerprint);
-      // Persist the updated access metadata
-      await this.vectorStore.store(userId, touched);
+      try {
+        const touched = touchAccess(match.fingerprint);
+        await this.vectorStore.store(userId, touched);
+      } catch {
+        // Non-critical: access metadata update failed, memory still returned
+      }
     }
 
-    // Update topSimilarity based on visible sessions only
     const topSimilarity = visibleSessions.length > 0
       ? visibleSessions[0]!.similarity
       : 0;

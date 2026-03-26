@@ -28,8 +28,21 @@ function serializeFingerprint(fp: SessionFingerprint): string {
 /**
  * Deserialize a SessionFingerprint from ChromaDB metadata.
  */
-function deserializeFingerprint(json: string): SessionFingerprint {
-  return JSON.parse(json) as SessionFingerprint;
+function deserializeFingerprint(json: string): SessionFingerprint | null {
+  try {
+    const parsed = JSON.parse(json);
+    // Minimal shape check — must have sessionId and emotionalFingerprint
+    if (
+      typeof parsed === 'object' && parsed !== null &&
+      typeof parsed.sessionId === 'string' &&
+      typeof parsed.emotionalFingerprint === 'object' && parsed.emotionalFingerprint !== null
+    ) {
+      return parsed as SessionFingerprint;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -105,7 +118,8 @@ export class ChromaVectorStore implements IVectorStore {
     if (metadatas) {
       for (const meta of metadatas) {
         if (meta && typeof meta['fingerprint_json'] === 'string') {
-          fingerprints.push(deserializeFingerprint(meta['fingerprint_json']));
+          const fp = deserializeFingerprint(meta['fingerprint_json']);
+          if (fp) fingerprints.push(fp);
         }
       }
     }

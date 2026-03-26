@@ -27,7 +27,9 @@ const MAX_FINGERPRINT_LIBRARY = 5;
  * new_value = alpha * observation + (1 - alpha) * old_value
  */
 function ewma(oldValue: number, observation: number, alpha: number = EWMA_ALPHA): number {
-  return alpha * observation + (1 - alpha) * oldValue;
+  const old = Number.isFinite(oldValue) ? oldValue : 0;
+  const obs = Number.isFinite(observation) ? observation : 0;
+  return alpha * obs + (1 - alpha) * old;
 }
 
 // ── Verbosity / emotional density from style snapshot ──
@@ -80,11 +82,12 @@ function computeTypicalPrimary(fingerprints: SessionFingerprint[]): EkmanEmotion
 function computeVolatility(fingerprints: SessionFingerprint[]): number {
   if (fingerprints.length < 2) return 0;
 
-  const peaks = fingerprints.map((fp) => fp.peakIntensity);
+  const peaks = fingerprints.map((fp) => Number.isFinite(fp.peakIntensity) ? fp.peakIntensity : 0);
   const mean = peaks.reduce((sum, v) => sum + v, 0) / peaks.length;
   const variance = peaks.reduce((sum, v) => sum + (v - mean) ** 2, 0) / peaks.length;
+  const stddev = Math.sqrt(Math.max(0, variance)); // Guard against floating-point negative
 
-  return Math.round(Math.sqrt(variance) * 1000) / 1000;
+  return Math.round(stddev * 1000) / 1000;
 }
 
 // ── Fingerprint library management ──
@@ -135,9 +138,9 @@ function createProfile(userId: string, fingerprint: SessionFingerprint): UserPro
     lastSeen: now,
 
     communicationStyle: {
-      verbosity: verbosityFromWords(fingerprint.styleSnapshot.avgWordsPerMessage),
-      emotionalDensity: emotionalDensityFromIntensity(fingerprint.emotionalFingerprint.intensity),
-      directness: fingerprint.styleSnapshot.directness,
+      verbosity: verbosityFromWords(fingerprint.styleSnapshot?.avgWordsPerMessage ?? 0),
+      emotionalDensity: emotionalDensityFromIntensity(fingerprint.emotionalFingerprint?.intensity ?? 0),
+      directness: fingerprint.styleSnapshot?.directness ?? 0.5,
       resistancePattern: 'deflect', // Default until we have enough data
     },
 
@@ -180,13 +183,15 @@ export function updateProfile(
   const updatedLibrary = updateLibrary(existing.fingerprintLibrary, newFingerprint);
 
   // EWMA updates for communication style
-  const newVerbosity = verbosityFromWords(newFingerprint.styleSnapshot.avgWordsPerMessage);
-  const newDensity = emotionalDensityFromIntensity(newFingerprint.emotionalFingerprint.intensity);
+  // Guard: styleSnapshot may be missing on old/corrupted fingerprints
+  const style = newFingerprint.styleSnapshot ?? { avgWordsPerMessage: 0, questionRatio: 0, directness: 0.5 };
+  const newVerbosity = verbosityFromWords(style.avgWordsPerMessage ?? 0);
+  const newDensity = emotionalDensityFromIntensity(newFingerprint.emotionalFingerprint?.intensity ?? 0);
 
   const communicationStyle = {
     verbosity: round3(ewma(existing.communicationStyle.verbosity, newVerbosity)),
     emotionalDensity: round3(ewma(existing.communicationStyle.emotionalDensity, newDensity)),
-    directness: round3(ewma(existing.communicationStyle.directness, newFingerprint.styleSnapshot.directness)),
+    directness: round3(ewma(existing.communicationStyle.directness, style.directness ?? 0.5)),
     resistancePattern: existing.communicationStyle.resistancePattern, // Updated from InterventionRecords, not fingerprints
   };
 

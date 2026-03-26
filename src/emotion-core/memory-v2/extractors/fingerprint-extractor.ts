@@ -251,7 +251,7 @@ function validateLLMExtraction(raw: unknown): RawLLMExtraction {
   }
   const efObj = ef as Record<string, unknown>;
 
-  const rawPrimary = (efObj['primary'] as string || '').toLowerCase().trim();
+  const rawPrimary = (typeof efObj['primary'] === 'string' ? efObj['primary'] : '').toLowerCase().trim();
   const primary = mapToEkman(rawPrimary);
   if (!primary) {
     throw new Error(`Cannot map primary emotion: ${rawPrimary}`);
@@ -345,12 +345,12 @@ export async function extractFingerprint(
   metadata: ConversationMetadata,
   config: FingerprintExtractorConfig,
 ): Promise<SessionFingerprint> {
-  const client = new Anthropic({ apiKey: config.apiKey });
+  const client = new Anthropic({ apiKey: config.apiKey, timeout: 15_000 });
 
   // Call Haiku for emotional extraction
   const response = await client.messages.create({
     model: config.model,
-    max_tokens: 512,
+    max_tokens: 768,
     system: FINGERPRINT_EXTRACTION_SYSTEM_PROMPT,
     messages: [
       {
@@ -359,6 +359,10 @@ export async function extractFingerprint(
       },
     ],
   });
+
+  if (response.stop_reason === 'max_tokens') {
+    console.warn('[LoRa::MemoryV2::FingerprintExtractor] response truncated (max_tokens)');
+  }
 
   const textBlock = response.content.find((block) => block.type === 'text');
   if (!textBlock || textBlock.type !== 'text') {
