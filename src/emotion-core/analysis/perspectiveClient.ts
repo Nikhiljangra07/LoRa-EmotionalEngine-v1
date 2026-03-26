@@ -27,8 +27,8 @@ const PERSPECTIVE_TIMEOUT_QUICK_MS = parseInt(
   process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '12000',
   10,
 );
-/** Deep mode gets more time — 5 frameworks + condensation. */
-const PERSPECTIVE_TIMEOUT_DEEP_MS = 20_000;
+/** Deep reasoning gets more time — 5 parallel frameworks + Sonnet synthesis (60-79s typical). */
+const PERSPECTIVE_TIMEOUT_DEEP_MS = 90_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -69,12 +69,15 @@ export async function fetchPerspectiveAnalysis(
   const start = Date.now();
   const timeoutMs = mode === 'deep' ? PERSPECTIVE_TIMEOUT_DEEP_MS : PERSPECTIVE_TIMEOUT_QUICK_MS;
 
+  // Map backend vocabulary to LoRaMaths API mode
+  const apiMode = mode === 'deep' ? 'deep_reasoning' as const : mode;
+
   const requestBody: PerspectiveAnalyzeRequest = {
     text: userMessage,
     conversation_context: mapSessionHistory(sessionHistory),
     known_variables: [],
     domain: domain ?? null,
-    ...(mode ? { mode } : {}),
+    ...(apiMode ? { mode: apiMode } : {}),
   };
 
   try {

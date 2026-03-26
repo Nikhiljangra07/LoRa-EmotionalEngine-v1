@@ -19,7 +19,7 @@ export interface PerspectiveAnalyzeRequest {
   conversation_context: PerspectiveConversationTurn[];
   known_variables: string[];
   domain: string | null;
-  mode?: 'quick' | 'deep';
+  mode?: 'quick' | 'deep_reasoning';
 }
 
 // ---------------------------------------------------------------------------
@@ -59,4 +59,14 @@ export interface PerspectiveAnalyzeResponse {
   anti_creep_passed: boolean;
   diversity_score: number;
   processing_time_ms: number;
+
+  // Deep reasoning mode fields (present only when mode='deep_reasoning')
+  synthesis?: string;
+  conflict_summary?: string;
+  dominance?: string;
+  dimensions_detected?: string[];
+  frameworks_evaluated?: number;
+  combinations_scored?: number;
+  formation_chosen?: string;
+  formation_reasoning?: string;
 }

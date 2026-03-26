@@ -153,6 +153,17 @@ export class EngineOrchestrator {
     eiv: ReturnType<typeof EIVScorer.calculate>;
     prompt: string;
     llmOutput: string;
+    deepAnalysis?: boolean;
+    deepMeta?: {
+      conflict_summary?: string;
+      dominance?: string;
+      dimensions_detected?: string[];
+      frameworks_evaluated?: number;
+      combinations_scored?: number;
+      formation_chosen?: string;
+      formation_reasoning?: string;
+      processing_time_ms?: number;
+    };
     debug: {
       etv: number;
       band: string;
@@ -1264,6 +1275,51 @@ export class EngineOrchestrator {
         // Swallow — LoRa works without perspectives
         console.warn('[LoRa::Perspective] Unexpected error:', err);
       }
+    }
+
+    // ── Deep reasoning mode: synthesis IS the reply, skip LLM call ──
+    if (perspectiveMode === 'deep' && perspectiveAnalysis?.synthesis) {
+      const guardedSynthesis = enforceIdentity(perspectiveAnalysis.synthesis);
+
+      console.log(
+        `[LoRa::DeepReasoning] synthesis received — ` +
+        `${guardedSynthesis.length} chars, ` +
+        `formation=${perspectiveAnalysis.formation_chosen}, ` +
+        `dominance=${perspectiveAnalysis.dominance}, ` +
+        `engine=${perspectiveAnalysis.processing_time_ms}ms`,
+      );
+
+      this.messageCount++;
+      this.lastMessageTimestampMs = Date.now();
+
+      const decision = {
+        eiv: eivResult,
+        prompt: '[deep_reasoning: synthesis used directly]',
+        llmOutput: guardedSynthesis,
+        deepAnalysis: true as const,
+        deepMeta: {
+          conflict_summary: perspectiveAnalysis.conflict_summary,
+          dominance: perspectiveAnalysis.dominance,
+          dimensions_detected: perspectiveAnalysis.dimensions_detected,
+          frameworks_evaluated: perspectiveAnalysis.frameworks_evaluated,
+          combinations_scored: perspectiveAnalysis.combinations_scored,
+          formation_chosen: perspectiveAnalysis.formation_chosen,
+          formation_reasoning: perspectiveAnalysis.formation_reasoning,
+          processing_time_ms: perspectiveAnalysis.processing_time_ms,
+        },
+        debug: {
+          etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
+          band: this.lastEtvPolicy?.band ?? 'B0',
+          anchorsUsed: memServiceAnchors.length,
+          schemasUsed: memServiceSemanticCount,
+          degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+          stmTurns: sessionHistory?.length ?? 0,
+        },
+      };
+
+      this.lastDecision = decision;
+      this.activeExecution = undefined;
+      return decision;
     }
 
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {

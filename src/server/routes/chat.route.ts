@@ -572,7 +572,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       // ── Deep analysis mode detection ──
       let perspectiveMode: 'quick' | 'deep' | undefined;
-      if (featureFlags.perspectiveDeepModeEnabled && session.deepAnalysisPending) {
+      const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && req.body.deepMode === true;
+      if (deepModeRequested) {
+        perspectiveMode = 'deep';
+        console.log('[LoRa::DeepAnalysis] UI triggered — firing deep mode');
+      } else if (featureFlags.perspectiveDeepModeEnabled && session.deepAnalysisPending) {
         const yesPattern = /^(yes|yeah|yep|ok|sure|haan|ha|go ahead|do it|full|deep)\b/i;
         if (yesPattern.test(text.trim())) {
           perspectiveMode = 'deep';
@@ -608,8 +612,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       let reply = result.llmOutput ?? '';
       reply = enforceIdentity(reply);
-      reply = enforceWordLimit(reply, policy.maxWords);
-      reply = enforceQuestionLimit(reply, policy.maxQuestions);
+      const isDeepAnalysis = !!(result as any).deepAnalysis;
+      if (!isDeepAnalysis) {
+        reply = enforceWordLimit(reply, policy.maxWords);
+        reply = enforceQuestionLimit(reply, policy.maxQuestions);
+      }
 
       const consumed =
         estimateRequestTokens(session.history, '') + Math.ceil(reply.length / 4);
@@ -643,6 +650,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         reply,
         tier: tierRecord.tier,
         sessionCount: tierRecord.sessionCount,
+        ...(isDeepAnalysis ? {
+          deepAnalysis: true,
+          deepMeta: (result as any).deepMeta,
+        } : {}),
         debug: {
           eiv: result.eiv?.value ?? 0,
           etv: debug.etv ?? 0,
@@ -652,7 +663,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           anchorsUsed: debug.anchorsUsed ?? 0,
           schemasUsed: debug.schemasUsed ?? 0,
           degraded: debug.degraded ?? { falkor: false, chroma: false },
-          ...(debug.behaviorMode ? { behaviorMode: debug.behaviorMode } : {}),
+          ...((debug as any).behaviorMode ? { behaviorMode: (debug as any).behaviorMode } : {}),
           ...(debug.stmTurns !== undefined ? { stmTurns: debug.stmTurns } : {}),
           ...((debug as any).personaEnforcer ? { personaEnforcer: (debug as any).personaEnforcer } : {}),
         },
