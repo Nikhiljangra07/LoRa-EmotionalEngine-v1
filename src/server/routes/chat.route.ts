@@ -616,7 +616,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       let reply = result.llmOutput ?? '';
       reply = enforceIdentity(reply);
       const isDeepAnalysis = !!(result as any).deepAnalysis;
-      if (!isDeepAnalysis) {
+      if (isDeepAnalysis) {
+        // Deep mode: soft cap at 800 words (2x normal) to prevent word dumps
+        reply = enforceWordLimit(reply, 800);
+      } else {
         reply = enforceWordLimit(reply, policy.maxWords);
         reply = enforceQuestionLimit(reply, policy.maxQuestions);
       }
