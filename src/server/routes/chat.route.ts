@@ -63,6 +63,8 @@ export interface SessionEntry {
   deepAnalysisPending?: boolean;
   /** Message index when the deep analysis offer was made. */
   deepAnalysisOfferedAt?: number;
+  /** Original message stored during deep mode clarification. */
+  deepClarifyOriginal?: string;
 }
 
 const DEFAULT_ETV = 0.5;
@@ -576,7 +578,16 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       // ── Deep analysis mode detection ──
       let perspectiveMode: 'quick' | 'deep' | undefined;
       const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && validated.data.deepMode === true;
-      if (deepModeRequested) {
+
+      // Check if this is a clarification response (user answered after ambiguous deep question)
+      if (deepModeRequested && session.deepClarifyOriginal) {
+        perspectiveMode = 'deep';
+        // Combine original + clarification for enriched context
+        const enrichedText = `${session.deepClarifyOriginal}\n\n[User clarified]: ${text}`;
+        (validated.data as any).text = enrichedText;
+        session.deepClarifyOriginal = undefined;
+        console.log('[LoRa::DeepAnalysis] clarification received — firing with enriched context');
+      } else if (deepModeRequested) {
         perspectiveMode = 'deep';
         console.log('[LoRa::DeepAnalysis] UI triggered — firing deep mode');
       } else if (featureFlags.perspectiveDeepModeEnabled && session.deepAnalysisPending) {
@@ -615,6 +626,13 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       let reply = result.llmOutput ?? '';
       reply = enforceIdentity(reply);
       const isDeepAnalysis = !!(result as any).deepAnalysis;
+      const isDeepClarification = !!(result as any).deepClarification;
+
+      // If deep mode returned a clarification, store original message for next request
+      if (isDeepClarification) {
+        session.deepClarifyOriginal = text;
+        console.log('[LoRa::DeepAnalysis] storing original message for clarification flow');
+      }
 
       if (isDeepAnalysis) {
         // Deep mode: soft cap at 900 words — thorough but not a dump
@@ -655,6 +673,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       res.status(200).json({
         reply,
         tier: tierRecord.tier,
+        ...(isDeepClarification ? { deepClarification: true } : {}),
         sessionCount: tierRecord.sessionCount,
         ...(isDeepAnalysis ? {
           deepAnalysis: true,

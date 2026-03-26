@@ -1277,6 +1277,33 @@ export class EngineOrchestrator {
       }
     }
 
+    // ── Deep reasoning: clarification needed (question too ambiguous) ──
+    if (perspectiveMode === 'deep' && perspectiveAnalysis?.needs_clarification && perspectiveAnalysis.clarification_question) {
+      console.log('[LoRa::DeepReasoning] question ambiguous — asking clarification');
+
+      this.messageCount++;
+      this.lastMessageTimestampMs = Date.now();
+
+      const decision = {
+        eiv: eivResult,
+        prompt: '[deep_reasoning: clarification needed]',
+        llmOutput: perspectiveAnalysis.clarification_question,
+        deepClarification: true as const,
+        debug: {
+          etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,
+          band: this.lastEtvPolicy?.band ?? 'B0',
+          anchorsUsed: memServiceAnchors.length,
+          schemasUsed: memServiceSemanticCount,
+          degraded: { falkor: this.falkorDegraded, chroma: this.chromaDegraded },
+          stmTurns: sessionHistory?.length ?? 0,
+        },
+      };
+
+      this.lastDecision = decision;
+      this.activeExecution = undefined;
+      return decision;
+    }
+
     // ── Deep reasoning mode: synthesis IS the reply, skip LLM call ──
     if (perspectiveMode === 'deep' && perspectiveAnalysis?.synthesis) {
       const guardedSynthesis = enforceIdentity(perspectiveAnalysis.synthesis);

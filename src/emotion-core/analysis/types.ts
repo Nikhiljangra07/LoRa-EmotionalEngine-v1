@@ -69,4 +69,7 @@ export interface PerspectiveAnalyzeResponse {
   combinations_scored?: number;
   formation_chosen?: string;
   formation_reasoning?: string;
+  // Clarification (question too ambiguous for deep analysis)
+  needs_clarification?: boolean;
+  clarification_question?: string;
 }
