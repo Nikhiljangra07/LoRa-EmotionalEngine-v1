@@ -63,6 +63,10 @@ export interface SessionEntry {
   deepAnalysisPending?: boolean;
   /** Message index when the deep analysis offer was made. */
   deepAnalysisOfferedAt?: number;
+  /** True when deep mode is in clarification phase — next message completes the deep analysis. */
+  deepClarifyPending?: boolean;
+  /** The original user message that triggered deep mode (held during clarification). */
+  deepClarifyOriginal?: string;
 }
 
 const DEFAULT_ETV = 0.5;
@@ -573,12 +577,38 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         }
       }
 
-      // ── Deep analysis mode detection ──
+      // ── Deep analysis mode detection (two-step: clarify → analyze) ──
       let perspectiveMode: 'quick' | 'deep' | undefined;
       const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && validated.data.deepMode === true;
-      if (deepModeRequested) {
+
+      // Step 2: User responded to clarification → fire full deep pipeline with enriched context
+      if (featureFlags.perspectiveDeepModeEnabled && session.deepClarifyPending && session.deepClarifyOriginal) {
         perspectiveMode = 'deep';
-        console.log('[LoRa::DeepAnalysis] UI triggered — firing deep mode');
+        // Prepend original message to give LoRaMaths full context
+        const enrichedText = `${session.deepClarifyOriginal}\n\n[User clarified]: ${text}`;
+        // Override text for this request (the engine will see the combined context)
+        (validated.data as any).text = enrichedText;
+        session.deepClarifyPending = false;
+        session.deepClarifyOriginal = undefined;
+        console.log('[LoRa::DeepAnalysis] clarification received — firing deep pipeline with enriched context');
+      }
+      // Step 1: User triggered deep mode → ask clarifying question first
+      else if (deepModeRequested) {
+        const messageCount = session.history.filter(t => t.role === 'user').length;
+        // If conversation has context (3+ messages), skip clarification and go direct
+        if (messageCount >= 3) {
+          perspectiveMode = 'deep';
+          console.log('[LoRa::DeepAnalysis] sufficient context — firing deep mode directly');
+        } else {
+          // Not enough context — enter clarification phase
+          session.deepClarifyPending = true;
+          session.deepClarifyOriginal = text;
+          console.log('[LoRa::DeepAnalysis] entering clarification phase');
+
+          // Generate a quick clarifying question via the normal LLM path
+          // but with a special prompt hint
+          // The engine will handle this as a normal message but we'll mark it
+        }
       } else if (featureFlags.perspectiveDeepModeEnabled && session.deepAnalysisPending) {
         const yesPattern = /^(yes|yeah|yep|ok|sure|haan|ha|go ahead|do it|full|deep)\b/i;
         if (yesPattern.test(text.trim())) {
@@ -587,7 +617,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           session.engine.setDeepAnalysisPending(false);
           console.log('[LoRa::DeepAnalysis] user accepted — firing deep mode');
         } else {
-          // User moved on, reset pending state
           session.deepAnalysisPending = false;
           session.engine.setDeepAnalysisPending(false);
         }
@@ -616,8 +645,18 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       let reply = result.llmOutput ?? '';
       reply = enforceIdentity(reply);
       const isDeepAnalysis = !!(result as any).deepAnalysis;
-      if (isDeepAnalysis) {
-        // Deep mode: soft cap at 800 words (2x normal) to prevent word dumps
+
+      // If we just entered clarification phase, override the reply with a focused question
+      if (session.deepClarifyPending) {
+        reply = enforceIdentity(result.llmOutput ?? '');
+        // Append a clarification nudge if the LLM didn't ask a question
+        if (!reply.includes('?')) {
+          reply += '\n\nWhat specifically do you want me to dig into?';
+        }
+        reply = enforceWordLimit(reply, policy.maxWords);
+        reply = enforceQuestionLimit(reply, policy.maxQuestions);
+      } else if (isDeepAnalysis) {
+        // Deep mode: soft cap at 800 words to prevent word dumps
         reply = enforceWordLimit(reply, 800);
       } else {
         reply = enforceWordLimit(reply, policy.maxWords);
@@ -656,6 +695,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         reply,
         tier: tierRecord.tier,
         sessionCount: tierRecord.sessionCount,
+        ...(session.deepClarifyPending ? { deepClarification: true } : {}),
         ...(isDeepAnalysis ? {
           deepAnalysis: true,
           deepMeta: (result as any).deepMeta,
