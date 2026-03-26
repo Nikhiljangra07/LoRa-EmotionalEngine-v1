@@ -106,6 +106,8 @@ export interface ApiChatBody {
   timestamp?: number;
   /** Alias accepted from external UIs that send "message" instead of "text". */
   message?: string;
+  /** UI-triggered deep reasoning mode (Pro tier). */
+  deepMode?: boolean;
 }
 
 export interface ApiChatResponse {
@@ -187,6 +189,7 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
       messageId,
       text: (rawText as string).trim(),
       timestamp,
+      ...(b.deepMode === true ? { deepMode: true } : {}),
     },
   };
 }
@@ -572,7 +575,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       // ── Deep analysis mode detection ──
       let perspectiveMode: 'quick' | 'deep' | undefined;
-      const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && req.body.deepMode === true;
+      const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && validated.data.deepMode === true;
       if (deepModeRequested) {
         perspectiveMode = 'deep';
         console.log('[LoRa::DeepAnalysis] UI triggered — firing deep mode');
