@@ -1396,7 +1396,7 @@ export class EngineOrchestrator {
       } : {}),
       userId: this.userId,
       messageId: `msg-${this.messageCount}`,
-      ...(perspectiveAnalysis ? {
+      ...(perspectiveAnalysis && perspectiveAnalysis.perspectives.length > 0 ? {
         perspectiveAnalysis: {
           perspectives: perspectiveAnalysis.perspectives.map(p => ({
             framework: p.framework,
@@ -1404,8 +1404,9 @@ export class EngineOrchestrator {
             condensed: p.condensed,
             strength: p.strength,
           })),
-          tension: perspectiveAnalysis.tension,
-          decision_point: perspectiveAnalysis.decision_point,
+          // Only pass tension/decision_point if they have content (deep mode)
+          ...(perspectiveAnalysis.tension ? { tension: perspectiveAnalysis.tension } : {}),
+          ...(perspectiveAnalysis.decision_point ? { decision_point: perspectiveAnalysis.decision_point } : {}),
         },
       } : {}),
       ...(this.memoryV2Context && this.memoryV2Context.relatedFacts.length > 0 ? {

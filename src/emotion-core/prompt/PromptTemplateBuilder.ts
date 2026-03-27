@@ -138,8 +138,8 @@ export class PromptTemplateBuilder {
           condensed: string;
           strength: number;
         }>;
-        tension: string;
-        decision_point: string;
+        tension?: string;
+        decision_point?: string;
       };
       memoryV2?: {
         matchedSessions: Array<{ similarity: number }>;
@@ -1117,8 +1117,8 @@ ${rsc.blockText}`;
         condensed: string;
         strength: number;
       }>;
-      tension: string;
-      decision_point: string;
+      tension?: string;
+      decision_point?: string;
     },
   ): string {
     if (!analysis || analysis.perspectives.length === 0) return '';
@@ -1126,30 +1126,14 @@ ${rsc.blockText}`;
     const lines: string[] = [
       '',
       '',
-      'ANALYTICAL FRAMEWORK (generated — invisible to user)',
-      '-----------------------------------------------------',
-      'These insights are your thinking, not your output. Absorb them, then CONVERSE.',
-      'Rules:',
-      '- NEVER reference frameworks, lenses, paths, or options by name or number.',
-      '- NEVER use "Path 1 / Path 2", "Option A / Option B", or any labeled structure.',
-      '- NEVER present insights as a list. Speak as one flowing thought.',
-      '- Lead with the most uncomfortable truth. Do NOT soften or generalize the insights.',
-      '- Sound like you are thinking through this WITH the user, not presenting TO them.',
-      '- Your response should read like a conversation turn, not a report.',
+      'INSIGHT (your thinking, not your output)',
+      '─────────────────────────────────────────',
+      'Absorb this, then respond conversationally. Lead with the sharpest truth.',
       '',
     ];
 
     for (const p of analysis.perspectives) {
-      lines.push(`[${p.label}] (relevance: ${Math.round(p.strength * 100)}%)`);
       lines.push(p.condensed);
-      lines.push('');
-    }
-
-    if (analysis.tension) {
-      lines.push(`Core tension: ${analysis.tension}`);
-    }
-    if (analysis.decision_point) {
-      lines.push(`Decision point: ${analysis.decision_point}`);
     }
 
     return lines.join('\n');
