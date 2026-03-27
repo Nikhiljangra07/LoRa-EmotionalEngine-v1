@@ -27,8 +27,8 @@ const PERSPECTIVE_TIMEOUT_QUICK_MS = parseInt(
   process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '12000',
   10,
 );
-/** Deep reasoning gets more time — 5 parallel frameworks + Sonnet synthesis (60-79s typical). */
-const PERSPECTIVE_TIMEOUT_DEEP_MS = 90_000;
+/** Deep reasoning gets more time — 5 parallel frameworks + Sonnet synthesis (68-81s typical, peaks at ~90s). */
+const PERSPECTIVE_TIMEOUT_DEEP_MS = 120_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
