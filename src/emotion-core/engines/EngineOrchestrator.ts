@@ -117,6 +117,17 @@ type LLMResponder = {
       sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
     }
   ): Promise<string>;
+  /** Optional streaming variant — returns full text, calls onToken for each chunk. */
+  generateResponseStream?(
+    systemPrompt: string,
+    userMessage: string,
+    onToken: (chunk: string) => void,
+    options?: {
+      signal?: AbortSignal;
+      requestId?: string;
+      sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
+    }
+  ): Promise<string>;
 };
 
 const DEFAULT_LLM_CONFIG: LLMConfig = {
@@ -363,6 +374,8 @@ export class EngineOrchestrator {
     signalPacket?: SignalPacket,
     sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
     perspectiveMode?: 'quick' | 'deep',
+    /** When provided, LLM tokens stream through this callback as they generate. */
+    onToken?: (chunk: string) => void,
   ) {
     const executionToken = Symbol('LLM_EXECUTION');
     if (this.activeExecution) {
@@ -1557,6 +1570,7 @@ export class EngineOrchestrator {
       decision,
       fallbackContext,
       sessionHistory,
+      onToken,
     );
 
     // ── Bootstrap Memory: record assistant reply summary ──
@@ -2191,6 +2205,7 @@ export class EngineOrchestrator {
       };
     },
     sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
+    onToken?: (chunk: string) => void,
   ): Promise<string> {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
@@ -2285,11 +2300,24 @@ export class EngineOrchestrator {
         if (process.env.NODE_ENV === 'test') {
           console.log(Object.keys(payload));
         }
-        const response = await this.getResponder().generateResponse(
-          systemPrompt,
-          userMessage,
-          payload
-        );
+        let response: string;
+        const responder = this.getResponder();
+        if (onToken && responder.generateResponseStream) {
+          // True streaming: tokens flow to client as Sonnet generates them.
+          // Skip retries for streaming (can't retry mid-stream).
+          response = await responder.generateResponseStream(
+            systemPrompt,
+            userMessage,
+            onToken,
+            payload,
+          );
+        } else {
+          response = await responder.generateResponse(
+            systemPrompt,
+            userMessage,
+            payload,
+          );
+        }
         clearTimeout(timer);
         return response;
       } catch (err) {
