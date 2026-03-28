@@ -64,6 +64,41 @@ import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 import { isMaskedPressurePersistent } from './maskedPressurePersistence';
 import { enforceIdentity } from '../policy/IdentityGuard';
 
+/**
+ * Detect trivial messages that don't benefit from perspective analysis.
+ * Greetings, thanks, short acknowledgments — skip the 3-4s Haiku call.
+ *
+ * NOT trivial: "tell me more", "go deeper", "explain" — these request
+ * deeper evaluation and SHOULD trigger perspective analysis.
+ */
+function isTrivialMessage(normalized: string): boolean {
+  const trimmed = normalized.trim();
+
+  // Very short messages (1-2 words) that aren't questions or commands
+  if (trimmed.length <= 8 && !trimmed.includes('?') && !trimmed.includes('why') && !trimmed.includes('how')) {
+    // Check it's not a short but substantive word
+    const substantive = /^(explain|elaborate|deeper|more|expand|continue|analyse|analyze)$/;
+    if (!substantive.test(trimmed)) return true;
+  }
+
+  // Greetings
+  if (/^(hi|hey|hello|hii|hiii|hlo|hnji|yo|sup|howdy|good\s*(morning|evening|afternoon|night)|namaste|hola)\b/.test(trimmed)) return true;
+
+  // Thanks / appreciation
+  if (/^(thanks?|thank\s*you|thx|ty|shukriya|dhanyavaad|great|awesome|perfect|cool|nice|good|ok|okay|fine|alright|got\s*it|understood|makes?\s*sense)\b/.test(trimmed) && trimmed.length < 40) return true;
+
+  // Agreement / acknowledgment
+  if (/^(yes|yeah|yep|yup|sure|haan|ha|hmm|hm|mm|right|true|correct|exactly|agreed|absolutely)\b/.test(trimmed) && trimmed.length < 25) return true;
+
+  // Farewell
+  if (/^(bye|goodbye|good\s*bye|see\s*you|take\s*care|later|gn|good\s*night)\b/.test(trimmed)) return true;
+
+  // Laughter / filler
+  if (/^(lol|lmao|haha|hehe|ha+|wow|oh|ooh|ahh?|hmm+)\s*$/.test(trimmed)) return true;
+
+  return false;
+}
+
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
 type LLMConfig = {
@@ -1048,6 +1083,26 @@ export class EngineOrchestrator {
       memoryContext = memoryV1Result?.memoryContext ?? undefined;
     }
 
+    // ── Kick off perspective analysis early (runs in parallel with memory) ──
+    // We start the HTTP call now but don't await it until we need the result
+    // for prompt building. This saves ~500ms by overlapping with memory retrieval.
+    const skipPerspective = perspectiveMode !== 'deep' && isTrivialMessage(normalizedUserMessage);
+    if (skipPerspective && decisionLogEnabled) {
+      console.log('[LoRa::Perspective] skipped — trivial message');
+    }
+    let perspectivePromise: Promise<PerspectiveAnalyzeResponse | null> | null = null;
+    if (featureFlags.multiPerspectiveEnabled && !skipPerspective) {
+      perspectivePromise = fetchPerspectiveAnalysis(
+        userMessage,
+        sessionHistory,
+        undefined,
+        perspectiveMode,
+      ).catch(err => {
+        console.warn('[LoRa::Perspective] Unexpected error:', err);
+        return null;
+      });
+    }
+
     // ── Memory Service: dual DB retrieval (gated by memoryServiceEnabled) ──
     let memServiceAnchors: AnchorRecord[] = [];
     let memServiceDegraded = { falkor: false, chroma: false };
@@ -1261,20 +1316,10 @@ export class EngineOrchestrator {
       });
     }
 
-    // ── Multi-Perspective Engine (external Python microservice) ──
+    // ── Multi-Perspective Engine: await the parallel promise kicked off earlier ──
     let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
-    if (featureFlags.multiPerspectiveEnabled) {
-      try {
-        perspectiveAnalysis = await fetchPerspectiveAnalysis(
-          userMessage,
-          sessionHistory,
-          undefined,
-          perspectiveMode,
-        );
-      } catch (err) {
-        // Swallow — LoRa works without perspectives
-        console.warn('[LoRa::Perspective] Unexpected error:', err);
-      }
+    if (perspectivePromise) {
+      perspectiveAnalysis = await perspectivePromise;
     }
 
     // ── Deep reasoning: clarification needed (question too ambiguous) ──

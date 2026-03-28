@@ -117,4 +117,81 @@ export class ClaudeResponder {
 
     return text;
   }
+
+  /**
+   * Stream a response from LoRa token-by-token.
+   * Calls onToken for each text chunk as it arrives from the API.
+   * Returns the complete accumulated text when done.
+   *
+   * The caller is responsible for buffering + identity guard.
+   * This method only handles the Anthropic streaming API.
+   */
+  async generateResponseStream(
+    systemPrompt: string,
+    userMessage: string,
+    onToken: (chunk: string) => void,
+    options?: GenerateResponseOptions,
+  ): Promise<string> {
+    const startTime = Date.now();
+    const requestId = options?.requestId ?? 'unknown';
+
+    const history = options?.sessionHistory ?? [];
+    const priorTurns = history.length > 0 && history[history.length - 1]?.role === 'user'
+      ? history.slice(0, -1)
+      : history;
+
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
+      ...priorTurns.map((t) => ({
+        role: t.role as 'user' | 'assistant',
+        content: t.text,
+      })),
+      { role: 'user' as const, content: userMessage },
+    ];
+
+    if (process.env.LORA_DEBUG_LLM_PAYLOAD === '1') {
+      console.log('[LoRa] LLM STREAM PAYLOAD:');
+      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messages }, null, 2));
+    }
+
+    let accumulated = '';
+
+    const stream = this.client.messages.stream(
+      {
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        temperature: TEMPERATURE,
+        system: systemPrompt,
+        messages,
+      },
+      options?.signal ? { signal: options.signal } : {},
+    );
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        const chunk = event.delta.text;
+        accumulated += chunk;
+        onToken(chunk);
+      }
+    }
+
+    const text = accumulated.trim();
+    const latencyMs = Date.now() - startTime;
+
+    if (!text) {
+      throw new Error('Empty streaming response from Claude');
+    }
+
+    recordLLMSuccess();
+
+    if (debugEnabled) {
+      console.log('[LoRa::Debug][ClaudeResponder] stream complete', {
+        requestId,
+        model: MODEL,
+        latencyMs,
+        outputLength: text.length,
+      });
+    }
+
+    return text;
+  }
 }

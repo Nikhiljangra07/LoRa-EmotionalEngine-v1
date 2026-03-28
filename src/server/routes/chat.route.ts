@@ -110,6 +110,8 @@ export interface ApiChatBody {
   message?: string;
   /** UI-triggered deep reasoning mode (Pro tier). */
   deepMode?: boolean;
+  /** Stream response via SSE instead of JSON. */
+  stream?: boolean;
 }
 
 export interface ApiChatResponse {
@@ -192,6 +194,7 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
       text: (rawText as string).trim(),
       timestamp,
       ...(b.deepMode === true ? { deepMode: true } : {}),
+      ...(b.stream === true ? { stream: true } : {}),
     },
   };
 }
@@ -670,6 +673,63 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         session.history = session.history.slice(-STM_MAX_TURNS);
       }
 
+      const debugPayload = {
+        eiv: result.eiv?.value ?? 0,
+        etv: debug.etv ?? 0,
+        band: debug.band ?? 'B0',
+        etvBand,
+        policy: policyDebug,
+        anchorsUsed: debug.anchorsUsed ?? 0,
+        schemasUsed: debug.schemasUsed ?? 0,
+        degraded: debug.degraded ?? { falkor: false, chroma: false },
+        ...((debug as any).behaviorMode ? { behaviorMode: (debug as any).behaviorMode } : {}),
+        ...(debug.stmTurns !== undefined ? { stmTurns: debug.stmTurns } : {}),
+        ...((debug as any).personaEnforcer ? { personaEnforcer: (debug as any).personaEnforcer } : {}),
+      };
+
+      // ── SSE streaming path ──
+      // Identity guard + word/question limits already applied above.
+      // We stream the GUARDED text progressively — zero risk of leaking raw LLM output.
+      if (validated.data.stream) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no', // Disable Railway/nginx buffering
+        });
+
+        // Send metadata first
+        const meta = {
+          tier: tierRecord.tier,
+          sessionCount: tierRecord.sessionCount,
+          ...(isDeepClarification ? { deepClarification: true } : {}),
+          ...(isDeepAnalysis ? { deepAnalysis: true, deepMeta: (result as any).deepMeta } : {}),
+          debug: debugPayload,
+        };
+        res.write(`event: meta\ndata: ${JSON.stringify(meta)}\n\n`);
+
+        // Stream the guarded reply in chunks (~5-8 words each)
+        const words = reply.split(/(\s+)/); // preserve whitespace
+        let i = 0;
+        const chunkSize = 12; // ~6 words + their spaces
+        const streamInterval = setInterval(() => {
+          if (i >= words.length) {
+            clearInterval(streamInterval);
+            res.write(`event: done\ndata: {}\n\n`);
+            res.end();
+            return;
+          }
+          const chunk = words.slice(i, i + chunkSize).join('');
+          i += chunkSize;
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }, 50); // ~20 chunks/second = smooth streaming feel
+
+        // Clean up if client disconnects
+        req.on('close', () => clearInterval(streamInterval));
+        return; // Don't fall through to JSON response
+      }
+
+      // ── Standard JSON response (non-streaming) ──
       res.status(200).json({
         reply,
         tier: tierRecord.tier,
@@ -679,19 +739,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           deepAnalysis: true,
           deepMeta: (result as any).deepMeta,
         } : {}),
-        debug: {
-          eiv: result.eiv?.value ?? 0,
-          etv: debug.etv ?? 0,
-          band: debug.band ?? 'B0',
-          etvBand,
-          policy: policyDebug,
-          anchorsUsed: debug.anchorsUsed ?? 0,
-          schemasUsed: debug.schemasUsed ?? 0,
-          degraded: debug.degraded ?? { falkor: false, chroma: false },
-          ...((debug as any).behaviorMode ? { behaviorMode: (debug as any).behaviorMode } : {}),
-          ...(debug.stmTurns !== undefined ? { stmTurns: debug.stmTurns } : {}),
-          ...((debug as any).personaEnforcer ? { personaEnforcer: (debug as any).personaEnforcer } : {}),
-        },
+        debug: debugPayload,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
