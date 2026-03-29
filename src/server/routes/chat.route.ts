@@ -485,9 +485,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
 
     // Tier comes ONLY from TierService (TIER_1 | TIER_2 | TIER_3). Never use band/etvBand/debug.band for top-level tier.
-    const t0 = Date.now();
     const tierRecord = await tierService.getTierAsync(userId);
-    console.log(`[LoRa::Timing] tier: ${Date.now() - t0}ms`);
     console.log('[LoRa::TierCheck]', {
       tierFromService: tierRecord.tier,
       sessionCount: tierRecord.sessionCount,
@@ -561,7 +559,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       // ── Memory V2 retrieval (active mode only, not shadow) ──
       if (memoryV2Enabled && memoryV2Service) {
         try {
-          const t1 = Date.now();
           const { analyzerOutputs: preAnalysis } = InputProcessor.process(text);
           const fingerprint = buildCurrentFingerprint({
             eiv: preAnalysis.expressionStrength.score,
@@ -571,7 +568,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             turnCount: session.history.length,
           });
           const v2Context = await memoryV2Service.retrieveContext(userId, fingerprint);
-          console.log(`[LoRa::Timing] memV2: ${Date.now() - t1}ms`);
           if (v2Context.relatedFacts.length > 0) {
             session.engine.setMemoryV2Context({
               matchedSessions: v2Context.matchedSessions.map(m => ({ similarity: m.similarity })),
@@ -623,8 +619,6 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         }
       }
 
-      const t2 = Date.now();
-      console.log(`[LoRa::Timing] pre-engine total: ${t2 - t0}ms`);
       const { analyzerOutputs, signalPacket } = InputProcessor.process(text);
 
       // ── Streaming path: pipe Sonnet tokens to client in real-time ──

@@ -154,7 +154,6 @@ export class ClaudeResponder {
     }
 
     let accumulated = '';
-    let firstTokenLogged = false;
 
     const stream = this.client.messages.stream(
       {
@@ -169,10 +168,6 @@ export class ClaudeResponder {
 
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        if (!firstTokenLogged) {
-          firstTokenLogged = true;
-          console.log(`[LoRa::Timing] Sonnet TTFT: ${Date.now() - startTime}ms`);
-        }
         const chunk = event.delta.text;
         accumulated += chunk;
         onToken(chunk);

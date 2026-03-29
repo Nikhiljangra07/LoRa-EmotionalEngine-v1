@@ -1097,7 +1097,6 @@ export class EngineOrchestrator {
     }
 
     // ── Kick off perspective analysis early (runs in parallel with memory) ──
-    const engineT0 = Date.now();
     const skipPerspective = perspectiveMode !== 'deep' && isTrivialMessage(normalizedUserMessage);
     if (skipPerspective && decisionLogEnabled) {
       console.log('[LoRa::Perspective] skipped — trivial message');
@@ -1144,7 +1143,6 @@ export class EngineOrchestrator {
         };
 
         const msResult = await this.memoryService.retrieveContext(this.userId, userMessage, retrieveOpts);
-        console.log(`[LoRa::Timing] memV1: ${Date.now() - engineT0}ms`);
         memServiceDegraded = msResult.degraded;
         memServiceSemanticCount = msResult.semantic.length;
 
@@ -1336,21 +1334,17 @@ export class EngineOrchestrator {
     const PERSPECTIVE_RACE_MS = 5000;
     let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
     if (perspectivePromise) {
-      const pT0 = Date.now();
       if (perspectiveMode === 'deep') {
         perspectiveAnalysis = await perspectivePromise;
       } else {
-        // Race: perspective vs timeout
+        // Race: perspective vs timeout — if Haiku is slow, proceed without framework analysis
         perspectiveAnalysis = await Promise.race([
           perspectivePromise,
           new Promise<null>(resolve => setTimeout(() => resolve(null), PERSPECTIVE_RACE_MS)),
         ]);
-      }
-      const pElapsed = Date.now() - pT0;
-      if (perspectiveAnalysis) {
-        console.log(`[LoRa::Timing] perspectiveAwait: ${pElapsed}ms (total since engine start: ${Date.now() - engineT0}ms)`);
-      } else {
-        console.log(`[LoRa::Timing] perspective SKIPPED (timeout after ${pElapsed}ms) — proceeding without framework analysis`);
+        if (!perspectiveAnalysis && decisionLogEnabled) {
+          console.log('[LoRa::Perspective] timeout — proceeding without framework analysis');
+        }
       }
     }
 
@@ -1583,7 +1577,6 @@ export class EngineOrchestrator {
     };
 
     // 6. Generate LLM response (FAIL-SAFE, single owner)
-    console.log(`[LoRa::Timing] pre-LLM: ${Date.now() - engineT0}ms`);
     const llmOutput = await this.generateLLMResponse(
       systemPrompt,
       rawUserMessage,
