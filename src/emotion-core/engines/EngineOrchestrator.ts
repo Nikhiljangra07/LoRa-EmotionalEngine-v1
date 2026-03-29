@@ -1329,12 +1329,29 @@ export class EngineOrchestrator {
       });
     }
 
-    // ── Multi-Perspective Engine: await the parallel promise kicked off earlier ──
+    // ── Multi-Perspective Engine: await with timeout for quick mode ──
+    // Quick mode: perspective gets 3s max. If Haiku is slow, proceed without it.
+    // Deep mode: no timeout — user expects the full analysis.
+    // LoRa works identically without perspective (it's supplementary context).
+    const PERSPECTIVE_RACE_MS = 3000;
     let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
     if (perspectivePromise) {
       const pT0 = Date.now();
-      perspectiveAnalysis = await perspectivePromise;
-      console.log(`[LoRa::Timing] perspectiveAwait: ${Date.now() - pT0}ms (total since engine start: ${Date.now() - engineT0}ms)`);
+      if (perspectiveMode === 'deep') {
+        perspectiveAnalysis = await perspectivePromise;
+      } else {
+        // Race: perspective vs timeout
+        perspectiveAnalysis = await Promise.race([
+          perspectivePromise,
+          new Promise<null>(resolve => setTimeout(() => resolve(null), PERSPECTIVE_RACE_MS)),
+        ]);
+      }
+      const pElapsed = Date.now() - pT0;
+      if (perspectiveAnalysis) {
+        console.log(`[LoRa::Timing] perspectiveAwait: ${pElapsed}ms (total since engine start: ${Date.now() - engineT0}ms)`);
+      } else {
+        console.log(`[LoRa::Timing] perspective SKIPPED (timeout after ${pElapsed}ms) — proceeding without framework analysis`);
+      }
     }
 
     // ── Deep reasoning: clarification needed (question too ambiguous) ──
