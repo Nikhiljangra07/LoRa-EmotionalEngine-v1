@@ -279,21 +279,34 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
   function makePolicyAwareFactory(userId: string) {
     return () => {
-      const base = baseResponderFactory();
+      const base = baseResponderFactory() as {
+        generateResponse: (...args: any[]) => Promise<string>;
+        generateResponseStream?: (systemPrompt: string, userMessage: string, onToken: (chunk: string) => void, opts?: any) => Promise<string>;
+      };
+      function augmentPrompt(systemPrompt: string) {
+        const coarseBand = resolveBand(userId);
+        const currentTier = tierService.getTier(userId).tier;
+        const policy = getResponsePolicy(currentTier, coarseBand);
+        if (isDev) console.log('[LoRa::ResponsePolicy]', { tier: currentTier, band: coarseBand, ...policy });
+        return formatPolicyBlock(policy) + '\n\n' + systemPrompt;
+      }
       return {
         generateResponse(
           systemPrompt: string,
           userMessage: string,
           opts?: { signal?: AbortSignal; requestId?: string; sessionHistory?: Array<{ role: string; text: string; ts?: number }> },
         ) {
-          const coarseBand = resolveBand(userId);
-          const currentTier = tierService.getTier(userId).tier;
-          const policy = getResponsePolicy(currentTier, coarseBand);
-          if (isDev) console.log('[LoRa::ResponsePolicy]', { tier: currentTier, band: coarseBand, ...policy });
-
-          const augmentedPrompt = formatPolicyBlock(policy) + '\n\n' + systemPrompt;
-          return base.generateResponse(augmentedPrompt, userMessage, opts);
+          return base.generateResponse(augmentPrompt(systemPrompt), userMessage, opts);
         },
+        // Delegate streaming — same policy augmentation, just uses the streaming API
+        generateResponseStream: base.generateResponseStream
+          ? (
+              systemPrompt: string,
+              userMessage: string,
+              onToken: (chunk: string) => void,
+              opts?: { signal?: AbortSignal; requestId?: string; sessionHistory?: Array<{ role: string; text: string; ts?: number }> },
+            ) => base.generateResponseStream!(augmentPrompt(systemPrompt), userMessage, onToken, opts)
+          : undefined,
       };
     };
   }
@@ -642,10 +655,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           }
           // Send guarded first sentence
           res.write(`data: ${JSON.stringify(guarded)}\n\n`);
+          if (typeof (res as any).flush === 'function') (res as any).flush();
         } else {
           // After first sentence: stream tokens directly (opener risk is past)
           if (sseStarted) {
             res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            if (typeof (res as any).flush === 'function') (res as any).flush();
           }
         }
       } : undefined;
