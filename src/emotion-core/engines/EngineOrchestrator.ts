@@ -1333,7 +1333,7 @@ export class EngineOrchestrator {
     // Quick mode: perspective gets 3s max. If Haiku is slow, proceed without it.
     // Deep mode: no timeout — user expects the full analysis.
     // LoRa works identically without perspective (it's supplementary context).
-    const PERSPECTIVE_RACE_MS = 3000;
+    const PERSPECTIVE_RACE_MS = 5000;
     let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
     if (perspectivePromise) {
       const pT0 = Date.now();
