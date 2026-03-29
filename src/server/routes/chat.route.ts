@@ -100,6 +100,18 @@ export interface ChatRouteOptions {
   tierService?: typeof sharedTierService;
 }
 
+/** Image or document attachment sent alongside a message. */
+export interface ChatAttachment {
+  /** 'image' for JPEG/PNG/GIF/WebP, 'document' for PDF. */
+  type: 'image' | 'document';
+  /** MIME type (e.g. 'image/jpeg', 'application/pdf'). */
+  mimeType: string;
+  /** Base64-encoded file data. */
+  data: string;
+  /** Original filename (optional, for display). */
+  name?: string;
+}
+
 export interface ApiChatBody {
   userId: string;
   sessionId: string;
@@ -112,6 +124,8 @@ export interface ApiChatBody {
   deepMode?: boolean;
   /** Stream response via SSE instead of JSON. */
   stream?: boolean;
+  /** Image or document attachments (max 5, each max 20MB). */
+  attachments?: ChatAttachment[];
 }
 
 export interface ApiChatResponse {
@@ -171,9 +185,11 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
     return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty sessionId.' };
   }
 
-  // Accept "text" or "message" — normalize to text
+  // Accept "text" or "message" — normalize to text.
+  // Text is optional ONLY when attachments are present (LoRa will ask clarification).
   const rawText = b.text ?? b.message;
-  if (!isNonEmptyString(rawText)) {
+  const hasAttachments = Array.isArray(b.attachments) && b.attachments.length > 0;
+  if (!isNonEmptyString(rawText) && !hasAttachments) {
     return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty text (also accepts "message").' };
   }
 
@@ -185,16 +201,50 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
     typeof b.timestamp === 'number' && Number.isFinite(b.timestamp)
       ? b.timestamp
       : Date.now();
+  // Validate attachments (if present)
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const ALLOWED_DOC_TYPES = ['application/pdf'];
+  const MAX_ATTACHMENTS = 5;
+  let validatedAttachments: ChatAttachment[] | undefined;
+
+  if (hasAttachments) {
+    const rawAttachments = b.attachments as unknown[];
+    if (rawAttachments.length > MAX_ATTACHMENTS) {
+      return { ok: false, status: 400, error: 'invalid_request', details: `Maximum ${MAX_ATTACHMENTS} attachments allowed.` };
+    }
+    validatedAttachments = [];
+    for (const att of rawAttachments) {
+      if (att == null || typeof att !== 'object') continue;
+      const a = att as Record<string, unknown>;
+      const mimeType = typeof a.mimeType === 'string' ? a.mimeType.toLowerCase().trim() : '';
+      const data = typeof a.data === 'string' ? a.data : '';
+      if (!data) continue;
+
+      const isImage = ALLOWED_IMAGE_TYPES.includes(mimeType);
+      const isDoc = ALLOWED_DOC_TYPES.includes(mimeType);
+      if (!isImage && !isDoc) continue; // silently skip unsupported types
+
+      validatedAttachments.push({
+        type: isImage ? 'image' : 'document',
+        mimeType,
+        data,
+        name: typeof a.name === 'string' ? a.name.trim() : undefined,
+      });
+    }
+    if (validatedAttachments.length === 0) validatedAttachments = undefined;
+  }
+
   return {
     ok: true,
     data: {
       userId: (b.userId as string).trim(),
       sessionId: (b.sessionId as string).trim(),
       messageId,
-      text: (rawText as string).trim(),
+      text: typeof rawText === 'string' ? rawText.trim() : '',
       timestamp,
       ...(b.deepMode === true ? { deepMode: true } : {}),
       ...(b.stream === true ? { stream: true } : {}),
+      ...(validatedAttachments ? { attachments: validatedAttachments } : {}),
     },
   };
 }
@@ -619,7 +669,17 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         }
       }
 
-      const { analyzerOutputs, signalPacket } = InputProcessor.process(text);
+      // ── Attachment-only clarification ──
+      // When user sends an image/document without meaningful text, LoRa sees the
+      // attachment and asks what specifically they need. Feels like LoRa is engaged
+      // with the content, not like a limitation.
+      const hasAttachments = validated.data.attachments && validated.data.attachments.length > 0;
+      let effectiveText = text;
+      if (hasAttachments && (!text || text.length < 3)) {
+        effectiveText = '[User shared an attachment without a question. Look at what they sent, acknowledge it briefly, then ask what specifically they want you to analyze or help with.]';
+      }
+
+      const { analyzerOutputs, signalPacket } = InputProcessor.process(effectiveText);
 
       // ── Streaming: use streaming LLM API internally for speed, ──
       // ── but buffer the full response and guard it before sending. ──
@@ -637,6 +697,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         perspectiveMode,
         // Use streaming API internally (faster TTFT) but don't pipe to client
         wantsStream ? () => {} : undefined,
+        // Attachments (images, PDFs) — passed through to Claude API
+        validated.data.attachments,
       );
 
       const debug = result.debug ?? emptyDebug();

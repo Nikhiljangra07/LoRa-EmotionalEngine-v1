@@ -107,26 +107,25 @@ type LLMConfig = {
   cooldownMs: number;
 };
 
+type LLMResponderOptions = {
+  signal?: AbortSignal;
+  requestId?: string;
+  sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
+  attachments?: Array<{ type: 'image' | 'document'; mimeType: string; data: string }>;
+};
+
 type LLMResponder = {
   generateResponse(
     systemPrompt: string,
     userMessage: string,
-    options?: {
-      signal?: AbortSignal;
-      requestId?: string;
-      sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
-    }
+    options?: LLMResponderOptions,
   ): Promise<string>;
   /** Optional streaming variant — returns full text, calls onToken for each chunk. */
   generateResponseStream?(
     systemPrompt: string,
     userMessage: string,
     onToken: (chunk: string) => void,
-    options?: {
-      signal?: AbortSignal;
-      requestId?: string;
-      sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
-    }
+    options?: LLMResponderOptions,
   ): Promise<string>;
 };
 
@@ -376,6 +375,8 @@ export class EngineOrchestrator {
     perspectiveMode?: 'quick' | 'deep',
     /** When provided, LLM tokens stream through this callback as they generate. */
     onToken?: (chunk: string) => void,
+    /** Image/document attachments to include with the LLM call. */
+    attachments?: Array<{ type: 'image' | 'document'; mimeType: string; data: string }>,
   ) {
     const executionToken = Symbol('LLM_EXECUTION');
     if (this.activeExecution) {
@@ -1584,6 +1585,7 @@ export class EngineOrchestrator {
       fallbackContext,
       sessionHistory,
       onToken,
+      attachments,
     );
 
     // ── Bootstrap Memory: record assistant reply summary ──
@@ -2219,6 +2221,7 @@ export class EngineOrchestrator {
     },
     sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
     onToken?: (chunk: string) => void,
+    attachments?: Array<{ type: 'image' | 'document'; mimeType: string; data: string }>,
   ): Promise<string> {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
@@ -2309,6 +2312,7 @@ export class EngineOrchestrator {
           signal: controller.signal,
           requestId,
           sessionHistory: sessionHistory ?? [],
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
         };
         if (process.env.NODE_ENV === 'test') {
           console.log(Object.keys(payload));

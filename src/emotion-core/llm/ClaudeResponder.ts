@@ -7,12 +7,62 @@ const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 const TEMPERATURE = 0.6;
 
+/** Image or document attachment for multimodal messages. */
+export type LLMAttachment = {
+  type: 'image' | 'document';
+  mimeType: string;
+  data: string; // base64
+};
+
 export type GenerateResponseOptions = {
   signal?: AbortSignal;
   requestId?: string;
   /** Prior turns (chronological). Current user message is passed separately and appended. */
   sessionHistory?: ChatTurn[];
+  /** Attachments (images, PDFs) to include with the user message. */
+  attachments?: LLMAttachment[];
 };
+
+/**
+ * Build the messages array for the Anthropic API.
+ * Handles multimodal content (images, PDFs) when attachments are present.
+ */
+function buildMessages(
+  priorTurns: ChatTurn[],
+  userMessage: string,
+  attachments?: LLMAttachment[],
+): Anthropic.MessageCreateParams['messages'] {
+  // Build the current user message — multimodal if attachments present
+  let userContent: string | Anthropic.ContentBlockParam[];
+  if (attachments && attachments.length > 0) {
+    const blocks: Anthropic.ContentBlockParam[] = [];
+    for (const att of attachments) {
+      if (att.type === 'image') {
+        blocks.push({
+          type: 'image',
+          source: { type: 'base64', media_type: att.mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: att.data },
+        });
+      } else if (att.type === 'document') {
+        blocks.push({
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: att.data },
+        });
+      }
+    }
+    if (userMessage) blocks.push({ type: 'text', text: userMessage });
+    userContent = blocks;
+  } else {
+    userContent = userMessage;
+  }
+
+  return [
+    ...priorTurns.map((t) => ({
+      role: t.role as 'user' | 'assistant',
+      content: t.text,
+    })),
+    { role: 'user' as const, content: userContent },
+  ];
+}
 
 /**
  * Claude Sonnet 4-6 responder — sole LLM runtime for LoRa.
@@ -61,13 +111,7 @@ export class ClaudeResponder {
       ? history.slice(0, -1)
       : history;
 
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
-      ...priorTurns.map((t) => ({
-        role: t.role as 'user' | 'assistant',
-        content: t.text,
-      })),
-      { role: 'user' as const, content: userMessage },
-    ];
+    const messages = buildMessages(priorTurns, userMessage, options?.attachments);
 
     if (debugEnabled) {
       console.log('[LoRa::Debug][ClaudeResponder] role separation', {
@@ -75,12 +119,13 @@ export class ClaudeResponder {
         systemPromptLength: systemPrompt.length,
         userMessageLength: userMessage.length,
         priorTurnsCount: priorTurns.length,
+        attachments: options?.attachments?.length ?? 0,
       });
     }
 
     if (process.env.LORA_DEBUG_LLM_PAYLOAD === '1') {
       console.log('[LoRa] LLM PAYLOAD:');
-      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messages }, null, 2));
+      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messageCount: messages.length }, null, 2));
     }
 
     const response = await this.client.messages.create(
@@ -140,17 +185,11 @@ export class ClaudeResponder {
       ? history.slice(0, -1)
       : history;
 
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
-      ...priorTurns.map((t) => ({
-        role: t.role as 'user' | 'assistant',
-        content: t.text,
-      })),
-      { role: 'user' as const, content: userMessage },
-    ];
+    const messages = buildMessages(priorTurns, userMessage, options?.attachments);
 
     if (process.env.LORA_DEBUG_LLM_PAYLOAD === '1') {
       console.log('[LoRa] LLM STREAM PAYLOAD:');
-      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messages }, null, 2));
+      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messageCount: messages.length }, null, 2));
     }
 
     let accumulated = '';
