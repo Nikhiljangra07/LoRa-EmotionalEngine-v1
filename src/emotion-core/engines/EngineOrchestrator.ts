@@ -1097,8 +1097,7 @@ export class EngineOrchestrator {
     }
 
     // ── Kick off perspective analysis early (runs in parallel with memory) ──
-    // We start the HTTP call now but don't await it until we need the result
-    // for prompt building. This saves ~500ms by overlapping with memory retrieval.
+    const engineT0 = Date.now();
     const skipPerspective = perspectiveMode !== 'deep' && isTrivialMessage(normalizedUserMessage);
     if (skipPerspective && decisionLogEnabled) {
       console.log('[LoRa::Perspective] skipped — trivial message');
@@ -1145,6 +1144,7 @@ export class EngineOrchestrator {
         };
 
         const msResult = await this.memoryService.retrieveContext(this.userId, userMessage, retrieveOpts);
+        console.log(`[LoRa::Timing] memV1: ${Date.now() - engineT0}ms`);
         memServiceDegraded = msResult.degraded;
         memServiceSemanticCount = msResult.semantic.length;
 
@@ -1332,7 +1332,9 @@ export class EngineOrchestrator {
     // ── Multi-Perspective Engine: await the parallel promise kicked off earlier ──
     let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
     if (perspectivePromise) {
+      const pT0 = Date.now();
       perspectiveAnalysis = await perspectivePromise;
+      console.log(`[LoRa::Timing] perspectiveAwait: ${Date.now() - pT0}ms (total since engine start: ${Date.now() - engineT0}ms)`);
     }
 
     // ── Deep reasoning: clarification needed (question too ambiguous) ──
@@ -1564,6 +1566,7 @@ export class EngineOrchestrator {
     };
 
     // 6. Generate LLM response (FAIL-SAFE, single owner)
+    console.log(`[LoRa::Timing] pre-LLM: ${Date.now() - engineT0}ms`);
     const llmOutput = await this.generateLLMResponse(
       systemPrompt,
       rawUserMessage,
