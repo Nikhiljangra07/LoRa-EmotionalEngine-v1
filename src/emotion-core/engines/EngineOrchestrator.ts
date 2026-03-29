@@ -1358,7 +1358,7 @@ export class EngineOrchestrator {
       const decision = {
         eiv: eivResult,
         prompt: '[deep_reasoning: clarification needed]',
-        llmOutput: perspectiveAnalysis.clarification_question,
+        llmOutput: enforceIdentity(perspectiveAnalysis.clarification_question),
         deepClarification: true as const,
         debug: {
           etv: this.lastEtvPolicy?.etvMean ?? this.etvState.value,

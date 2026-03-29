@@ -621,49 +621,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       const { analyzerOutputs, signalPacket } = InputProcessor.process(text);
 
-      // ── Streaming path: pipe Sonnet tokens to client in real-time ──
-      // Identity guard: buffer first sentence, guard it, then stream rest.
-      // Word/question limits applied as a final correction after stream ends.
+      // ── Streaming: use streaming LLM API internally for speed, ──
+      // ── but buffer the full response and guard it before sending. ──
+      // ── No raw LLM tokens ever reach the client. ──
       const wantsStream = !!validated.data.stream;
-      let sseStarted = false;
-      let firstSentenceBuffer = '';
-      let firstSentenceGuarded = false;
-      let streamedRaw = '';
-
-      const onToken = wantsStream ? (chunk: string) => {
-        streamedRaw += chunk;
-
-        if (!firstSentenceGuarded) {
-          // Buffer until first sentence boundary
-          firstSentenceBuffer += chunk;
-          const hasBoundary = /[.!?\n]/.test(firstSentenceBuffer);
-          if (!hasBoundary && firstSentenceBuffer.length < 200) return; // keep buffering
-
-          // First sentence complete — run identity guard on it
-          const guarded = enforceIdentity(firstSentenceBuffer);
-          firstSentenceGuarded = true;
-
-          // Start SSE response
-          if (!sseStarted) {
-            sseStarted = true;
-            res.writeHead(200, {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
-              'X-Accel-Buffering': 'no',
-            });
-          }
-          // Send guarded first sentence
-          res.write(`data: ${JSON.stringify(guarded)}\n\n`);
-          if (typeof (res as any).flush === 'function') (res as any).flush();
-        } else {
-          // After first sentence: stream tokens directly (opener risk is past)
-          if (sseStarted) {
-            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
-            if (typeof (res as any).flush === 'function') (res as any).flush();
-          }
-        }
-      } : undefined;
 
       const result = await session.engine.processMessage(
         analyzerOutputs,
@@ -674,7 +635,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         signalPacket,
         historyForPrompt,
         perspectiveMode,
-        onToken,
+        // Use streaming API internally (faster TTFT) but don't pipe to client
+        wantsStream ? () => {} : undefined,
       );
 
       const debug = result.debug ?? emptyDebug();
@@ -746,30 +708,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         ...((debug as any).personaEnforcer ? { personaEnforcer: (debug as any).personaEnforcer } : {}),
       };
 
-      // ── SSE streaming path completion ──
-      // Tokens were already streamed via onToken callback during processMessage.
-      // Now send metadata + done event, and apply word/question limits as correction.
-      if (sseStarted) {
-        // Send metadata
-        const meta = {
-          tier: tierRecord.tier,
-          sessionCount: tierRecord.sessionCount,
-          ...(isDeepClarification ? { deepClarification: true } : {}),
-          ...(isDeepAnalysis ? { deepAnalysis: true, deepMeta: (result as any).deepMeta } : {}),
-          debug: debugPayload,
-        };
-        res.write(`event: meta\ndata: ${JSON.stringify(meta)}\n\n`);
-
-        // Send the final guarded reply so frontend can reconcile
-        // (word/question limits may have trimmed vs what was streamed)
-        res.write(`event: final\ndata: ${JSON.stringify(reply)}\n\n`);
-        res.write(`event: done\ndata: {}\n\n`);
-        res.end();
-        return;
-      }
-
-      // If streaming was requested but onToken never fired (e.g. fallback/cooldown),
-      // fall through to send the response as a non-streaming SSE burst
+      // ── SSE streaming path ──
+      // Full response is generated, identity-guarded, word/question-limited.
+      // Now stream the GUARDED text progressively via SSE.
+      // No raw LLM tokens ever reach the client.
       if (wantsStream) {
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
@@ -785,8 +727,27 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           debug: debugPayload,
         };
         res.write(`event: meta\ndata: ${JSON.stringify(meta)}\n\n`);
-        // Send full reply as one chunk (fallback/cooldown path)
-        res.write(`data: ${JSON.stringify(reply)}\n\n`);
+
+        // Stream the guarded reply word by word for progressive display.
+        // Split into ~8-word chunks, send at 40ms intervals.
+        const words = reply.split(/(\s+)/);
+        const chunkSize = 16; // ~8 words + whitespace
+        let i = 0;
+        await new Promise<void>((resolve) => {
+          const iv = setInterval(() => {
+            if (i >= words.length) {
+              clearInterval(iv);
+              resolve();
+              return;
+            }
+            const chunk = words.slice(i, i + chunkSize).join('');
+            i += chunkSize;
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+            if (typeof (res as any).flush === 'function') (res as any).flush();
+          }, 40);
+          req.on('close', () => { clearInterval(iv); resolve(); });
+        });
+
         res.write(`event: final\ndata: ${JSON.stringify(reply)}\n\n`);
         res.write(`event: done\ndata: {}\n\n`);
         res.end();
