@@ -47,6 +47,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'https://presence-whispers-production.up.railway.app',
+  'https://asklora.io',
 ];
 
 app.use(
