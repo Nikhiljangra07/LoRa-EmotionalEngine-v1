@@ -1,8 +1,9 @@
 /**
  * GET /api/health — Full service health dashboard.
  *
- * Pings all 4 backend services (Redis/Falkor, Chroma, LoRaMaths, LLM)
- * and returns a mobile-friendly HTML page.
+ * Pings all 4 backend services, shows today's activity stats,
+ * active session details, feature flags, and memory system status.
+ * Returns a mobile-friendly HTML page.
  *
  * No auth required. Read-only. No side-effects.
  */
@@ -11,6 +12,9 @@ import type { Express } from 'express';
 import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { getLLMHealth } from '../llmTelemetry';
+import { getSnapshot } from '../analytics/runtimeMetrics';
+import { featureFlags } from '../../emotion-core/config/featureFlags';
+import type { SessionEntry } from './chat.route';
 
 // ---------------------------------------------------------------------------
 // Service checks
@@ -113,6 +117,63 @@ function checkLLM(): ServiceStatus {
 }
 
 // ---------------------------------------------------------------------------
+// Active session details
+// ---------------------------------------------------------------------------
+
+interface ActiveSessionInfo {
+  userId: string;
+  messages: number;
+  duration: string;
+  tokens: number;
+  deepPending: boolean;
+}
+
+function getActiveSessions(sessions: Map<string, SessionEntry>): ActiveSessionInfo[] {
+  const now = Date.now();
+  const result: ActiveSessionInfo[] = [];
+  for (const [key, entry] of sessions.entries()) {
+    const userId = key.split('::')[0] ?? 'unknown';
+    const durSec = Math.round((now - entry.sessionStartedAt) / 1000);
+    let duration: string;
+    if (durSec < 60) duration = `${durSec}s`;
+    else if (durSec < 3600) duration = `${Math.floor(durSec / 60)}m ${durSec % 60}s`;
+    else duration = `${Math.floor(durSec / 3600)}h ${Math.floor((durSec % 3600) / 60)}m`;
+
+    result.push({
+      userId: userId.length > 12 ? userId.slice(0, 6) + '…' + userId.slice(-4) : userId,
+      messages: entry.history.filter(t => t.role === 'user').length,
+      duration,
+      tokens: entry.tokensUsed,
+      deepPending: entry.deepAnalysisPending ?? false,
+    });
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Feature flags summary
+// ---------------------------------------------------------------------------
+
+interface FlagInfo { name: string; on: boolean }
+
+function getKeyFlags(): FlagInfo[] {
+  const flags = featureFlags as Record<string, unknown>;
+  const keys = [
+    ['memoryV2Enabled', 'Memory V2'],
+    ['multiPerspectiveEnabled', 'Multi-Perspective'],
+    ['perspectiveDeepMode', 'Deep Reasoning'],
+    ['personaEnforcerEnabled', 'Persona Enforcer'],
+    ['relationalRouterEnabled', 'Relational Router'],
+    ['factAnchorEnabled', 'Fact Anchors'],
+    ['bootstrapMemoryEnabled', 'Bootstrap Memory'],
+  ] as const;
+  return keys.map(([key, label]) => ({
+    name: label,
+    on: !!flags[key],
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // HTML renderer
 // ---------------------------------------------------------------------------
 
@@ -127,33 +188,71 @@ function uptimeString(): string {
   return `${h}h ${m}m`;
 }
 
-function statusIcon(s: 'ok' | 'down' | 'unknown'): string {
-  if (s === 'ok') return '●';
-  if (s === 'down') return '●';
-  return '●';
-}
-
 function statusColor(s: 'ok' | 'down' | 'unknown'): string {
   if (s === 'ok') return '#22c55e';
   if (s === 'down') return '#ef4444';
   return '#a1a1aa';
 }
 
-function renderHTML(services: ServiceStatus[], activeSessions: number): string {
-  const allOk = services.every(s => s.status === 'ok');
-  const overallColor = allOk ? '#22c55e' : '#ef4444';
-  const overallText = allOk ? 'All Systems Operational' : 'Degraded';
+function formatTokens(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return (n / 1000).toFixed(1) + 'k';
+  return (n / 1_000_000).toFixed(2) + 'M';
+}
+
+function renderHTML(
+  services: ServiceStatus[],
+  activeSessions: ActiveSessionInfo[],
+  snapshot: { tokensToday: number; sessionsToday: number; avgSessionLength: number },
+  flags: FlagInfo[],
+): string {
+  const anyDown = services.some(s => s.status === 'down');
+  const overallColor = anyDown ? '#ef4444' : '#22c55e';
+  const overallText = anyDown ? 'Degraded' : 'All Systems Operational';
   const now = new Date().toUTCString();
 
-  const rows = services.map(s => `
-    <div class="svc">
-      <div class="svc-header">
-        <span class="dot" style="color:${statusColor(s.status)}">${statusIcon(s.status)}</span>
-        <span class="svc-name">${s.name}</span>
-        <span class="svc-status" style="color:${statusColor(s.status)}">${s.status.toUpperCase()}</span>
+  const serviceRows = services.map(s => `
+    <div class="card">
+      <div class="row">
+        <span class="dot" style="color:${statusColor(s.status)}">●</span>
+        <span class="name">${s.name}</span>
+        <span class="badge" style="color:${statusColor(s.status)}">${s.status.toUpperCase()}</span>
       </div>
-      ${s.detail ? `<div class="svc-detail">${s.detail}</div>` : ''}
-      ${s.latencyMs > 0 ? `<div class="svc-detail">${s.latencyMs}ms</div>` : ''}
+      ${s.detail ? `<div class="sub">${s.detail}</div>` : ''}
+      ${s.latencyMs > 0 ? `<div class="sub">${s.latencyMs}ms</div>` : ''}
+    </div>
+  `).join('');
+
+  const avgLen = snapshot.avgSessionLength;
+  let avgStr: string;
+  if (avgLen === 0) avgStr = '—';
+  else if (avgLen < 60) avgStr = `${avgLen}s`;
+  else avgStr = `${Math.floor(avgLen / 60)}m ${avgLen % 60}s`;
+
+  // Active sessions section
+  let sessionsHTML = '';
+  if (activeSessions.length > 0) {
+    const sessionRows = activeSessions.map(s => `
+      <div class="session-row">
+        <span class="session-user">${s.userId}</span>
+        <span class="session-stat">${s.messages} msgs</span>
+        <span class="session-stat">${s.duration}</span>
+        <span class="session-stat">${formatTokens(s.tokens)} tok</span>
+        ${s.deepPending ? '<span class="deep-badge">DEEP</span>' : ''}
+      </div>
+    `).join('');
+    sessionsHTML = `
+      <div class="section-title">Active Sessions</div>
+      <div class="card">${sessionRows}</div>
+    `;
+  }
+
+  // Feature flags
+  const flagRows = flags.map(f => `
+    <div class="flag-row">
+      <span class="flag-dot" style="color:${f.on ? '#22c55e' : '#52525b'}">●</span>
+      <span class="flag-name">${f.name}</span>
+      <span class="flag-val" style="color:${f.on ? '#22c55e' : '#52525b'}">${f.on ? 'ON' : 'OFF'}</span>
     </div>
   `).join('');
 
@@ -164,34 +263,36 @@ function renderHTML(services: ServiceStatus[], activeSessions: number): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LoRa — System Status</title>
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0a0a0a; color: #e4e4e7;
-      min-height: 100vh; padding: 24px 16px;
-    }
-    .container { max-width: 480px; margin: 0 auto; }
-    .header { text-align: center; margin-bottom: 32px; }
-    .logo { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
-    .overall {
-      font-size: 15px; margin-top: 8px; font-weight: 500;
-      color: ${overallColor};
-    }
-    .meta { font-size: 12px; color: #71717a; margin-top: 4px; }
-    .svc {
-      background: #18181b; border: 1px solid #27272a; border-radius: 10px;
-      padding: 14px 16px; margin-bottom: 10px;
-    }
-    .svc-header { display: flex; align-items: center; gap: 8px; }
-    .dot { font-size: 12px; }
-    .svc-name { flex: 1; font-size: 14px; font-weight: 500; }
-    .svc-status { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
-    .svc-detail { font-size: 12px; color: #71717a; margin-top: 4px; padding-left: 20px; }
-    .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #52525b; }
-    .stats { display: flex; justify-content: center; gap: 24px; margin: 16px 0 24px; }
-    .stat { text-align: center; }
-    .stat-val { font-size: 20px; font-weight: 700; color: #e4e4e7; }
-    .stat-lbl { font-size: 11px; color: #71717a; margin-top: 2px; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e4e4e7;min-height:100vh;padding:20px 16px}
+    .container{max-width:480px;margin:0 auto}
+    .header{text-align:center;margin-bottom:24px}
+    .logo{font-size:24px;font-weight:700;letter-spacing:-0.5px}
+    .overall{font-size:15px;margin-top:6px;font-weight:500;color:${overallColor}}
+    .meta{font-size:11px;color:#71717a;margin-top:3px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 20px}
+    .stat{background:#18181b;border:1px solid #27272a;border-radius:10px;padding:12px 8px;text-align:center}
+    .stat-val{font-size:18px;font-weight:700;color:#e4e4e7}
+    .stat-lbl{font-size:10px;color:#71717a;margin-top:2px}
+    .section-title{font-size:12px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px;padding-left:4px}
+    .card{background:#18181b;border:1px solid #27272a;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+    .row{display:flex;align-items:center;gap:8px}
+    .dot{font-size:10px}
+    .name{flex:1;font-size:13px;font-weight:500}
+    .badge{font-size:11px;font-weight:600;letter-spacing:0.5px}
+    .sub{font-size:11px;color:#71717a;margin-top:3px;padding-left:18px}
+    .session-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #27272a}
+    .session-row:last-child{border-bottom:none}
+    .session-user{flex:1;font-size:12px;font-weight:500;font-family:'SF Mono',Menlo,monospace;color:#a1a1aa}
+    .session-stat{font-size:11px;color:#71717a}
+    .deep-badge{font-size:9px;font-weight:700;color:#a78bfa;background:#a78bfa22;padding:1px 5px;border-radius:4px}
+    .flag-row{display:flex;align-items:center;gap:6px;padding:4px 0}
+    .flag-dot{font-size:8px}
+    .flag-name{flex:1;font-size:12px;color:#a1a1aa}
+    .flag-val{font-size:11px;font-weight:600;letter-spacing:0.5px}
+    .footer{text-align:center;margin-top:20px;font-size:11px;color:#52525b}
+    .refresh-btn{display:block;margin:16px auto 0;background:#27272a;color:#a1a1aa;border:1px solid #3f3f46;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .refresh-btn:active{background:#3f3f46}
   </style>
 </head>
 <body>
@@ -201,18 +302,54 @@ function renderHTML(services: ServiceStatus[], activeSessions: number): string {
       <div class="overall">${overallText}</div>
       <div class="meta">${now}</div>
     </div>
+
     <div class="stats">
       <div class="stat">
-        <div class="stat-val">${activeSessions}</div>
-        <div class="stat-lbl">Active Sessions</div>
+        <div class="stat-val">${activeSessions.length}</div>
+        <div class="stat-lbl">Active Now</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">${snapshot.sessionsToday}</div>
+        <div class="stat-lbl">Today</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val">${formatTokens(snapshot.tokensToday)}</div>
+        <div class="stat-lbl">Tokens</div>
       </div>
       <div class="stat">
         <div class="stat-val">${uptimeString()}</div>
         <div class="stat-lbl">Uptime</div>
       </div>
     </div>
-    ${rows}
-    <div class="footer">Pull to refresh · asklora.io</div>
+
+    <div class="section-title">Services</div>
+    ${serviceRows}
+
+    ${sessionsHTML}
+
+    <div class="section-title">Today's Activity</div>
+    <div class="card">
+      <div class="flag-row">
+        <span class="flag-name">Sessions completed</span>
+        <span class="flag-val" style="color:#e4e4e7">${snapshot.sessionsToday}</span>
+      </div>
+      <div class="flag-row">
+        <span class="flag-name">Tokens consumed</span>
+        <span class="flag-val" style="color:#e4e4e7">${formatTokens(snapshot.tokensToday)}</span>
+      </div>
+      <div class="flag-row">
+        <span class="flag-name">Avg session length</span>
+        <span class="flag-val" style="color:#e4e4e7">${avgStr}</span>
+      </div>
+    </div>
+
+    <div class="section-title">Feature Flags</div>
+    <div class="card">
+      ${flagRows}
+    </div>
+
+    <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+    <div class="footer">asklora.io · health dashboard</div>
   </div>
 </body>
 </html>`;
@@ -224,7 +361,7 @@ function renderHTML(services: ServiceStatus[], activeSessions: number): string {
 
 export function registerHealthDashboardRoute(
   app: Express,
-  engineSessions?: Map<string, unknown>,
+  engineSessions?: Map<string, SessionEntry>,
 ): void {
   app.get('/api/health', async (_req, res) => {
     try {
@@ -236,17 +373,27 @@ export function registerHealthDashboardRoute(
       const llm = checkLLM();
 
       const services = [falkor, chroma, loraMaths, llm];
-      const activeSessions = engineSessions?.size ?? 0;
+      const sessions = engineSessions ? getActiveSessions(engineSessions) : [];
+      const snapshot = getSnapshot();
+      const flags = getKeyFlags();
 
-      // If client wants JSON (e.g. programmatic check), return JSON
+      // If client wants JSON, return JSON
       if (_req.headers.accept?.includes('application/json')) {
-        const allOk = services.every(s => s.status === 'ok');
-        res.json({ status: allOk ? 'ok' : 'degraded', uptime: uptimeString(), activeSessions, services });
+        const anyDown = services.some(s => s.status === 'down');
+        res.json({
+          status: anyDown ? 'degraded' : 'ok',
+          uptime: uptimeString(),
+          activeSessions: sessions.length,
+          services,
+          today: snapshot,
+          flags,
+          sessions,
+        });
         return;
       }
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(renderHTML(services, activeSessions));
+      res.send(renderHTML(services, sessions, snapshot, flags));
     } catch {
       res.status(500).json({ status: 'error' });
     }
