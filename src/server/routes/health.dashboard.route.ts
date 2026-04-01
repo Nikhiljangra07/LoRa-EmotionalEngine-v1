@@ -9,6 +9,7 @@
 
 import type { Express } from 'express';
 import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
+import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { getLLMHealth } from '../llmTelemetry';
 
 // ---------------------------------------------------------------------------
@@ -46,16 +47,13 @@ async function checkFalkor(): Promise<ServiceStatus> {
 async function checkChroma(): Promise<ServiceStatus> {
   const start = Date.now();
   try {
-    const url = process.env.LORA_CHROMA_URL;
-    if (!url) return { name: 'ChromaDB', status: 'unknown', latencyMs: 0, detail: 'LORA_CHROMA_URL not set' };
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${url}/api/v1/heartbeat`, { signal: controller.signal });
-    clearTimeout(timeout);
+    if (!process.env.LORA_CHROMA_URL) {
+      return { name: 'ChromaDB', status: 'unknown', latencyMs: 0, detail: 'LORA_CHROMA_URL not set' };
+    }
+    await getChromaClient().heartbeat();
     return {
       name: 'ChromaDB',
-      status: res.ok ? 'ok' : 'down',
+      status: 'ok',
       latencyMs: Date.now() - start,
     };
   } catch (err) {
@@ -95,17 +93,20 @@ function checkLLM(): ServiceStatus {
   const health = getLLMHealth();
   const lastSuccess = health.lastSuccess;
   let detail: string | undefined;
+  let status: 'ok' | 'down' | 'unknown';
   if (lastSuccess) {
     const agoSec = Math.round((Date.now() - lastSuccess) / 1000);
     if (agoSec < 60) detail = `last success ${agoSec}s ago`;
     else if (agoSec < 3600) detail = `last success ${Math.round(agoSec / 60)}m ago`;
     else detail = `last success ${Math.round(agoSec / 3600)}h ago`;
+    status = 'ok';
   } else {
-    detail = 'no successful call since boot';
+    detail = 'idle — no calls since boot';
+    status = 'unknown';
   }
   return {
     name: 'Claude LLM',
-    status: health.openai,
+    status,
     latencyMs: 0,
     detail,
   };
