@@ -319,9 +319,10 @@ function renderHTML(
     </div>
   `).join('');
 
-  // Memory bar
-  const heapPct = system.heapTotalMB > 0 ? Math.round((system.heapUsedMB / system.heapTotalMB) * 100) : 0;
-  const heapColor = heapPct > 85 ? '#ef4444' : heapPct > 60 ? '#eab308' : '#22c55e';
+  // Memory bar — show RSS out of 512 MB (Railway default). This is the real usage metric.
+  const rssLimit = 512;
+  const rssPct = Math.round((system.rssMB / rssLimit) * 100);
+  const rssColor = rssPct > 80 ? '#ef4444' : rssPct > 50 ? '#eab308' : '#22c55e';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -542,15 +543,15 @@ function renderHTML(
     <div class="section-title">Memory &amp; System</div>
     <div class="card">
       <div class="sys-row">
-        <span class="sys-key">Heap</span>
-        <span class="sys-val">${system.heapUsedMB} / ${system.heapTotalMB} MB (${heapPct}%)</span>
+        <span class="sys-key">Memory (RSS)</span>
+        <span class="sys-val">${system.rssMB} / ${rssLimit} MB (${rssPct}%)</span>
       </div>
       <div class="bar-outer">
-        <div class="bar-inner" style="width:${heapPct}%;background:${heapColor}"></div>
+        <div class="bar-inner" style="width:${rssPct}%;background:${rssColor}"></div>
       </div>
       <div class="sys-row" style="margin-top:6px">
-        <span class="sys-key">RSS</span>
-        <span class="sys-val">${system.rssMB} MB</span>
+        <span class="sys-key">JS Heap</span>
+        <span class="sys-val">${system.heapUsedMB} / ${system.heapTotalMB} MB</span>
       </div>
       <div class="sys-row">
         <span class="sys-key">Node</span>
