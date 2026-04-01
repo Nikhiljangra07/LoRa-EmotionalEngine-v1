@@ -4,6 +4,7 @@ import { sharedTierService } from '../tier/TierService';
 import type { SessionEntry } from './chat.route';
 import { getSessionFinalizer } from './chat.route';
 import { getEffectiveUserId } from '../auth/supabaseAuth';
+import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 
 const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
@@ -96,5 +97,70 @@ export function registerSessionLifecycleRoute(
       sessionCount: tierRecord.sessionCount,
     });
     return;
+  });
+
+  /**
+   * POST /api/tier/migrate — migrate tier data from guest userId to authenticated userId.
+   *
+   * Called once when a guest user signs in for the first time.
+   * Copies sessionCount + tier from the guest Redis key to the authenticated key.
+   * Only works if:
+   *   - Request has a valid JWT (authenticated user)
+   *   - guestUserId starts with "guest_"
+   *   - Guest has tier data (sessionCount > 0)
+   *   - Authenticated user has no existing tier data (fresh account)
+   */
+  app.post('/api/tier/migrate', async (req: Request, res: Response): Promise<void> => {
+    const authenticatedUserId = req.verifiedUserId;
+    if (!authenticatedUserId || !req.isAuthenticated) {
+      res.status(401).json({ error: 'Authentication required for tier migration.' });
+      return;
+    }
+
+    const { guestUserId } = req.body ?? {};
+    if (!guestUserId || typeof guestUserId !== 'string' || !guestUserId.startsWith('guest_')) {
+      res.status(400).json({ error: 'Valid guestUserId required.' });
+      return;
+    }
+
+    try {
+      const c = getFalkorClient();
+      if (c.status === 'wait') await c.connect();
+
+      // Read guest tier data
+      const guestKey = `lora:tier:${guestUserId}`;
+      const guestData = await c.hgetall(guestKey);
+
+      if (!guestData || !guestData.sessionCount || parseInt(guestData.sessionCount, 10) <= 0) {
+        res.status(200).json({ migrated: false, reason: 'no_guest_data' });
+        return;
+      }
+
+      // Check authenticated user doesn't already have tier data
+      const authKey = `lora:tier:${authenticatedUserId}`;
+      const authData = await c.hgetall(authKey);
+
+      if (authData && authData.sessionCount && parseInt(authData.sessionCount, 10) > 0) {
+        res.status(200).json({ migrated: false, reason: 'already_has_data' });
+        return;
+      }
+
+      // Copy tier data to authenticated key
+      const sessionCount = parseInt(guestData.sessionCount, 10);
+      const tier = guestData.tier || tierService.computeTier(sessionCount);
+      await c.hset(authKey, 'sessionCount', String(sessionCount), 'tier', tier);
+
+      console.log('[LoRa::TierMigrate]', {
+        from: guestUserId.slice(0, 12) + '...',
+        to: authenticatedUserId.slice(0, 8) + '...',
+        sessionCount,
+        tier,
+      });
+
+      res.status(200).json({ migrated: true, tier, sessionCount });
+    } catch (err) {
+      console.error('[LoRa::TierMigrate] failed:', (err as Error).message);
+      res.status(500).json({ error: 'Migration failed. Please try again.' });
+    }
   });
 }
