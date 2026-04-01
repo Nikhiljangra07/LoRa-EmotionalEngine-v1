@@ -93,8 +93,7 @@ export async function fetchPerspectiveAnalysis(
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
-
-    clearTimeout(timeout);
+    clearTimeout(timeout); // Clear immediately after fetch resolves, before parsing body
 
     if (!response.ok) {
       const elapsed = Date.now() - start;
