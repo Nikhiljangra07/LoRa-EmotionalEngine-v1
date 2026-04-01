@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express';
-import { increment as opIncrement, trackUser, updateConcurrent } from '../analytics/operationalCounters';
+import { increment as opIncrement, trackUser, updateConcurrent, recordResponseTime } from '../analytics/operationalCounters';
 import { FalkorAnchorAdapter } from '../../emotion-core/memory-v1/db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../../emotion-core/memory-v1/db/ChromaSchemaAdapter';
 import { FalkorFactAnchorStore } from '../../emotion-core/memory-v1/db/FalkorFactAnchorStore';
@@ -518,6 +518,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     // ── Input sanitization: strip prompt injection payloads ──
     const sanitized = sanitizeInput(validated.data.text);
     if (sanitized.injectionDetected) {
+      opIncrement('sanitizer_triggered');
       console.warn(`[LORA_INJECTION] userId=${userId} patterns=${sanitized.matchedPatterns.join(',')}`);
     }
     const text = sanitized.text;
@@ -714,6 +715,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       // ── No raw LLM tokens ever reach the client. ──
       const wantsStream = !!validated.data.stream;
 
+      const _engineStart = Date.now();
       const result = await session.engine.processMessage(
         analyzerOutputs,
         undefined,
@@ -848,6 +850,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       // ── Standard JSON response (non-streaming) ──
       opIncrement('messages_processed');
       trackUser(userId);
+      recordResponseTime(Date.now() - _engineStart);
       res.status(200).json({
         reply,
         tier: tierRecord.tier,
@@ -860,6 +863,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         debug: debugPayload,
       });
     } catch (err) {
+      opIncrement('error_500');
       const message = err instanceof Error ? err.message : String(err);
       console.error('[LoRa::Chat] engine error:', message);
       res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand, policy: policyDebug }, error: 'engine_error', details: 'An error occurred processing your message. Please try again.' });

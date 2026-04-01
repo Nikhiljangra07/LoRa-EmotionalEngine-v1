@@ -240,6 +240,14 @@ function uptimeString(): string {
   return `${d}d ${h % 24}h`;
 }
 
+function formatAgo(ts: number): string {
+  const sec = Math.round((Date.now() - ts) / 1000);
+  if (sec < 10) return 'just now';
+  if (sec < 60) return `${sec}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m ago`;
+}
+
 function statusColor(s: 'ok' | 'down' | 'unknown'): string {
   if (s === 'ok') return '#22c55e';
   if (s === 'down') return '#ef4444';
@@ -378,6 +386,7 @@ function renderHTML(
       <div class="logo">LoRa</div>
       <div class="overall">${overallText}</div>
       <div class="meta">${timeStr} (Vancouver)<span class="auto-badge" id="auto-label" style="display:none">AUTO</span></div>
+      <div class="meta">${counters.last_activity_ts > 0 ? 'Last activity: ' + formatAgo(counters.last_activity_ts) : 'No activity since boot'}</div>
     </div>
 
     <div class="stats">
@@ -468,6 +477,26 @@ function renderHTML(
       </div>
     </div>
 
+    <div class="section-title">Response Time</div>
+    <div class="card">
+      <div class="kv-row">
+        <span class="kv-key">Average</span>
+        <span class="kv-val" style="color:${(counters.avg_response_ms ?? 0) > 12000 ? '#ef4444' : (counters.avg_response_ms ?? 0) > 6000 ? '#eab308' : '#22c55e'}">${(counters.avg_response_ms ?? 0) > 0 ? ((counters.avg_response_ms ?? 0) / 1000).toFixed(1) + 's' : '—'}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">P95 (slowest 5%)</span>
+        <span class="kv-val" style="color:${(counters.p95_response_ms ?? 0) > 15000 ? '#ef4444' : (counters.p95_response_ms ?? 0) > 8000 ? '#eab308' : '#22c55e'}">${(counters.p95_response_ms ?? 0) > 0 ? ((counters.p95_response_ms ?? 0) / 1000).toFixed(1) + 's' : '—'}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Fastest</span>
+        <span class="kv-val" style="color:#e4e4e7">${(counters.min_response_ms ?? 0) > 0 ? ((counters.min_response_ms ?? 0) / 1000).toFixed(1) + 's' : '—'}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Slowest</span>
+        <span class="kv-val" style="color:#e4e4e7">${(counters.max_response_ms ?? 0) > 0 ? ((counters.max_response_ms ?? 0) / 1000).toFixed(1) + 's' : '—'}</span>
+      </div>
+    </div>
+
     <div class="section-title">LLM Health</div>
     <div class="card">
       <div class="kv-row">
@@ -507,6 +536,10 @@ function renderHTML(
     <div class="section-title">Safety &amp; Quality</div>
     <div class="card">
       <div class="kv-row">
+        <span class="kv-key">Prompt injection attempts</span>
+        <span class="kv-val" style="color:${(counters.sanitizer_triggered ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.sanitizer_triggered ?? 0}</span>
+      </div>
+      <div class="kv-row">
         <span class="kv-key">Identity: opener stripped</span>
         <span class="kv-val" style="color:${(counters.identity_opener_stripped ?? 0) > 0 ? '#eab308' : '#e4e4e7'}">${counters.identity_opener_stripped ?? 0}</span>
       </div>
@@ -525,6 +558,10 @@ function renderHTML(
       <div class="kv-row">
         <span class="kv-key">Rate limited (IP)</span>
         <span class="kv-val" style="color:${(counters.rate_limit_ip ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.rate_limit_ip ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Server errors (500)</span>
+        <span class="kv-val" style="color:${(counters.error_500 ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.error_500 ?? 0}</span>
       </div>
     </div>
 
