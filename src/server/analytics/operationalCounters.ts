@@ -37,14 +37,19 @@ export type CounterName =
   | 'session_completed'
   // Memory V2
   | 'memory_v2_consolidation_success'
-  | 'memory_v2_consolidation_failure';
+  | 'memory_v2_consolidation_failure'
+  // Deep reasoning
+  | 'deep_reasoning_requested'
+  | 'deep_reasoning_completed';
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 const counters: Record<string, number> = {};
-const uniqueUsers = new Set<string>();
+const uniqueAuthUsers = new Set<string>();
+const uniqueGuestUsers = new Set<string>();
+let peakConcurrentSessions = 0;
 let currentDate = todayUTC();
 
 function todayUTC(): string {
@@ -55,11 +60,12 @@ function todayUTC(): string {
 function ensureToday(): void {
   const today = todayUTC();
   if (currentDate !== today) {
-    // New day — reset everything
     for (const key of Object.keys(counters)) {
       counters[key] = 0;
     }
-    uniqueUsers.clear();
+    uniqueAuthUsers.clear();
+    uniqueGuestUsers.clear();
+    peakConcurrentSessions = 0;
     currentDate = today;
   }
 }
@@ -74,17 +80,37 @@ export function increment(name: CounterName, amount = 1): void {
   counters[name] = (counters[name] ?? 0) + amount;
 }
 
-/** Track a unique user for today. */
+/** Track a unique user for today. Splits auth vs guest. */
 export function trackUser(userId: string): void {
   ensureToday();
-  uniqueUsers.add(userId);
+  if (userId.startsWith('guest_')) {
+    uniqueGuestUsers.add(userId);
+  } else {
+    uniqueAuthUsers.add(userId);
+  }
 }
 
-/** Get all counters + unique user count as a snapshot. */
-export function getCounters(): Record<string, number> & { unique_users: number } {
+/** Call whenever engineSessions.size changes to track peak. */
+export function updateConcurrent(activeCount: number): void {
+  ensureToday();
+  if (activeCount > peakConcurrentSessions) {
+    peakConcurrentSessions = activeCount;
+  }
+}
+
+/** Get all counters + user stats as a snapshot. */
+export function getCounters(): Record<string, number> & {
+  unique_users: number;
+  auth_users: number;
+  guest_users: number;
+  peak_concurrent: number;
+} {
   ensureToday();
   return {
     ...counters,
-    unique_users: uniqueUsers.size,
+    unique_users: uniqueAuthUsers.size + uniqueGuestUsers.size,
+    auth_users: uniqueAuthUsers.size,
+    guest_users: uniqueGuestUsers.size,
+    peak_concurrent: peakConcurrentSessions,
   };
 }

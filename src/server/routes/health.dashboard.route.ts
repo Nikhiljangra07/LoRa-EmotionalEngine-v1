@@ -382,19 +382,51 @@ function renderHTML(
     <div class="stats">
       <div class="stat">
         <div class="stat-val">${activeSessions.length}</div>
-        <div class="stat-lbl">Active</div>
+        <div class="stat-lbl">Live Now</div>
       </div>
       <div class="stat">
-        <div class="stat-val">${snapshot.sessionsToday}</div>
-        <div class="stat-lbl">Today</div>
+        <div class="stat-val">${counters.unique_users ?? 0}</div>
+        <div class="stat-lbl">Users Today</div>
       </div>
       <div class="stat">
-        <div class="stat-val">${formatTokens(snapshot.tokensToday)}</div>
-        <div class="stat-lbl">Tokens</div>
+        <div class="stat-val">${counters.messages_processed ?? 0}</div>
+        <div class="stat-lbl">Messages</div>
       </div>
       <div class="stat">
         <div class="stat-val">${uptimeString()}</div>
         <div class="stat-lbl">Uptime</div>
+      </div>
+    </div>
+
+    <div class="section-title">Users</div>
+    <div class="card">
+      <div class="kv-row">
+        <span class="kv-key">Active right now</span>
+        <span class="kv-val" style="color:#22c55e">${activeSessions.length}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Total users today</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.unique_users ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Signed-in users</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.auth_users ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Guest users</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.guest_users ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Peak concurrent sessions</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.peak_concurrent ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Avg messages per user</span>
+        <span class="kv-val" style="color:#e4e4e7">${(counters.unique_users ?? 0) > 0 ? ((counters.messages_processed ?? 0) / (counters.unique_users ?? 1)).toFixed(1) : '—'}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Deep reasoning used</span>
+        <span class="kv-val" style="color:#a78bfa">${counters.deep_reasoning_completed ?? 0}</span>
       </div>
     </div>
 

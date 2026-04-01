@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express';
-import { increment as opIncrement, trackUser } from '../analytics/operationalCounters';
+import { increment as opIncrement, trackUser, updateConcurrent } from '../analytics/operationalCounters';
 import { FalkorAnchorAdapter } from '../../emotion-core/memory-v1/db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../../emotion-core/memory-v1/db/ChromaSchemaAdapter';
 import { FalkorFactAnchorStore } from '../../emotion-core/memory-v1/db/FalkorFactAnchorStore';
@@ -467,6 +467,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         tokensUsed: 0,
       };
       sessions.set(key, entry);
+      updateConcurrent(sessions.size);
       trackSessionStarted(userId, sessionId);
       if (sessionDebug) console.log('[LoRa::Session] engine created', { key });
     }
@@ -748,6 +749,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       }
 
       if (isDeepAnalysis) {
+        opIncrement('deep_reasoning_completed');
         // Deep mode: soft cap at 900 words — thorough but not a dump
         reply = enforceWordLimit(reply, 900);
       } else {
