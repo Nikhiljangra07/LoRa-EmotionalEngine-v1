@@ -42,6 +42,7 @@ export function registerSessionLifecycleRoute(
 
   app.post('/api/session/terminate', async (req: Request, res: Response): Promise<void> => {
     const { sessionId } = req.body ?? {};
+    const requesterId = getEffectiveUserId(req, req.body?.userId);
 
     if (!sessionId || typeof sessionId !== 'string' || !sessionId.trim()) {
       res.status(400).json({ error: 'sessionId required' });
@@ -50,6 +51,13 @@ export function registerSessionLifecycleRoute(
 
     const trimmedId = sessionId.trim();
     const session = manager.getSession(trimmedId);
+
+    // Verify the requester owns this session
+    if (session && requesterId && session.userId !== requesterId) {
+      res.status(403).json({ error: 'session_not_owned', message: 'Cannot terminate another user\'s session.' });
+      return;
+    }
+
     const ended = manager.endSession(trimmedId);
     console.log('[LoRa] SESSION TERMINATE:', { sessionId: trimmedId, ended });
 

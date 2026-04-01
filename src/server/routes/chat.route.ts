@@ -48,6 +48,7 @@ import { FalkorGraphStore } from '../../emotion-core/memory-v2/storage/graph/fal
 import { buildCurrentFingerprint } from '../../emotion-core/memory-v2/retrieval/build-current-fingerprint';
 import { MIN_MESSAGES_FOR_COMPLETION, MIN_MESSAGES_FOR_MEMORY } from '../session/constants';
 import { getEffectiveUserId } from '../auth/supabaseAuth';
+import { sanitizeInput } from '../auth/inputSanitizer';
 import type { TierRecord } from '../tier/TierTypes';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
@@ -492,7 +493,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       res.status(validated.status).json({ error: validated.error, details: validated.details });
       return;
     }
-    const { sessionId, text, timestamp } = validated.data;
+    const { sessionId, timestamp } = validated.data;
 
     // Use JWT-verified userId for authenticated users, body userId for guests
     const userId = getEffectiveUserId(req, validated.data.userId);
@@ -502,6 +503,13 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       });
       return;
     }
+
+    // ── Input sanitization: strip prompt injection payloads ──
+    const sanitized = sanitizeInput(validated.data.text);
+    if (sanitized.injectionDetected) {
+      console.warn(`[LORA_INJECTION] userId=${userId} patterns=${sanitized.matchedPatterns.join(',')}`);
+    }
+    const text = sanitized.text;
 
     if (blockedUsers.has(userId)) {
       console.warn(`[LORA_BLOCKED] userId=${userId}`);
