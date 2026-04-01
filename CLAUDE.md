@@ -139,9 +139,10 @@ SUPABASE_JWT_SECRET=...
 - **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: consent-gated via cookie banner)
 - **Security:** Full audit complete. JWT auth, input sanitization (20 prompt injection patterns), IP-aware rate limiting, CSP headers, DOMPurify, session ownership validation, attachment size limits, error leakage fixed.
 - **Cookie Consent:** GDPR-compliant banner. PostHog only initializes after explicit user acceptance.
-- **Memory V2:** Active mode (`LORA_MEMORY_V2=1`, `LORA_MEMORY_V2_SHADOW=0`). Crash-proofed pipeline (228 tests, 13 hardening fixes). End-of-session consolidation feeding facts back into LLM. V1 anchors still active alongside V2.
+- **Memory V2:** Active mode (`LORA_MEMORY_V2=1`, `LORA_MEMORY_V2_SHADOW=0`). Per-message retrieval: builds EmotionalFingerprint → queries Chroma for similar sessions → injects matching facts into prompt via `RECALLED CONTEXT` block. End-of-session consolidation: summarize → extract facts+fingerprint (Haiku) → verify → store to Falkor (facts) + Chroma (fingerprints) → update profile. Crash-proofed (228 tests, 45s pipeline timeout). Memory V1 (`LORA_MEMORY_SERVICE=0`) is fully offline — V2 is the sole active memory system.
+- **Memory V1:** Disabled (`LORA_MEMORY_SERVICE=0`). `LORA_FACT_ANCHOR=1` is set but gated behind the disabled memory service — anchors are not retrieved. V1 has no consolidation pipeline; only V2 writes back at session end.
 - **Multi-Perspective Engine:** Live (`LORA_MULTI_PERSPECTIVE=1`). LoRaMaths Python microservice on Railway (`loramaths.railway.internal`). Quick mode: single Haiku call (classify + framework + condense in one pass, 3-4s). 5 mathematical frameworks (regression, Bayesian, game theory, constraint, causal loop). Condensed insights injected into prompt as invisible analytical context. Feature-flagged with 12s timeout + null fallback.
-- **Deep Reasoning Mode:** Live (`LORA_PERSPECTIVE_DEEP_MODE=1`). Full 5-framework pipeline: dimension analysis → parallel execution → 31 combinations scored → conflict graph → formation selection → Sonnet synthesis. Activated via orbit toggle in chat UI.
+- **Deep Reasoning Mode:** Live (`LORA_PERSPECTIVE_DEEP_MODE=1`). Three activation paths: (1) UI orbit toggle (one-shot), (2) user accepts LoRa's offer ("Want the full picture?"), (3) clarification response after ambiguous query. Full pipeline: 5 frameworks → 31 combinations scored → Sonnet synthesis (120s timeout). Synthesis bypasses LLM — returned directly as response. Clarification loop: stores original message, auto-enables deep mode, enriches next request. If LoRaMaths fails/times out, falls back to quick-mode LLM call.
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
 
 ### What's Working
@@ -153,20 +154,22 @@ SUPABASE_JWT_SECRET=...
 - Rate limiting: per-userId + per-IP for guest users (sliding window)
 - Security headers: HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy, X-Permitted-Cross-Domain-Policies
 - Session ownership: terminate endpoint validates requester owns the session
-- Memory V1: Falkor anchors persist across sessions, Chroma schemas for context
-- Memory V2 shadow: crash-proofed end-of-session extraction pipeline (summarizer + dual extractor + verifier + storage retry), 11 components, 228 tests, first successful production consolidation
-- LLM fact extraction via Haiku (with user_name validation guard)
+- Memory V2 active: per-message retrieval (EmotionalFingerprint → Chroma similarity → fact injection) + end-of-session consolidation (summarize → extract → verify → store)
+- Deep Reasoning Mode: full 5-framework pipeline via LoRaMaths, 120s timeout, synthesis bypasses LLM, clarification loop, one-shot UI toggle
+- Multi-Perspective Engine (quick mode): single Haiku call, 3-4s, condensed insights in prompt
+- LLM fact extraction via Haiku (with user_name validation guard + morphological filter)
 - Identity enforcement: 22 therapist patterns + 11 narrative patterns + semantic detection + emotional question rewrite
 - ETV engine: trust value evolves per session
 - PostHog analytics: 4 backend events + frontend consent-gated tracking
-- Rate limiting, daily token limits, session cap (25 messages)
+- Daily token limits, session cap (25 messages)
 - Persona enforcer, relational router, narrative state engine
 
 ### What's Inactive/Minimal
 
+- Memory V1: fully disabled (`LORA_MEMORY_SERVICE=0`). `LORA_FACT_ANCHOR=1` is set but gated behind disabled service.
+- Memory V2 shadow mode: off (`LORA_MEMORY_V2_SHADOW=0`). Was used for validation before V2 went active.
 - Appraisal bridge: code exists but minimally active in pipeline
 - Appraisal lab engines (collapse, escalation, family, mood, pressure, vector-pressure, post-clarity, time): research code, not in production path
-- Memory V2 active mode: code exists, flags off — enable after shadow validation
 - ETV policy prompt shadow: disabled
 
 ---
