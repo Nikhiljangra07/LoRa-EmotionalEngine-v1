@@ -24,3 +24,19 @@ export function todayFormatted(): string {
     day: 'numeric',
   });
 }
+
+/** Current time in user-friendly format (e.g. "2:35 PM IST") */
+export function currentTimeFormatted(): string {
+  const d = new Date(now());
+  return d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  });
+}
+
+/** Day of week (e.g. "Tuesday") */
+export function currentDayOfWeek(): string {
+  return new Date(now()).toLocaleDateString('en-US', { weekday: 'long' });
+}
