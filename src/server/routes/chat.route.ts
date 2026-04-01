@@ -207,6 +207,7 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
   const ALLOWED_DOC_TYPES = ['application/pdf'];
   const MAX_ATTACHMENTS = 5;
+  const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB per file (base64 decoded size)
   let validatedAttachments: ChatAttachment[] | undefined;
 
   if (hasAttachments) {
@@ -221,6 +222,12 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
       const mimeType = typeof a.mimeType === 'string' ? a.mimeType.toLowerCase().trim() : '';
       const data = typeof a.data === 'string' ? a.data : '';
       if (!data) continue;
+
+      // Per-file size check (base64 is ~4/3 of binary)
+      const estimatedBytes = Math.ceil((data.length * 3) / 4);
+      if (estimatedBytes > MAX_ATTACHMENT_BYTES) {
+        return { ok: false, status: 400, error: 'invalid_request', details: `Attachment exceeds 5MB limit.` };
+      }
 
       const isImage = ALLOWED_IMAGE_TYPES.includes(mimeType);
       const isDoc = ALLOWED_DOC_TYPES.includes(mimeType);
@@ -521,8 +528,9 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     console.log('ENGINE KEY:', engineKey);
     if (sessionDebug) console.log('[LoRa::Session] /api/chat', { key: engineKey });
 
-    if (!rateLimitTryAllow(userId)) {
-      console.warn(`[LORA_RATE_LIMIT] userId=${userId}`);
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '';
+    if (!rateLimitTryAllow(userId, clientIp)) {
+      console.warn(`[LORA_RATE_LIMIT] userId=${userId} ip=${clientIp}`);
       res.status(429).json({ message: 'Too many requests. Please slow down.' });
       return;
     }
@@ -843,7 +851,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[LoRa::Chat] engine error:', message);
-      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand, policy: policyDebug }, error: 'engine_error', details: message });
+      res.status(500).json({ reply: '', tier: tierRecord.tier, sessionCount: tierRecord.sessionCount, debug: { ...emptyDebug(), etvBand, policy: policyDebug }, error: 'engine_error', details: 'An error occurred processing your message. Please try again.' });
     }
   });
 
