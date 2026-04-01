@@ -22,21 +22,22 @@ export function todayFormatted(): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC',
   });
 }
 
-/** Current time in user-friendly format (e.g. "2:35 PM IST") */
+/** Current time in UTC (e.g. "2:35 PM UTC") — no server timezone leak */
 export function currentTimeFormatted(): string {
   const d = new Date(now());
   return d.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-    timeZoneName: 'short',
-  });
+    timeZone: 'UTC',
+  }) + ' UTC';
 }
 
-/** Day of week (e.g. "Tuesday") */
+/** Day of week in UTC (e.g. "Tuesday") */
 export function currentDayOfWeek(): string {
-  return new Date(now()).toLocaleDateString('en-US', { weekday: 'long' });
+  return new Date(now()).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
 }
