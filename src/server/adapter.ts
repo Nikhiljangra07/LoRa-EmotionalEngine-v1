@@ -10,6 +10,7 @@ import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
 import { supabaseAuthMiddleware } from './auth/supabaseAuth';
 import { registerDebugMemoryRoute } from './routes/debug.memory.route';
+import { registerHealthDashboardRoute } from './routes/health.dashboard.route';
 import { shutdownPosthog, trackSessionEnded } from './analytics/posthogClient';
 import { sharedTierService } from './tier/TierService';
 import { logSessionEnd } from './analytics/engagementLogger';
@@ -109,6 +110,7 @@ try {
 }
 registerOnboardingRoute(app);
 registerSessionLifecycleRoute(app, engineSessions);
+registerHealthDashboardRoute(app, engineSessions);
 
 // ── Health: simple liveness for stress test and load balancers ─────────
 app.get('/health', (_req, res) => {
