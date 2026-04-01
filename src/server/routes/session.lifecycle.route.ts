@@ -3,6 +3,7 @@ import { SessionManager } from '../session/SessionManager';
 import { sharedTierService } from '../tier/TierService';
 import type { SessionEntry } from './chat.route';
 import { getSessionFinalizer } from './chat.route';
+import { getEffectiveUserId } from '../auth/supabaseAuth';
 
 const sessionDebug = process.env.LORA_DEBUG_SESSION === '1';
 
@@ -22,14 +23,14 @@ export function registerSessionLifecycleRoute(
   const tierService = sharedTierService;
 
   app.post('/api/session/start', (req: Request, res: Response): void => {
-    const { userId } = req.body ?? {};
+    const userId = getEffectiveUserId(req, req.body?.userId);
 
-    if (!userId || typeof userId !== 'string' || !userId.trim()) {
+    if (!userId) {
       res.status(400).json({ error: 'userId required' });
       return;
     }
 
-    const session = manager.createSession(userId.trim());
+    const session = manager.createSession(userId);
     console.log('[LoRa] SESSION START:', { sessionId: session.sessionId, userId: session.userId });
 
     res.status(200).json({

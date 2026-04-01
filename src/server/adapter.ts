@@ -8,6 +8,7 @@ import { registerChatRoute, runStartupHealthChecks } from './routes/chat.route';
 import { registerSessionLifecycleRoute } from './routes/session.lifecycle.route';
 import { registerOnboardingRoute } from './routes/onboarding.route';
 import { featureFlags } from '../emotion-core/config/featureFlags';
+import { supabaseAuthMiddleware } from './auth/supabaseAuth';
 import { registerDebugMemoryRoute } from './routes/debug.memory.route';
 import { shutdownPosthog, trackSessionEnded } from './analytics/posthogClient';
 import { sharedTierService } from './tier/TierService';
@@ -74,6 +75,9 @@ app.use((_req, res, next) => {
 });
 
 app.use(express.json({ limit: '25mb' })); // Raised for base64 image/document attachments
+
+// ── Supabase JWT auth (after JSON parser, before routes) ──
+app.use(supabaseAuthMiddleware);
 
 // Laura UI: serve public/ so GET / opens the chat page
 app.use(express.static(path.join(__dirname, '..', '..', 'public')));

@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { parseOnboardingInput, type OnboardingPreferences } from '../../emotion-core/onboarding/onboardingQuiz';
+import { getEffectiveUserId } from '../auth/supabaseAuth';
 
 export interface OnboardingBody {
   userId: string;
@@ -8,10 +9,6 @@ export interface OnboardingBody {
     preferredTone?: string;
     goalOrientation?: string;
   };
-}
-
-function isNonEmptyString(x: unknown): x is string {
-  return typeof x === 'string' && x.trim().length > 0;
 }
 
 /**
@@ -26,11 +23,11 @@ export function registerOnboardingRoute(app: Express): void {
       return;
     }
     const b = body as Record<string, unknown>;
-    if (!isNonEmptyString(b.userId)) {
+    const userId = getEffectiveUserId(req, typeof b.userId === 'string' ? b.userId : undefined);
+    if (!userId) {
       res.status(400).json({ ok: false, error: 'userId must be a non-empty string.' });
       return;
     }
-    const userId = b.userId.trim();
     const rawOnboarding = b.onboarding;
     if (rawOnboarding == null || typeof rawOnboarding !== 'object') {
       res.status(400).json({ ok: false, error: 'onboarding must be an object.' });

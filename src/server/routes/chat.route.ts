@@ -47,6 +47,7 @@ import { ChromaVectorStore } from '../../emotion-core/memory-v2/storage/vector/c
 import { FalkorGraphStore } from '../../emotion-core/memory-v2/storage/graph/falkor-adapter';
 import { buildCurrentFingerprint } from '../../emotion-core/memory-v2/retrieval/build-current-fingerprint';
 import { MIN_MESSAGES_FOR_COMPLETION, MIN_MESSAGES_FOR_MEMORY } from '../session/constants';
+import { getEffectiveUserId } from '../auth/supabaseAuth';
 import type { TierRecord } from '../tier/TierTypes';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
@@ -491,7 +492,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       res.status(validated.status).json({ error: validated.error, details: validated.details });
       return;
     }
-    const { userId, sessionId, text, timestamp } = validated.data;
+    const { sessionId, text, timestamp } = validated.data;
+
+    // Use JWT-verified userId for authenticated users, body userId for guests
+    const userId = getEffectiveUserId(req, validated.data.userId);
     if (!userId) {
       res.status(400).json({
         error: 'userId is required for this endpoint.',
