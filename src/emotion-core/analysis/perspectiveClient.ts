@@ -14,6 +14,7 @@ import type {
   PerspectiveConversationTurn,
 } from './types';
 import type { ChatTurn } from '../prompt/PromptTemplateBuilder';
+import { increment as opIncrement } from '../../server/analytics/operationalCounters';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -97,6 +98,7 @@ export async function fetchPerspectiveAnalysis(
 
     if (!response.ok) {
       const elapsed = Date.now() - start;
+      opIncrement('perspective_failure');
       console.warn(
         `[LoRa::Perspective] HTTP ${response.status} from engine (${elapsed}ms)`,
       );
@@ -114,6 +116,7 @@ export async function fetchPerspectiveAnalysis(
         `engine=${data.processing_time_ms}ms, total=${elapsed}ms`,
     );
 
+    opIncrement('perspective_success');
     return data;
   } catch (err: unknown) {
     const elapsed = Date.now() - start;
@@ -122,10 +125,12 @@ export async function fetchPerspectiveAnalysis(
 
     // AbortError = timeout
     if (message.includes('abort')) {
+      opIncrement('perspective_timeout');
       console.warn(
         `[LoRa::Perspective] Timeout after ${elapsed}ms (limit: ${timeoutMs}ms)`,
       );
     } else {
+      opIncrement('perspective_failure');
       console.warn(
         `[LoRa::Perspective] Failed: ${message} (${elapsed}ms)`,
       );

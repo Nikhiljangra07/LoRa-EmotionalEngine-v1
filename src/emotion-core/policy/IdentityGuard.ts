@@ -1,5 +1,7 @@
 // src/emotion-core/policy/IdentityGuard.ts
 
+import { increment as opIncrement } from '../../server/analytics/operationalCounters';
+
 // ── Forbidden opener patterns ────────────────────────────────────────
 
 const THERAPIST_OPENERS: RegExp[] = [
@@ -122,6 +124,7 @@ export function enforceIdentity(text: string): string {
       const stripped = stripFirstSentence(result);
       if (stripped.length > 0) {
         result = stripped;
+        opIncrement('identity_opener_stripped');
       }
     }
 
@@ -130,11 +133,14 @@ export function enforceIdentity(text: string): string {
       const firstSentence = extractFirstSentence(result);
       if (firstSentence.length > 0 && isEmotionalFirstFraming(firstSentence)) {
         result = replaceFirstSentence(result, SEMANTIC_REPLACEMENT);
+        opIncrement('identity_semantic_rewrite');
       }
     }
 
     // 3. Emotional question rewrite (runs every pass)
+    const beforeQuestionRewrite = result;
     result = rewriteEmotionalQuestions(result);
+    if (result !== beforeQuestionRewrite) opIncrement('identity_question_rewrite');
 
     if (result === before) break;
   }

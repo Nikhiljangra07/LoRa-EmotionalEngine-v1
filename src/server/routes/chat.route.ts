@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express';
+import { increment as opIncrement, trackUser } from '../analytics/operationalCounters';
 import { FalkorAnchorAdapter } from '../../emotion-core/memory-v1/db/FalkorAnchorAdapter';
 import { ChromaSchemaAdapter } from '../../emotion-core/memory-v1/db/ChromaSchemaAdapter';
 import { FalkorFactAnchorStore } from '../../emotion-core/memory-v1/db/FalkorFactAnchorStore';
@@ -421,6 +422,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         })),
         eivCurve,
       }).then(result => {
+        opIncrement('memory_v2_consolidation_success');
         console.log('[LoRa::MemoryV2] session consolidated', {
           userId: userId.slice(0, 8),
           sessionId: sessionId.slice(0, 8),
@@ -430,6 +432,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           reExtracted: result.reExtracted,
         });
       }).catch(err => {
+        opIncrement('memory_v2_consolidation_failure');
         console.error('[LoRa::MemoryV2] consolidation failed', (err as Error).message);
       });
     }
@@ -530,6 +533,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || '';
     if (!rateLimitTryAllow(userId, clientIp)) {
+      opIncrement('rate_limit_user');
       console.warn(`[LORA_RATE_LIMIT] userId=${userId} ip=${clientIp}`);
       res.status(429).json({ message: 'Too many requests. Please slow down.' });
       return;
@@ -538,6 +542,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     const session = getSession(userId, sessionId, engineKey);
     const messageCount = session.history.filter((t) => t.role === 'user').length;
     if (messageCount >= MAX_SESSION_MESSAGES) {
+      opIncrement('session_cap_hit');
       const capTier = await finalizeSession(userId, sessionId, session, 'session_cap');
       sessions.delete(engineKey);
       console.warn(`[LORA_SESSION_CAP] sessionId=${sessionId} messages=${messageCount}`);
@@ -608,6 +613,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             tokensEstimated: 0,
           });
 
+          opIncrement('messages_relational');
+          trackUser(userId);
           const debug = emptyDebug();
           res.status(200).json({
             reply: guardedReply,
@@ -837,6 +844,8 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       }
 
       // ── Standard JSON response (non-streaming) ──
+      opIncrement('messages_processed');
+      trackUser(userId);
       res.status(200).json({
         reply,
         tier: tierRecord.tier,

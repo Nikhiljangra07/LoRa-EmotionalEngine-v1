@@ -1,3 +1,4 @@
+import { increment as opIncrement } from '../../server/analytics/operationalCounters';
 import { EIVScorer } from '../scorers/EIVScorer';
 import { getEIVTier } from '../scorers/eivTiers';
 import { ETVEngine } from './ETVEngine';
@@ -2268,6 +2269,7 @@ export class EngineOrchestrator {
             cooldownUntil: this.llmCooldownUntil,
           });
           this.logLLMEvent('fallback_used', { reason: 'cooldown' });
+          opIncrement('llm_fallback_cooldown');
           return EngineOrchestrator.generateFallbackReply(fallbackContext);
         }
       }
@@ -2392,6 +2394,7 @@ export class EngineOrchestrator {
       this.llmCooldownStartedAt = now;
       const cooldownMs = this.llmConfig.cooldownMs;
       this.llmCooldownUntil = now + cooldownMs;
+      opIncrement('llm_cooldown_activated');
       this.logLLMEvent('cooldown_entry', {
         cooldownUntil: this.llmCooldownUntil,
       });
@@ -2407,6 +2410,7 @@ export class EngineOrchestrator {
       });
     }
     this.logLLMEvent('fallback_used', { reason: 'retry_exhausted' });
+    opIncrement('llm_fallback_retry_exhausted');
     return EngineOrchestrator.fallbackResponse();
   }
 

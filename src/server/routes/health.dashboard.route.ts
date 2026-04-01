@@ -13,6 +13,7 @@ import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { getLLMHealth } from '../llmTelemetry';
 import { getSnapshot } from '../analytics/runtimeMetrics';
+import { getCounters } from '../analytics/operationalCounters';
 import { featureFlags } from '../../emotion-core/config/featureFlags';
 import type { SessionEntry } from './chat.route';
 
@@ -261,6 +262,7 @@ function renderHTML(
   snapshot: { tokensToday: number; sessionsToday: number; avgSessionLength: number },
   flags: FlagInfo[],
   system: SystemInfo,
+  counters: Record<string, number>,
 ): string {
   const anyDown = services.some(s => s.status === 'down');
   const overallColor = anyDown ? '#ef4444' : '#22c55e';
@@ -404,8 +406,24 @@ function renderHTML(
     <div class="section-title">Today's Activity</div>
     <div class="card">
       <div class="kv-row">
+        <span class="kv-key">Messages processed</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.messages_processed ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Relational (greeting/farewell)</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.messages_relational ?? 0}</span>
+      </div>
+      <div class="kv-row">
         <span class="kv-key">Sessions completed</span>
         <span class="kv-val" style="color:#e4e4e7">${snapshot.sessionsToday}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Session caps hit (25 msgs)</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.session_cap_hit ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Unique users</span>
+        <span class="kv-val" style="color:#e4e4e7">${counters.unique_users ?? 0}</span>
       </div>
       <div class="kv-row">
         <span class="kv-key">Tokens consumed</span>
@@ -414,6 +432,78 @@ function renderHTML(
       <div class="kv-row">
         <span class="kv-key">Avg session length</span>
         <span class="kv-val" style="color:#e4e4e7">${avgStr}</span>
+      </div>
+    </div>
+
+    <div class="section-title">LLM Health</div>
+    <div class="card">
+      <div class="kv-row">
+        <span class="kv-key">Successful calls</span>
+        <span class="kv-val" style="color:#22c55e">${counters.llm_success ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Fallbacks (cooldown)</span>
+        <span class="kv-val" style="color:${(counters.llm_fallback_cooldown ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.llm_fallback_cooldown ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Fallbacks (retry exhausted)</span>
+        <span class="kv-val" style="color:${(counters.llm_fallback_retry_exhausted ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.llm_fallback_retry_exhausted ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Cooldown activations</span>
+        <span class="kv-val" style="color:${(counters.llm_cooldown_activated ?? 0) > 0 ? '#eab308' : '#e4e4e7'}">${counters.llm_cooldown_activated ?? 0}</span>
+      </div>
+    </div>
+
+    <div class="section-title">Perspective Engine</div>
+    <div class="card">
+      <div class="kv-row">
+        <span class="kv-key">Success</span>
+        <span class="kv-val" style="color:#22c55e">${counters.perspective_success ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Failures</span>
+        <span class="kv-val" style="color:${(counters.perspective_failure ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.perspective_failure ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Timeouts</span>
+        <span class="kv-val" style="color:${(counters.perspective_timeout ?? 0) > 0 ? '#eab308' : '#e4e4e7'}">${counters.perspective_timeout ?? 0}</span>
+      </div>
+    </div>
+
+    <div class="section-title">Safety &amp; Quality</div>
+    <div class="card">
+      <div class="kv-row">
+        <span class="kv-key">Identity: opener stripped</span>
+        <span class="kv-val" style="color:${(counters.identity_opener_stripped ?? 0) > 0 ? '#eab308' : '#e4e4e7'}">${counters.identity_opener_stripped ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Identity: semantic rewrite</span>
+        <span class="kv-val" style="color:${(counters.identity_semantic_rewrite ?? 0) > 0 ? '#eab308' : '#e4e4e7'}">${counters.identity_semantic_rewrite ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Identity: question rewrite</span>
+        <span class="kv-val" style="color:${(counters.identity_question_rewrite ?? 0) > 0 ? '#eab308' : '#e4e4e7'}">${counters.identity_question_rewrite ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Rate limited (user)</span>
+        <span class="kv-val" style="color:${(counters.rate_limit_user ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.rate_limit_user ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Rate limited (IP)</span>
+        <span class="kv-val" style="color:${(counters.rate_limit_ip ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.rate_limit_ip ?? 0}</span>
+      </div>
+    </div>
+
+    <div class="section-title">Memory V2</div>
+    <div class="card">
+      <div class="kv-row">
+        <span class="kv-key">Consolidations succeeded</span>
+        <span class="kv-val" style="color:#22c55e">${counters.memory_v2_consolidation_success ?? 0}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Consolidations failed</span>
+        <span class="kv-val" style="color:${(counters.memory_v2_consolidation_failure ?? 0) > 0 ? '#ef4444' : '#e4e4e7'}">${counters.memory_v2_consolidation_failure ?? 0}</span>
       </div>
     </div>
 
@@ -517,6 +607,7 @@ export function registerHealthDashboardRoute(
       const snapshot = getSnapshot();
       const flags = getKeyFlags();
       const system = getSystemInfo();
+      const counters = getCounters();
 
       // JSON mode
       if (_req.headers.accept?.includes('application/json')) {
@@ -530,12 +621,13 @@ export function registerHealthDashboardRoute(
           flags,
           sessions,
           system,
+          counters,
         });
         return;
       }
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(renderHTML(services, sessions, snapshot, flags, system));
+      res.send(renderHTML(services, sessions, snapshot, flags, system, counters));
     } catch {
       res.status(500).json({ status: 'error' });
     }

@@ -4,6 +4,8 @@
  * Prevents guest userId rotation to bypass limits.
  */
 
+import { increment as opIncrement } from '../analytics/operationalCounters';
+
 const WINDOW_MS = 1000;
 const MAX_REQUESTS_PER_WINDOW = 5;
 
@@ -41,12 +43,14 @@ function checkWindow(key: string, maxRequests: number): boolean {
 export function tryAllow(userId: string, ipAddress?: string): boolean {
   // Always check per-userId limit
   if (!checkWindow(`user:${userId}`, MAX_REQUESTS_PER_WINDOW)) {
+    opIncrement('rate_limit_user');
     return false;
   }
 
   // For guest users, also enforce per-IP limit
   if (ipAddress && userId.startsWith('guest_')) {
     if (!checkWindow(`ip:${ipAddress}`, MAX_GUEST_IP_REQUESTS_PER_WINDOW)) {
+      opIncrement('rate_limit_ip');
       return false;
     }
   }

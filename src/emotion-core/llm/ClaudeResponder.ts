@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { recordLLMSuccess } from '../../server/llmTelemetry';
+import { increment as opIncrement } from '../../server/analytics/operationalCounters';
 import { debugEnabled } from '../debug/debugGate';
 import type { ChatTurn } from '../prompt/PromptTemplateBuilder';
 
@@ -150,6 +151,7 @@ export class ClaudeResponder {
     }
 
     recordLLMSuccess();
+    opIncrement('llm_success');
 
     if (debugEnabled) {
       console.log('[LoRa::Debug][ClaudeResponder] success', {
@@ -221,6 +223,7 @@ export class ClaudeResponder {
     }
 
     recordLLMSuccess();
+    opIncrement('llm_success');
 
     if (debugEnabled) {
       console.log('[LoRa::Debug][ClaudeResponder] stream complete', {
