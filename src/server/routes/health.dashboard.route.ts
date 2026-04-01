@@ -2,7 +2,7 @@
  * GET /api/health — Full service health dashboard.
  *
  * Pings all 4 backend services, shows today's activity stats,
- * active session details, feature flags, and memory system status.
+ * active session details, feature flags, system resources, and config.
  * Returns a mobile-friendly HTML page.
  *
  * No auth required. Read-only. No side-effects.
@@ -151,22 +151,25 @@ function getActiveSessions(sessions: Map<string, SessionEntry>): ActiveSessionIn
 }
 
 // ---------------------------------------------------------------------------
-// Feature flags summary
+// Feature flags
 // ---------------------------------------------------------------------------
 
 interface FlagInfo { name: string; on: boolean }
 
 function getKeyFlags(): FlagInfo[] {
   const flags = featureFlags as Record<string, unknown>;
-  const keys = [
+  const keys: [string, string][] = [
     ['memoryV2Enabled', 'Memory V2'],
     ['multiPerspectiveEnabled', 'Multi-Perspective'],
-    ['perspectiveDeepMode', 'Deep Reasoning'],
+    ['perspectiveDeepModeEnabled', 'Deep Reasoning'],
     ['personaEnforcerEnabled', 'Persona Enforcer'],
     ['relationalRouterEnabled', 'Relational Router'],
     ['factAnchorEnabled', 'Fact Anchors'],
     ['bootstrapMemoryEnabled', 'Bootstrap Memory'],
-  ] as const;
+    ['etvV1Enabled', 'ETV Engine'],
+    ['narrativeStateEngineEnabled', 'Narrative State'],
+    ['memoryServiceEnabled', 'Memory V1 Service'],
+  ];
   return keys.map(([key, label]) => ({
     name: label,
     on: !!flags[key],
@@ -174,10 +177,56 @@ function getKeyFlags(): FlagInfo[] {
 }
 
 // ---------------------------------------------------------------------------
-// HTML renderer
+// System info
+// ---------------------------------------------------------------------------
+
+interface SystemInfo {
+  nodeVersion: string;
+  heapUsedMB: number;
+  heapTotalMB: number;
+  rssMB: number;
+  env: string;
+  llmModel: string;
+  llmTimeout: string;
+  perspectiveUrl: string;
+  chromaUrl: string;
+  falkorUrl: string;
+}
+
+function getSystemInfo(): SystemInfo {
+  const mem = process.memoryUsage();
+  return {
+    nodeVersion: process.version,
+    heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+    heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+    rssMB: Math.round(mem.rss / 1024 / 1024),
+    env: process.env.NODE_ENV || 'unknown',
+    llmModel: 'Claude Sonnet 4-6',
+    llmTimeout: `${process.env.LORA_LLM_TIMEOUT_MS || '18000'}ms`,
+    perspectiveUrl: process.env.LORA_PERSPECTIVE_URL ? 'configured' : 'not set',
+    chromaUrl: process.env.LORA_CHROMA_URL ? 'configured' : 'not set',
+    falkorUrl: process.env.LORA_FALKOR_URL ? 'configured' : 'not set',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Time formatting — Vancouver (America/Vancouver)
 // ---------------------------------------------------------------------------
 
 const serverStartTime = Date.now();
+
+function vancouverTime(): string {
+  return new Date().toLocaleString('en-US', {
+    timeZone: 'America/Vancouver',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
 
 function uptimeString(): string {
   const sec = Math.round((Date.now() - serverStartTime) / 1000);
@@ -185,7 +234,9 @@ function uptimeString(): string {
   if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  return `${h}h ${m}m`;
+  if (h < 24) return `${h}h ${m}m`;
+  const d = Math.floor(h / 24);
+  return `${d}d ${h % 24}h`;
 }
 
 function statusColor(s: 'ok' | 'down' | 'unknown'): string {
@@ -200,16 +251,21 @@ function formatTokens(n: number): string {
   return (n / 1_000_000).toFixed(2) + 'M';
 }
 
+// ---------------------------------------------------------------------------
+// HTML renderer
+// ---------------------------------------------------------------------------
+
 function renderHTML(
   services: ServiceStatus[],
   activeSessions: ActiveSessionInfo[],
   snapshot: { tokensToday: number; sessionsToday: number; avgSessionLength: number },
   flags: FlagInfo[],
+  system: SystemInfo,
 ): string {
   const anyDown = services.some(s => s.status === 'down');
   const overallColor = anyDown ? '#ef4444' : '#22c55e';
   const overallText = anyDown ? 'Degraded' : 'All Systems Operational';
-  const now = new Date().toUTCString();
+  const timeStr = vancouverTime();
 
   const serviceRows = services.map(s => `
     <div class="card">
@@ -229,7 +285,7 @@ function renderHTML(
   else if (avgLen < 60) avgStr = `${avgLen}s`;
   else avgStr = `${Math.floor(avgLen / 60)}m ${avgLen % 60}s`;
 
-  // Active sessions section
+  // Active sessions
   let sessionsHTML = '';
   if (activeSessions.length > 0) {
     const sessionRows = activeSessions.map(s => `
@@ -245,54 +301,72 @@ function renderHTML(
       <div class="section-title">Active Sessions</div>
       <div class="card">${sessionRows}</div>
     `;
+  } else {
+    sessionsHTML = `
+      <div class="section-title">Active Sessions</div>
+      <div class="card"><div class="empty">No active sessions</div></div>
+    `;
   }
 
   // Feature flags
   const flagRows = flags.map(f => `
-    <div class="flag-row">
-      <span class="flag-dot" style="color:${f.on ? '#22c55e' : '#52525b'}">●</span>
-      <span class="flag-name">${f.name}</span>
-      <span class="flag-val" style="color:${f.on ? '#22c55e' : '#52525b'}">${f.on ? 'ON' : 'OFF'}</span>
+    <div class="kv-row">
+      <span class="kv-dot" style="color:${f.on ? '#22c55e' : '#52525b'}">●</span>
+      <span class="kv-key">${f.name}</span>
+      <span class="kv-val" style="color:${f.on ? '#22c55e' : '#52525b'}">${f.on ? 'ON' : 'OFF'}</span>
     </div>
   `).join('');
+
+  // Memory bar
+  const heapPct = system.heapTotalMB > 0 ? Math.round((system.heapUsedMB / system.heapTotalMB) * 100) : 0;
+  const heapColor = heapPct > 85 ? '#ef4444' : heapPct > 60 ? '#eab308' : '#22c55e';
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>LoRa — System Status</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e4e4e7;min-height:100vh;padding:20px 16px}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#09090b;color:#e4e4e7;min-height:100vh;padding:20px 16px;-webkit-font-smoothing:antialiased}
     .container{max-width:480px;margin:0 auto}
-    .header{text-align:center;margin-bottom:24px}
-    .logo{font-size:24px;font-weight:700;letter-spacing:-0.5px}
-    .overall{font-size:15px;margin-top:6px;font-weight:500;color:${overallColor}}
+    .header{text-align:center;margin-bottom:20px}
+    .logo{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+    .overall{font-size:14px;margin-top:6px;font-weight:600;color:${overallColor}}
     .meta{font-size:11px;color:#71717a;margin-top:3px}
-    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 20px}
-    .stat{background:#18181b;border:1px solid #27272a;border-radius:10px;padding:12px 8px;text-align:center}
-    .stat-val{font-size:18px;font-weight:700;color:#e4e4e7}
-    .stat-lbl{font-size:10px;color:#71717a;margin-top:2px}
-    .section-title{font-size:12px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:1px;margin:20px 0 8px;padding-left:4px}
-    .card{background:#18181b;border:1px solid #27272a;border-radius:10px;padding:12px 14px;margin-bottom:8px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 16px}
+    .stat{background:#18181b;border:1px solid #27272a;border-radius:10px;padding:10px 6px;text-align:center}
+    .stat-val{font-size:17px;font-weight:700;color:#e4e4e7}
+    .stat-lbl{font-size:9px;color:#71717a;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px}
+    .section-title{font-size:11px;font-weight:600;color:#52525b;text-transform:uppercase;letter-spacing:1px;margin:18px 0 6px;padding-left:4px}
+    .card{background:#18181b;border:1px solid #27272a;border-radius:10px;padding:10px 12px;margin-bottom:6px}
     .row{display:flex;align-items:center;gap:8px}
     .dot{font-size:10px}
     .name{flex:1;font-size:13px;font-weight:500}
     .badge{font-size:11px;font-weight:600;letter-spacing:0.5px}
     .sub{font-size:11px;color:#71717a;margin-top:3px;padding-left:18px}
-    .session-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #27272a}
+    .session-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #1e1e22}
     .session-row:last-child{border-bottom:none}
-    .session-user{flex:1;font-size:12px;font-weight:500;font-family:'SF Mono',Menlo,monospace;color:#a1a1aa}
-    .session-stat{font-size:11px;color:#71717a}
-    .deep-badge{font-size:9px;font-weight:700;color:#a78bfa;background:#a78bfa22;padding:1px 5px;border-radius:4px}
-    .flag-row{display:flex;align-items:center;gap:6px;padding:4px 0}
-    .flag-dot{font-size:8px}
-    .flag-name{flex:1;font-size:12px;color:#a1a1aa}
-    .flag-val{font-size:11px;font-weight:600;letter-spacing:0.5px}
-    .footer{text-align:center;margin-top:20px;font-size:11px;color:#52525b}
-    .refresh-btn{display:block;margin:16px auto 0;background:#27272a;color:#a1a1aa;border:1px solid #3f3f46;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent}
-    .refresh-btn:active{background:#3f3f46}
+    .session-user{flex:1;font-size:11px;font-weight:500;font-family:'SF Mono',Menlo,monospace;color:#a1a1aa}
+    .session-stat{font-size:10px;color:#71717a}
+    .deep-badge{font-size:9px;font-weight:700;color:#a78bfa;background:#a78bfa18;padding:1px 5px;border-radius:4px}
+    .empty{font-size:12px;color:#3f3f46;text-align:center;padding:6px 0}
+    .kv-row{display:flex;align-items:center;gap:6px;padding:3px 0}
+    .kv-dot{font-size:8px}
+    .kv-key{flex:1;font-size:12px;color:#a1a1aa}
+    .kv-val{font-size:11px;font-weight:600;letter-spacing:0.3px}
+    .bar-outer{height:6px;background:#27272a;border-radius:3px;margin-top:4px;overflow:hidden}
+    .bar-inner{height:100%;border-radius:3px;transition:width 0.3s}
+    .sys-row{display:flex;align-items:center;padding:3px 0}
+    .sys-key{flex:1;font-size:11px;color:#71717a}
+    .sys-val{font-size:11px;color:#a1a1aa;font-family:'SF Mono',Menlo,monospace}
+    .footer{text-align:center;margin-top:16px;font-size:10px;color:#3f3f46}
+    .refresh-btn{display:block;margin:14px auto 0;background:#18181b;color:#a1a1aa;border:1px solid #27272a;border-radius:8px;padding:10px 28px;font-size:13px;font-weight:500;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 0.15s}
+    .refresh-btn:active{background:#27272a}
+    .auto-badge{display:inline-block;font-size:9px;color:#22c55e;background:#22c55e18;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600}
   </style>
 </head>
 <body>
@@ -300,13 +374,13 @@ function renderHTML(
     <div class="header">
       <div class="logo">LoRa</div>
       <div class="overall">${overallText}</div>
-      <div class="meta">${now}</div>
+      <div class="meta">${timeStr} (Vancouver)<span class="auto-badge" id="auto-label" style="display:none">AUTO</span></div>
     </div>
 
     <div class="stats">
       <div class="stat">
         <div class="stat-val">${activeSessions.length}</div>
-        <div class="stat-lbl">Active Now</div>
+        <div class="stat-lbl">Active</div>
       </div>
       <div class="stat">
         <div class="stat-val">${snapshot.sessionsToday}</div>
@@ -329,17 +403,64 @@ function renderHTML(
 
     <div class="section-title">Today's Activity</div>
     <div class="card">
-      <div class="flag-row">
-        <span class="flag-name">Sessions completed</span>
-        <span class="flag-val" style="color:#e4e4e7">${snapshot.sessionsToday}</span>
+      <div class="kv-row">
+        <span class="kv-key">Sessions completed</span>
+        <span class="kv-val" style="color:#e4e4e7">${snapshot.sessionsToday}</span>
       </div>
-      <div class="flag-row">
-        <span class="flag-name">Tokens consumed</span>
-        <span class="flag-val" style="color:#e4e4e7">${formatTokens(snapshot.tokensToday)}</span>
+      <div class="kv-row">
+        <span class="kv-key">Tokens consumed</span>
+        <span class="kv-val" style="color:#e4e4e7">${formatTokens(snapshot.tokensToday)}</span>
       </div>
-      <div class="flag-row">
-        <span class="flag-name">Avg session length</span>
-        <span class="flag-val" style="color:#e4e4e7">${avgStr}</span>
+      <div class="kv-row">
+        <span class="kv-key">Avg session length</span>
+        <span class="kv-val" style="color:#e4e4e7">${avgStr}</span>
+      </div>
+    </div>
+
+    <div class="section-title">Memory &amp; System</div>
+    <div class="card">
+      <div class="sys-row">
+        <span class="sys-key">Heap</span>
+        <span class="sys-val">${system.heapUsedMB} / ${system.heapTotalMB} MB (${heapPct}%)</span>
+      </div>
+      <div class="bar-outer">
+        <div class="bar-inner" style="width:${heapPct}%;background:${heapColor}"></div>
+      </div>
+      <div class="sys-row" style="margin-top:6px">
+        <span class="sys-key">RSS</span>
+        <span class="sys-val">${system.rssMB} MB</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-key">Node</span>
+        <span class="sys-val">${system.nodeVersion}</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-key">Environment</span>
+        <span class="sys-val">${system.env}</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-key">LLM</span>
+        <span class="sys-val">${system.llmModel}</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-key">LLM Timeout</span>
+        <span class="sys-val">${system.llmTimeout}</span>
+      </div>
+    </div>
+
+    <div class="section-title">Connections</div>
+    <div class="card">
+      <div class="sys-row">
+        <span class="sys-key">Falkor URL</span>
+        <span class="sys-val">${system.falkorUrl}</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-key">Chroma URL</span>
+        <span class="sys-val">${system.chromaUrl}</span>
+      </div>
+      <div class="sys-row">
+        <span class="sys-key">LoRaMaths URL</span>
+        <span class="sys-val">${system.perspectiveUrl}</span>
       </div>
     </div>
 
@@ -349,8 +470,27 @@ function renderHTML(
     </div>
 
     <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+    <button class="refresh-btn" id="auto-btn" onclick="toggleAuto()" style="margin-top:6px;font-size:11px;padding:8px 20px">Auto-refresh: OFF</button>
     <div class="footer">asklora.io · health dashboard</div>
   </div>
+
+  <script>
+    let autoInterval = null;
+    function toggleAuto() {
+      const btn = document.getElementById('auto-btn');
+      const label = document.getElementById('auto-label');
+      if (autoInterval) {
+        clearInterval(autoInterval);
+        autoInterval = null;
+        btn.textContent = 'Auto-refresh: OFF';
+        label.style.display = 'none';
+      } else {
+        autoInterval = setInterval(() => location.reload(), 30000);
+        btn.textContent = 'Auto-refresh: ON (30s)';
+        label.style.display = 'inline-block';
+      }
+    }
+  </script>
 </body>
 </html>`;
 }
@@ -376,8 +516,9 @@ export function registerHealthDashboardRoute(
       const sessions = engineSessions ? getActiveSessions(engineSessions) : [];
       const snapshot = getSnapshot();
       const flags = getKeyFlags();
+      const system = getSystemInfo();
 
-      // If client wants JSON, return JSON
+      // JSON mode
       if (_req.headers.accept?.includes('application/json')) {
         const anyDown = services.some(s => s.status === 'down');
         res.json({
@@ -388,12 +529,13 @@ export function registerHealthDashboardRoute(
           today: snapshot,
           flags,
           sessions,
+          system,
         });
         return;
       }
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(renderHTML(services, sessions, snapshot, flags));
+      res.send(renderHTML(services, sessions, snapshot, flags, system));
     } catch {
       res.status(500).json({ status: 'error' });
     }
