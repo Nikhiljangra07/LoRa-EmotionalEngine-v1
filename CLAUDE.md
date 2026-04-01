@@ -40,11 +40,12 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 | Memory — anchors | FalkorDB (Redis-compatible) | Railway service "Redis" |
 | Memory — schemas | ChromaDB | Railway service "chroma" |
 | Tier persistence | Redis hashes at `lora:tier:{userId}` | Same FalkorDB instance |
+| Auth | Supabase Auth (Google OAuth) + JWT verification on backend | Supabase Cloud (`fxjzdlwedcxiavcemnvq.supabase.co`) |
 | Frontend | React + Vite + Tailwind + shadcn/ui | `presence-whispers` repo |
 | Multi-Perspective Engine | LoRaMaths — Python FastAPI microservice (5 mathematical frameworks) | Railway service "LoRaMaths" (`loramaths.railway.internal`) |
 | Hosting | Railway (5 services: Redis, Chroma, LoRa-EmotionalEngine-v1, LoRaMaths, presence-whispers) |
 | Analytics | PostHog (backend: `posthog-node`, frontend: `posthog-js`) |
-| Domain | `presence-whispers-production.up.railway.app` |
+| Domain | `asklora.io` (Cloudflare DNS → Railway) |
 
 ### Key Files
 
@@ -62,7 +63,9 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 | `src/server/analytics/posthogClient.ts` | PostHog event capture: session_started, message_sent, session_ended, tier_changed. |
 | `src/emotion-core/config/master.constants.ts` | All tuning constants: EIV weights, ETV recovery, LLM timeouts, cooldown settings. |
 | `src/emotion-core/config/featureFlags.ts` | ~35 feature flags controlled by env vars. |
-| `src/emotion-core/analysis/perspectiveClient.ts` | HTTP client for LoRaMaths microservice. 8s timeout, null fallback. |
+| `src/server/auth/supabaseAuth.ts` | Supabase JWT verification middleware. HS256 with jose@4. getEffectiveUserId() for auth/guest dual path. |
+| `src/server/auth/inputSanitizer.ts` | Prompt injection filter. 20 patterns, whitespace normalization, strip + log approach. |
+| `src/emotion-core/analysis/perspectiveClient.ts` | HTTP client for LoRaMaths microservice. 12s timeout, null fallback. |
 | `src/emotion-core/analysis/types.ts` | TypeScript types mirroring LoRaMaths Python response models. |
 | `public/index.html` | Dev/debug chat UI (not the production frontend). |
 
@@ -70,8 +73,11 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 
 ```
 User message → POST /api/chat
-  → validateBody (userId, sessionId, text)
-  → rateLimitTryAllow(userId)
+  → supabaseAuthMiddleware (verify JWT, attach verifiedUserId)
+  → validateBody (sessionId, text, attachments w/ 5MB limit)
+  → getEffectiveUserId (JWT sub for auth, body userId for guests)
+  → sanitizeInput (strip prompt injection payloads, log matches)
+  → rateLimitTryAllow(userId, clientIp) — dual-key for guests
   → getSession (creates EngineOrchestrator if new session)
   → tierService.getTierAsync(userId)
   → getResponsePolicy(tier, etvBand)
@@ -119,28 +125,40 @@ LORA_PERSONA_ENFORCER=1
 LORA_RELATIONAL_ROUTER=1
 NODE_OPTIONS=...
 POSTHOG_API_KEY=...
+SUPABASE_JWT_SECRET=...
 ```
 
 ---
 
-## CURRENT STATE (as of March 23, 2026)
+## CURRENT STATE (as of March 31, 2026)
 
-- **Status:** Live in beta, observation mode
+- **Status:** Live in beta, pre-launch security hardening complete. Launch target: April 2, 2026.
 - **Users:** ~10-15 testers (friends, family, family's circles)
-- **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: $pageview via posthog-js)
-- **Memory V2:** Shadow mode deployed (`LORA_MEMORY_V2_SHADOW=1`). Absorbs session data (summarize → extract → verify → store) on session end. Does NOT influence responses. Code in `src/emotion-core/memory-v2/`. Next: validate shadow logs 1-2 weeks → enable active mode (Component 3: retrieval wiring).
-- **Multi-Perspective Engine:** Live (`LORA_MULTI_PERSPECTIVE=1`). LoRaMaths Python microservice on Railway (`loramaths.railway.internal`). 5 mathematical frameworks (regression, Bayesian, game theory, constraint, causal loop) analyze each user message. Condensed insights injected into prompt as invisible analytical context. Feature-flagged with 8s timeout + null fallback.
+- **Domain:** `asklora.io` (Cloudflare DNS, HTTPS enforced)
+- **Auth:** Supabase Auth with Google OAuth. JWT verification on backend (`SUPABASE_JWT_SECRET`). Guest mode preserved (rate-limited).
+- **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: consent-gated via cookie banner)
+- **Security:** Full audit complete. JWT auth, input sanitization (20 prompt injection patterns), IP-aware rate limiting, CSP headers, DOMPurify, session ownership validation, attachment size limits, error leakage fixed.
+- **Cookie Consent:** GDPR-compliant banner. PostHog only initializes after explicit user acceptance.
+- **Memory V2:** Shadow mode deployed (`LORA_MEMORY_V2_SHADOW=1`). Crash-proofed pipeline (228 tests, 13 hardening fixes). First successful production consolidation achieved (9 facts, fingerprint stored, 24.8s). Monitoring for 2-3 more successful sessions before enabling active mode and removing V1.
+- **Multi-Perspective Engine:** Live (`LORA_MULTI_PERSPECTIVE=1`). LoRaMaths Python microservice on Railway (`loramaths.railway.internal`). Quick mode: single Haiku call (classify + framework + condense in one pass, 3-4s). 5 mathematical frameworks (regression, Bayesian, game theory, constraint, causal loop). Condensed insights injected into prompt as invisible analytical context. Feature-flagged with 12s timeout + null fallback.
+- **Deep Reasoning Mode:** Built in LoRaMaths (`src/deep/`), not yet wired to backend. Pro tier feature: runs ALL 5 frameworks, scores ALL 31 combinations, Sonnet synthesis. Pending: backend integration, UI thinking animation, feature flag (`LORA_PERSPECTIVE_DEEP_MODE`).
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
 
 ### What's Working
 
 - Session lifecycle: create, chat, terminate, tier promotion
+- Authentication: Supabase Google OAuth + guest mode (dual identity system)
+- JWT verification: Supabase tokens verified on every API request
+- Input sanitization: 20 prompt injection patterns with whitespace normalization
+- Rate limiting: per-userId + per-IP for guest users (sliding window)
+- Security headers: HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Permissions-Policy, X-Permitted-Cross-Domain-Policies
+- Session ownership: terminate endpoint validates requester owns the session
 - Memory V1: Falkor anchors persist across sessions, Chroma schemas for context
-- Memory V2 shadow: end-of-session extraction pipeline (summarizer + dual extractor + verifier), 11 components, 218 tests
+- Memory V2 shadow: crash-proofed end-of-session extraction pipeline (summarizer + dual extractor + verifier + storage retry), 11 components, 228 tests, first successful production consolidation
 - LLM fact extraction via Haiku (with user_name validation guard)
 - Identity enforcement: 22 therapist patterns + 11 narrative patterns + semantic detection + emotional question rewrite
 - ETV engine: trust value evolves per session
-- PostHog analytics: 4 backend events + frontend pageview tracking
+- PostHog analytics: 4 backend events + frontend consent-gated tracking
 - Rate limiting, daily token limits, session cap (25 messages)
 - Persona enforcer, relational router, narrative state engine
 
@@ -275,6 +293,19 @@ POSTHOG_API_KEY=...
 | Mar 24, 2026 | Structural name extraction fix — morphological filter replaces blocklist | Blocklist approach was whack-a-mole (100+ words, still leaking "Seeing", "Going", etc.). Root causes: (1) USER_NAME_RE included "i am"/"i'm" — "I'm seeing a therapist" extracted "Seeing" as name, (2) BARE_NAME_RE matched any capitalized word with only a blocklist defense. Fix: removed "i am"/"i'm" from regex (keep only "my name is"/"call me"), replaced blocklist with ENGLISH_SUFFIX_RE (~25 suffix patterns: -ing, -tion, -ment, -ness, -ful, -sed, -ied, etc.). Real names never match these suffixes. Tiny residual blocklist (~45 short irregular words). Verified: 113 English words rejected, 47 real names accepted, 0 errors. Applied to factExtractor.ts, llmFactExtractor.ts, and PromptTemplateBuilder.ts runtime filter. | `522ef92` |
 | Mar 24, 2026 | Previous session viewer (frontend) | Testers lost conversations on accidental "New Session" click. Added client-side localStorage persistence: saves current conversation before clearing, "Previous" button shows last session read-only. No backend changes — zero transcript storage. | `6d984de` (presence-whispers) |
 | Mar 24, 2026 | Hardened tier system — MIN_MESSAGES guard on all paths | Audit found 4 issues: (1) terminate endpoint counted 0-message sessions toward tier, (2) terminate was duplicate code path missing Memory V2 consolidation, (3) session cap bypassed MIN_MESSAGES guard, (4) constants fragmented across 3 files. Fix: made finalizeSession() async + exportable, single code path for all 5 session-end reasons. Terminate and session cap now call finalizeSession() instead of reimplementing logic. Constants consolidated in src/server/session/constants.ts. Tests updated: 48/48 passing. | `56891cc` |
+| Mar 25, 2026 | Expanded benchmark — 20 dimensions, 32 conversations (LoRaMaths) | Upgraded G-Eval benchmark from 10→20 dimensions across 4 categories (Analytical Depth, Conversational Intelligence, Identity & Safety, Practical Impact). Expanded from 13→32 conversations. Results: LoRa 82.4/100, GPT-5.4 74.5, Opus 73.6. Updated Manifesto page on frontend with new data + honest disclosure ("controlled, single-domain benchmark"). | LoRaMaths repo, `d1f39b0` (presence-whispers) |
+| Mar 25, 2026 | Deep Reasoning Mode designed + built (LoRaMaths) — Pro tier feature | "Every AI gives deep reasoning on code and productivity. Nobody gives deep reasoning on the person driving those tools." Full 7-step formation architecture: dimension analysis → parallel 5-framework execution → score ALL 31 combinations → conflict graph → dominance check → formation selection → Sonnet synthesis (max_tokens=4096, no word cap). Pay-as-you-go Pro tier. 8 new files in `src/deep/`. First live test: 3 problems, 840-1044 word syntheses, 60-79s latency. Not yet wired to backend — pending UI integration + feature flag. | LoRaMaths repo |
+| Mar 25, 2026 | Hardened V2 verifier — compact prompt, prefill retry, pipeline resilience | Production logs showed verifier returning prose instead of JSON (input 1633 chars, extracted 0). Root cause: verbose prompt (~1100 tokens) confused Haiku. Fix: compact prompt (~400 tokens), 3-attempt strategy (standard → prefill with `{` → final prefill), auto-verify only as absolute last resort. Re-extraction block wrapped in try/catch. | `abdbef7` |
+| Mar 25, 2026 | Map non-Ekman emotions to nearest Ekman-6 equivalent | Production logs showed `Invalid primary emotion: hope` crashing entire V2 pipeline. LLMs frequently return non-Ekman emotions. Added `mapToEkman()` with 60+ mappings (hope→joy, anxiety→fear, frustration→anger, etc.) + substring partial matching fallback. | `31e3a17` |
+| Mar 25, 2026 | Crash-proof V2 memory pipeline — 13 fixes across 10 files | Full forensic audit of all V2 components. Critical: (1) `drainSessions()` now calls `finalizeSession()` so V2 consolidation fires on Railway redeploy, (2) 45s pipeline timeout + 15s per-LLM-call timeout, (3) `stop_reason` truncation detection. High: (4) Chroma `deserializeFingerprint()` try/catch + shape validation, (5) Falkor `pipeline.exec()` error checking + `JSON.parse` guard, (6) NaN guards on similarity scoring and recency boost, (7) Profile EWMA guards NaN/null inputs + `Math.sqrt` negative variance guard, (8) Fixed unsafe type coercion in `validateLLMExtraction`. Pipeline: `Promise.allSettled` for independent extraction + storage, verifier crash tolerance, storage retry with 500ms backoff. 228 V2 tests passing (7 new resilience tests). | `e02b541` |
+| Mar 31, 2026 | Custom domain asklora.io + Cloudflare DNS | CNAME record pointing to Railway. CORS allowlist updated to include `https://asklora.io`. HTTPS enforced via Cloudflare "Always Use HTTPS". | adapter.ts |
+| Mar 31, 2026 | Switched auth from Clerk to Supabase | Clerk DNS verification stuck for 6+ hours (email DKIM records). Migrated to Supabase Auth with Google OAuth. Frontend: `@supabase/auth-ui-react` with dark theme, Google-only. Backend: Supabase JWT verification middleware. | `d99c385` |
+| Mar 31, 2026 | Supabase JWT verification middleware | New `src/server/auth/supabaseAuth.ts`: verifies JWT from Authorization header using HS256 symmetric secret (`SUPABASE_JWT_SECRET`). `getEffectiveUserId()` prioritizes JWT `sub` claim over body userId for authenticated users. Guests pass through (rate-limited). Applied to chat, session lifecycle, and onboarding routes. Added `jose@4` (CJS-compatible). | `d99c385`, `d3deb74` |
+| Mar 31, 2026 | Session ownership check on terminate | Terminate endpoint now validates that the requester's userId matches the session owner. Returns 403 if mismatch. Prevents terminating other users' sessions. | `e0c41cd` |
+| Mar 31, 2026 | Input sanitization — prompt injection filter | New `src/server/auth/inputSanitizer.ts`: 20 regex patterns covering instruction overrides, role hijacking, system prompt extraction, delimiter injection, jailbreak phrases. Normalizes whitespace + strips invisible unicode before matching. Uses word boundaries + flexible gaps to resist typo/spacing bypass. Strips payloads (doesn't block), logs matched patterns. | `e0c41cd`, `7328be7` |
+| Mar 31, 2026 | 4 critical security fixes | (1) Error info leakage: 500 responses no longer expose raw error messages. (2) Guest rate-limit bypass: dual-key rate limiting (per-userId + per-IP for guests). (3) Attachment size: 5MB per-file limit on base64 attachments. (4) Input sanitizer hardening: whitespace normalization, word boundaries, 8 new patterns. | `7328be7` |
+| Mar 31, 2026 | Security headers: CSP, Permissions-Policy, X-Permitted-Cross-Domain-Policies | Content-Security-Policy restricts script/style/connect to self, blocks framing. Permissions-Policy disables geolocation, microphone, camera, payment. | `6f56065` |
+| Mar 31, 2026 | API key empty-string validation + perspective timeout cleanup | ClaudeResponder: ANTHROPIC_API_KEY validates `.trim()`. perspectiveClient: `clearTimeout` moved before `response.json()` parsing. | `06b14df` |
 
 ---
 
@@ -360,6 +391,5 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 
 ---
 
-*Last updated: March 23, 2026*
-*Total commits in repo: 584*
+*Last updated: March 31, 2026*
 *Branch: bugbot-init-review*
