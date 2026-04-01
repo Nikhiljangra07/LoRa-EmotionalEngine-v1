@@ -139,9 +139,9 @@ SUPABASE_JWT_SECRET=...
 - **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: consent-gated via cookie banner)
 - **Security:** Full audit complete. JWT auth, input sanitization (20 prompt injection patterns), IP-aware rate limiting, CSP headers, DOMPurify, session ownership validation, attachment size limits, error leakage fixed.
 - **Cookie Consent:** GDPR-compliant banner. PostHog only initializes after explicit user acceptance.
-- **Memory V2:** Shadow mode deployed (`LORA_MEMORY_V2_SHADOW=1`). Crash-proofed pipeline (228 tests, 13 hardening fixes). First successful production consolidation achieved (9 facts, fingerprint stored, 24.8s). Monitoring for 2-3 more successful sessions before enabling active mode and removing V1.
+- **Memory V2:** Active mode (`LORA_MEMORY_V2=1`, `LORA_MEMORY_V2_SHADOW=0`). Crash-proofed pipeline (228 tests, 13 hardening fixes). End-of-session consolidation feeding facts back into LLM. V1 anchors still active alongside V2.
 - **Multi-Perspective Engine:** Live (`LORA_MULTI_PERSPECTIVE=1`). LoRaMaths Python microservice on Railway (`loramaths.railway.internal`). Quick mode: single Haiku call (classify + framework + condense in one pass, 3-4s). 5 mathematical frameworks (regression, Bayesian, game theory, constraint, causal loop). Condensed insights injected into prompt as invisible analytical context. Feature-flagged with 12s timeout + null fallback.
-- **Deep Reasoning Mode:** Built in LoRaMaths (`src/deep/`), not yet wired to backend. Pro tier feature: runs ALL 5 frameworks, scores ALL 31 combinations, Sonnet synthesis. Pending: backend integration, UI thinking animation, feature flag (`LORA_PERSPECTIVE_DEEP_MODE`).
+- **Deep Reasoning Mode:** Live (`LORA_PERSPECTIVE_DEEP_MODE=1`). Full 5-framework pipeline: dimension analysis → parallel execution → 31 combinations scored → conflict graph → formation selection → Sonnet synthesis. Activated via orbit toggle in chat UI.
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
 
 ### What's Working
