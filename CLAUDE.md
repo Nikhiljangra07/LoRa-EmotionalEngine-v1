@@ -6,6 +6,7 @@
 
 ---
 
+
 ## PROJECT IDENTITY
 
 **LoRa** is an analytical reasoning partner — not a chatbot, not a therapist, not a life coach.
@@ -67,6 +68,9 @@ She helps anyone facing hard decisions: career moves, business problems, relatio
 | `src/server/auth/inputSanitizer.ts` | Prompt injection filter. 20 patterns, whitespace normalization, strip + log approach. |
 | `src/emotion-core/analysis/perspectiveClient.ts` | HTTP client for LoRaMaths microservice. 12s timeout, null fallback. |
 | `src/emotion-core/analysis/types.ts` | TypeScript types mirroring LoRaMaths Python response models. |
+| `src/server/routes/health.dashboard.route.ts` | `GET /api/health` — mobile-friendly HTML dashboard. Pings 4 services, shows operational counters, response times, active sessions, feature flags, system info. |
+| `src/server/analytics/operationalCounters.ts` | 17 in-memory counters (daily reset). Wired into chat, LLM, rate limiter, identity guard, perspective client, session lifecycle, memory V2. |
+| `src/server/usage/DailyTokenUsage.ts` | Per-user daily token tracking. In-memory map, 50k limit per user. Resets UTC midnight. |
 | `public/index.html` | Dev/debug chat UI (not the production frontend). |
 
 ### Request Flow
@@ -130,20 +134,25 @@ SUPABASE_JWT_SECRET=...
 
 ---
 
-## CURRENT STATE (as of March 31, 2026)
+## CURRENT STATE (as of April 1, 2026)
 
-- **Status:** Live in beta, pre-launch security hardening complete. Launch target: April 2, 2026.
-- **Users:** ~10-15 testers (friends, family, family's circles)
+- **Status:** Launch-ready. Public launch planned April 2, 2026 (r/SideProject post prepared).
+- **Users:** ~10-15 beta testers (friends, family, family's circles). First public users expected April 2.
 - **Domain:** `asklora.io` (Cloudflare DNS, HTTPS enforced)
 - **Auth:** Supabase Auth with Google OAuth. JWT verification on backend (`SUPABASE_JWT_SECRET`). Guest mode preserved (rate-limited).
-- **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: consent-gated via cookie banner)
+- **Monitoring:** PostHog active (backend events: session_started, message_sent, session_ended, tier_changed; frontend: consent-gated via cookie banner). Health dashboard live at `GET /api/health` (backend Railway URL). Operational counters track 17+ metrics in real-time.
+- **Health Dashboard:** `lora-emotionalengine-v1-production.up.railway.app/api/health` — mobile-friendly HTML page showing: services (Redis, Chroma, LoRaMaths, LLM), users (auth/guest split, peak concurrent, avg msgs/user), today's activity (messages, sessions, tokens), response times (avg, p95, min, max), LLM health (success, fallbacks, cooldowns), perspective engine (success, failures, timeouts), safety (prompt injection attempts, identity guard rewrites, rate limits, 500 errors), Memory V2 (consolidation success/failure), system (RSS memory, heap, Node version, env, LLM model/timeout), connections, and 10 feature flags. Auto-refresh toggle (30s). Vancouver timezone.
+- **Operational Counters:** `src/server/analytics/operationalCounters.ts` — 17 in-memory counters wired across 7 files. Resets daily UTC. Tracks: messages (processed, relational), LLM (success, fallback cooldown, fallback retry exhausted, cooldown activated), rate limiting (user, IP), identity guard (opener stripped, semantic rewrite, question rewrite), perspective engine (success, failure, timeout), session (cap hit, completed), memory V2 (consolidation success/failure), deep reasoning (completed), input sanitizer (triggered), errors (500). Also tracks unique users (auth/guest split), peak concurrent sessions, response times (rolling 100 samples), last activity timestamp.
 - **Security:** Full audit complete. JWT auth, input sanitization (20 prompt injection patterns), IP-aware rate limiting, CSP headers, DOMPurify, session ownership validation, attachment size limits, error leakage fixed.
 - **Cookie Consent:** GDPR-compliant banner. PostHog only initializes after explicit user acceptance.
-- **Memory V2:** Active mode (`LORA_MEMORY_V2=1`, `LORA_MEMORY_V2_SHADOW=0`). Per-message retrieval: builds EmotionalFingerprint → queries Chroma for similar sessions → injects matching facts into prompt via `RECALLED CONTEXT` block. End-of-session consolidation: summarize → extract facts+fingerprint (Haiku) → verify → store to Falkor (facts) + Chroma (fingerprints) → update profile. Crash-proofed (228 tests, 45s pipeline timeout). Memory V1 (`LORA_MEMORY_SERVICE=0`) is fully offline — V2 is the sole active memory system.
+- **Memory V2:** Active mode (`LORA_MEMORY_V2=1`, `LORA_MEMORY_V2_SHADOW=0`). Per-message retrieval: builds EmotionalFingerprint → queries Chroma for similar sessions → injects matching facts into prompt via `RECALLED CONTEXT` block. End-of-session consolidation: summarize → extract facts+fingerprint (Haiku) → verify → store to Falkor (facts) + Chroma (fingerprints) → update profile. Crash-proofed (228 tests, 45s pipeline timeout). Memory V1 (`LORA_MEMORY_SERVICE=0`) is fully offline — V2 is the sole active memory system. Chroma collection uses `embeddingFunction: null` (raw embeddings provided directly).
 - **Memory V1:** Disabled (`LORA_MEMORY_SERVICE=0`). `LORA_FACT_ANCHOR=1` is set but gated behind the disabled memory service — anchors are not retrieved. V1 has no consolidation pipeline; only V2 writes back at session end.
 - **Multi-Perspective Engine:** Live (`LORA_MULTI_PERSPECTIVE=1`). LoRaMaths Python microservice on Railway (`loramaths.railway.internal`). Quick mode: single Haiku call (classify + framework + condense in one pass, 3-4s). 5 mathematical frameworks (regression, Bayesian, game theory, constraint, causal loop). Condensed insights injected into prompt as invisible analytical context. Feature-flagged with 12s timeout + null fallback.
 - **Deep Reasoning Mode:** Live (`LORA_PERSPECTIVE_DEEP_MODE=1`). Three activation paths: (1) UI orbit toggle (one-shot), (2) user accepts LoRa's offer ("Want the full picture?"), (3) clarification response after ambiguous query. Full pipeline: 5 frameworks → 31 combinations scored → Sonnet synthesis (120s timeout). Synthesis bypasses LLM — returned directly as response. Clarification loop: stores original message, auto-enables deep mode, enriches next request. If LoRaMaths fails/times out, falls back to quick-mode LLM call.
+- **Image Attachments:** Users can upload images (JPEG, PNG, GIF, WebP) and PDFs. Images render as inline thumbnails in user message bubbles. Base64 data sent to Claude once per message, never stored in session history, never re-sent on subsequent messages. Previous session view strips base64 to avoid localStorage overflow.
 - **Knowledge cutoff banner:** Live in both dev UI (`public/index.html`) and production frontend (`presence-whispers`). Text: "LoRa's knowledge is limited to events before early 2025 due to AI model training data."
+- **Daily Token Limit:** 50,000 tokens per user per day (`LORA_DAILY_TOKEN_LIMIT=50000`). In-memory tracking, resets UTC midnight. Checked before every LLM call. Resets on Railway redeploy.
+- **Anthropic Credits:** $246 balance with auto-reload enabled. Estimated $0.008/message, ~$0.08/session. ~3,000 sessions of runway.
 
 ### What's Working
 
@@ -161,8 +170,11 @@ SUPABASE_JWT_SECRET=...
 - Identity enforcement: 22 therapist patterns + 11 narrative patterns + semantic detection + emotional question rewrite
 - ETV engine: trust value evolves per session
 - PostHog analytics: 4 backend events + frontend consent-gated tracking
-- Daily token limits, session cap (25 messages)
+- Daily token limits (50k/user/day), session cap (25 messages)
 - Persona enforcer, relational router, narrative state engine
+- Health dashboard: real-time service monitoring, operational counters, response times, user metrics, feature flags
+- Image attachments: inline thumbnail rendering, base64 sent once per message, localStorage-safe
+- Operational counters: 17 metrics across messages, LLM, rate limits, identity guard, perspective engine, sessions, memory V2
 
 ### What's Inactive/Minimal
 
@@ -309,18 +321,31 @@ SUPABASE_JWT_SECRET=...
 | Mar 31, 2026 | 4 critical security fixes | (1) Error info leakage: 500 responses no longer expose raw error messages. (2) Guest rate-limit bypass: dual-key rate limiting (per-userId + per-IP for guests). (3) Attachment size: 5MB per-file limit on base64 attachments. (4) Input sanitizer hardening: whitespace normalization, word boundaries, 8 new patterns. | `7328be7` |
 | Mar 31, 2026 | Security headers: CSP, Permissions-Policy, X-Permitted-Cross-Domain-Policies | Content-Security-Policy restricts script/style/connect to self, blocks framing. Permissions-Policy disables geolocation, microphone, camera, payment. | `6f56065` |
 | Mar 31, 2026 | API key empty-string validation + perspective timeout cleanup | ClaudeResponder: ANTHROPIC_API_KEY validates `.trim()`. perspectiveClient: `clearTimeout` moved before `response.json()` parsing. | `06b14df` |
+| Apr 1, 2026 | Health dashboard — `GET /api/health` | Mobile-friendly HTML page showing 4 service statuses (Redis, Chroma, LoRaMaths, LLM) with latency. Accessible from phone for monitoring. No auth required. | `5d43b6a` |
+| Apr 1, 2026 | Fixed Chroma health check — use SDK heartbeat | Raw HTTP fetch to guessed `/api/v1/heartbeat` URL failed. Replaced with `getChromaClient().heartbeat()` — same method as startup health checks. | `96d6a17` |
+| Apr 1, 2026 | Expanded health dashboard — activity stats, sessions, feature flags | Added: today's sessions/tokens/avg length, active session details (user, messages, duration, tokens, deep mode), 7 key feature flags, refresh button. | `3aaa28b` |
+| Apr 1, 2026 | Full health dashboard — Vancouver time, system info, auto-refresh | Time in Vancouver timezone (America/Vancouver). Added: heap/RSS memory bar, Node version, environment, LLM model/timeout, connection status, 10 feature flags, auto-refresh toggle (30s). | `1f17d5d` |
+| Apr 1, 2026 | Operational counters — 17 metrics wired across 7 files | New `operationalCounters.ts`: lightweight in-memory counters (daily reset). Wired into chat.route.ts, EngineOrchestrator.ts, ClaudeResponder.ts, IdentityGuard.ts, perspectiveClient.ts, slidingWindowRateLimit.ts. Dashboard shows: LLM Health, Perspective Engine, Safety & Quality, Memory V2 sections with color-coded counters. | `aba5a2b` |
+| Apr 1, 2026 | Users section — auth/guest split, peak concurrent, avg msgs | Dashboard shows: active now, total today, signed-in vs guest breakdown, peak concurrent sessions, avg messages per user, deep reasoning completions. | `8d024cf` |
+| Apr 1, 2026 | Fixed memory bar — RSS instead of heap percentage | Heap 94% was a false alarm (Node auto-expands from tiny initial allocation). Now shows RSS / 512 MB (Railway container default). | `2b3f6e6` |
+| Apr 1, 2026 | Response times, prompt injection tracking, error count, last activity | Response time section: avg, p95, fastest, slowest (rolling 100 samples, color-coded). Prompt injection attempts counter. Server error (500) counter. Last activity timestamp in header. | `2d0772e` |
+| Apr 1, 2026 | Fixed Chroma DefaultEmbeddingFunction warning | `getOrCreateCollection()` called without `embeddingFunction` → Chroma tried to load `@chroma-core/default-embed` (not installed) → noisy warning. Fixed with `embeddingFunction: null` since Memory V2 provides raw embeddings via `encodeFingerprint()`. | `5b9b017` |
+| Apr 1, 2026 | Image attachment previews in frontend | Previously showed raw filename text `[Screenshot_2026...]`. Now renders inline thumbnails (max 192px height) for images, name pills for documents. Base64 stripped from localStorage saves to prevent 5MB overflow. Attachments stored on `Message.attachments`, no longer prepended to content text. | `84ba25a`, `ed5a8b2` (presence-whispers) |
 
 ---
 
 ## ROADMAP
 
-### Immediate (next 2-3 weeks)
-- **Observation mode:** Monitor PostHog data, fix bugs as reported, no proactive feature work
-- **Read "Venture Deals"** by Brad Feld — study fundraising mechanics
-- **Study Reddit/Discord communities** — learn engagement patterns before posting (r/SideProject, r/startups)
-- **Do NOT distribute on Reddit/Discord yet** — wait for 3 weeks of stability data
+### Immediate (launch week — April 2-9, 2026)
+- **Launch on r/SideProject** — April 2, 2026. Post prepared. Story-based, not product description.
+- **Monitor health dashboard** — bookmark backend `/api/health` on phone. Watch for: LLM fallback spikes, response time degradation, rate limit hits, identity guard rewrites, 500 errors.
+- **Monitor PostHog** — session counts, message engagement, tier promotions, session termination reasons.
+- **Bug triage only** — fix production bugs as reported. No proactive feature work during launch week.
+- **Anthropic credits** — $246 balance, auto-reload enabled. Monitor daily spend via dashboard tokens counter.
 
 ### Short-term (1-3 months)
+- **Observation mode:** Collect 3 weeks of stability data from real users before next feature push.
+- **Read "Venture Deals"** by Brad Feld — study fundraising mechanics.
 - **Waveform Engine MVP** — voice-based emotional signal extraction
   - Extract: pitch mean, pitch variance, speech rate, pause ratio (start with 4 features)
   - Map to Ekman-6 emotional families (same dimensions LoRa uses)
@@ -328,9 +353,7 @@ SUPABASE_JWT_SECRET=...
   - Time-boxed: 3 months maximum
   - Deliverable: script (audio in → emotion prediction out) + accuracy documentation
   - NOT a production system. Proof of concept only.
-- **Reddit/Discord launch** — when PostHog shows 3 weeks of stable data
-  - Story-based post, not product description
-  - Target: r/SideProject, r/startups, r/artificial
+- **Reddit expansion** — r/startups, r/artificial (after r/SideProject data is in)
 
 ### Long-term vision
 - Multimodal emotional intelligence: text + voice combined
@@ -394,5 +417,5 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 
 ---
 
-*Last updated: March 31, 2026*
+*Last updated: April 1, 2026*
 *Branch: bugbot-init-review*
