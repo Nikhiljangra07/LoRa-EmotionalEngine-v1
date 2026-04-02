@@ -70,6 +70,7 @@ export class ChromaVectorStore implements IVectorStore {
       this.collection = await this.client.getOrCreateCollection({
         name: COLLECTION_NAME,
         metadata: { 'hnsw:space': 'cosine' },
+        embeddingFunction: null,
       });
     }
     return this.collection;
