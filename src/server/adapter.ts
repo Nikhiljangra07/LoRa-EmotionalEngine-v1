@@ -122,6 +122,20 @@ app.get('/health/llm', (_req, res) => {
   res.json(getLLMHealth());
 });
 
+// ── 404 handler: catch-all for unknown routes ────────────────────────
+// Must be registered AFTER all real routes. Returns 404 for anything
+// that isn't a known API endpoint, health check, or static asset.
+// Prevents vulnerability scanners from seeing 200 on /.env, /.git, etc.
+app.use((_req, res) => {
+  // API routes that don't exist → JSON 404
+  if (_req.path.startsWith('/api/') || _req.path.startsWith('/debug/')) {
+    res.status(404).json({ error: 'not_found' });
+    return;
+  }
+  // Everything else → plain 404
+  res.status(404).send('Not Found');
+});
+
 app.listen(port, () => {
   console.log(`LoRa server running on port ${port}`);
   console.log('[LoRa] Runtime Model: Claude Sonnet 4-6');
