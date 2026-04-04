@@ -674,6 +674,21 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       let perspectiveMode: 'quick' | 'deep' | undefined;
       const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && validated.data.deepMode === true;
 
+      // ── Deep mode pay gate ──
+      // Check if user has free uses or paid credits before allowing deep mode
+      if (deepModeRequested) {
+        const { getDeepModeStatus } = await import('../usage/DeepModeUsage');
+        const deepStatus = await getDeepModeStatus(userId);
+        if (!deepStatus.canUse) {
+          res.json({
+            reply: '',
+            deepModeGated: true,
+            deepModeStatus: deepStatus,
+          });
+          return;
+        }
+      }
+
       // Check if this is a clarification response (user answered after ambiguous deep question)
       if (deepModeRequested && session.deepClarifyOriginal) {
         perspectiveMode = 'deep';
@@ -752,6 +767,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       if (isDeepAnalysis) {
         opIncrement('deep_reasoning_completed');
+        // Consume one deep mode use (free or paid) after successful analysis
+        const { consumeDeepModeUse } = await import('../usage/DeepModeUsage');
+        consumeDeepModeUse(userId).catch(err =>
+          console.warn('[LoRa::DeepMode] Failed to consume use:', err)
+        );
         // Deep mode: soft cap at 900 words — thorough but not a dump
         reply = enforceWordLimit(reply, 900);
       } else {
