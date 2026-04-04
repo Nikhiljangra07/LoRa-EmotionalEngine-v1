@@ -7,18 +7,17 @@
  */
 
 import express, { Router, Request, Response } from 'express';
-import { Stripe } from 'stripe/cjs/stripe.core';
-import type { Event } from 'stripe/cjs/resources/Events';
-import type { Session } from 'stripe/cjs/resources/Checkout/Sessions';
 import { getDeepModeStatus, addPaidCredit } from '../usage/DeepModeUsage';
 import { getEffectiveUserId } from '../auth/supabaseAuth';
 
 // ── Stripe client (lazy singleton) ─────────────────────────────────
-let _stripe: Stripe | null = null;
-function getStripe(): Stripe {
+// Use require() to avoid subpath export issues with stripe v22 on Node 18
+let _stripe: any = null;
+function getStripe(): any {
   if (!_stripe) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) throw new Error('STRIPE_SECRET_KEY not set');
+    const Stripe = require('stripe');
     _stripe = new Stripe(key);
   }
   return _stripe;
@@ -131,10 +130,10 @@ export function registerStripeWebhook(app: express.Express): void {
         return;
       }
 
-      let event: Event;
+      let event: any;
       try {
         const stripe = getStripe();
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret) as Event;
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
       } catch (err) {
         console.error('[LoRa::Stripe] Webhook signature failed:', (err as Error).message);
         res.status(400).json({ error: 'invalid_signature' });
@@ -142,7 +141,7 @@ export function registerStripeWebhook(app: express.Express): void {
       }
 
       if (event.type === 'checkout.session.completed') {
-        const session = (event.data as any).object as Session;
+        const session = event.data.object;
         const userId = session.metadata?.userId;
 
         if (userId && session.payment_status === 'paid') {
