@@ -45,7 +45,7 @@ export function createStripeRouter(): Router {
    */
   router.post('/api/deep/check', async (req: Request, res: Response) => {
     try {
-      const userId = getEffectiveUserId(req);
+      const userId = getEffectiveUserId(req, req.body?.userId);
       if (!userId) {
         res.json({
           canUse: false,
@@ -73,7 +73,7 @@ export function createStripeRouter(): Router {
    */
   router.post('/api/deep/checkout', async (req: Request, res: Response) => {
     try {
-      const userId = getEffectiveUserId(req);
+      const userId = getEffectiveUserId(req, req.body?.userId);
       if (!userId) {
         res.status(401).json({ error: 'auth_required', message: 'Sign in to use Deep Analysis' });
         return;
