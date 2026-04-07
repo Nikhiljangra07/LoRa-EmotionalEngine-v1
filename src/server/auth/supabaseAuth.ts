@@ -8,7 +8,7 @@
  * Routes should use this instead of trusting the body-provided userId.
  */
 
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify, type JWTPayload } from 'jose';
 import type { Request, Response, NextFunction } from 'express';
 
 // Extend Express Request to carry verified auth info
@@ -26,43 +26,82 @@ declare global {
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || '';
 
-// JWKS endpoint for Supabase — used when JWT secret is not available
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+// JWKS endpoints, cached by issuer URL. We support multiple sources:
+//   1. Configured SUPABASE_URL env var (preferred when present).
+//   2. The JWT's own `iss` claim (auto-derived per token, so verification
+//      works even when the env var isn't set on Railway).
+const jwksByIssuer = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
-function getJWKS() {
-  if (!jwks && SUPABASE_URL) {
-    const jwksUrl = new URL('/auth/v1/.well-known/jwks.json', SUPABASE_URL);
-    jwks = createRemoteJWKSet(jwksUrl);
+function getJWKSForIssuer(issuer: string): ReturnType<typeof createRemoteJWKSet> {
+  let keys = jwksByIssuer.get(issuer);
+  if (!keys) {
+    const jwksUrl = new URL('/auth/v1/.well-known/jwks.json', issuer);
+    keys = createRemoteJWKSet(jwksUrl);
+    jwksByIssuer.set(issuer, keys);
   }
-  return jwks;
+  return keys;
+}
+
+function getConfiguredJWKS(): ReturnType<typeof createRemoteJWKSet> | null {
+  if (!SUPABASE_URL) return null;
+  return getJWKSForIssuer(SUPABASE_URL);
 }
 
 /**
- * Verify a Supabase JWT using the project's JWT secret (symmetric HS256).
- * Falls back to JWKS if secret is not configured.
+ * Verify a Supabase JWT.
+ *
+ * Tries HS256 with the symmetric JWT secret first (legacy projects, fastest).
+ * If that fails (e.g. project switched to ES256/RS256 with JWKS), falls back
+ * to verifying via the project's public JWKS endpoint. We must NOT collapse
+ * the two paths into a single try/catch and bail on the first error — older
+ * projects use HS256 and newer projects use asymmetric keys, and we want to
+ * support both transparently.
  */
 async function verifySupabaseToken(token: string): Promise<JWTPayload | null> {
-  try {
-    // Prefer symmetric verification with JWT secret (faster, no network call)
-    if (SUPABASE_JWT_SECRET) {
+  // Path 1: HS256 symmetric (legacy Supabase projects)
+  if (SUPABASE_JWT_SECRET) {
+    try {
       const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
       const { payload } = await jwtVerify(token, secret, {
         algorithms: ['HS256'],
       });
       return payload;
+    } catch (err) {
+      // Common case: project moved to asymmetric signing — fall through to JWKS.
+      // Only log unusual failures once we've also tried JWKS.
     }
-
-    // Fallback: JWKS verification
-    const keys = getJWKS();
-    if (!keys) return null;
-
-    const { payload } = await jwtVerify(token, keys);
-    return payload;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[LoRa::Auth] JWT verification failed:', msg);
-    return null;
   }
+
+  // Path 2: JWKS asymmetric (ES256 / RS256 — current Supabase default).
+  // Resolve JWKS source: configured SUPABASE_URL, else the token's own iss claim.
+  let keys = getConfiguredJWKS();
+  if (!keys) {
+    try {
+      const claims = decodeJwt(token);
+      const iss = typeof claims.iss === 'string' ? claims.iss : '';
+      // Only trust supabase issuers — don't fetch JWKS from arbitrary URLs.
+      if (iss && /^https:\/\/[a-z0-9-]+\.supabase\.co/i.test(iss)) {
+        keys = getJWKSForIssuer(iss);
+      }
+    } catch {
+      // decodeJwt is a parser, not a verifier — only fails on malformed tokens.
+    }
+  }
+
+  if (keys) {
+    try {
+      const { payload } = await jwtVerify(token, keys);
+      return payload;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('[LoRa::Auth] JWT verification failed (JWKS):', msg);
+      return null;
+    }
+  }
+
+  // No verification path available — neither secret nor JWKS could verify.
+  console.warn('[LoRa::Auth] JWT verification failed: no usable HS256 secret or JWKS source');
+  return null;
 }
 
 /**
