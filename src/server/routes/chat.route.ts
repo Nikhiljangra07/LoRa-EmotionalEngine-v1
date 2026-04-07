@@ -129,6 +129,13 @@ export interface ApiChatBody {
   stream?: boolean;
   /** Image or document attachments (max 5, each max 20MB). */
   attachments?: ChatAttachment[];
+  /**
+   * Rehydrate engine history from client-provided messages.
+   * Used when a user resumes a chat from the client-side history sidebar
+   * after the backend session has been reaped (idle timeout, redeploy, etc).
+   * Only applied if the in-memory session has empty history.
+   */
+  rehydrateHistory?: Array<{ role: 'user' | 'assistant'; text: string }>;
 }
 
 export interface ApiChatResponse {
@@ -244,6 +251,26 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
     if (validatedAttachments.length === 0) validatedAttachments = undefined;
   }
 
+  // Validate rehydrateHistory (optional) — used to restore session state when
+  // the client resumes a conversation from local chat history.
+  let validatedRehydrate: Array<{ role: 'user' | 'assistant'; text: string }> | undefined;
+  if (Array.isArray(b.rehydrateHistory)) {
+    const MAX_REHYDRATE_TURNS = 32; // generous cap; backend will trim to STM_MAX_TURNS
+    const MAX_REHYDRATE_TEXT = 2000; // per turn, before backend truncation
+    const raw = b.rehydrateHistory as unknown[];
+    const collected: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+    for (const turn of raw.slice(-MAX_REHYDRATE_TURNS)) {
+      if (turn == null || typeof turn !== 'object') continue;
+      const t = turn as Record<string, unknown>;
+      const role = t.role === 'user' ? 'user' : t.role === 'assistant' ? 'assistant' : null;
+      if (!role) continue;
+      const text = typeof t.text === 'string' ? t.text.slice(0, MAX_REHYDRATE_TEXT) : '';
+      if (!text) continue;
+      collected.push({ role, text });
+    }
+    if (collected.length > 0) validatedRehydrate = collected;
+  }
+
   return {
     ok: true,
     data: {
@@ -255,6 +282,7 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
       ...(b.deepMode === true ? { deepMode: true } : {}),
       ...(b.stream === true ? { stream: true } : {}),
       ...(validatedAttachments ? { attachments: validatedAttachments } : {}),
+      ...(validatedRehydrate ? { rehydrateHistory: validatedRehydrate } : {}),
     },
   };
 }
@@ -542,6 +570,24 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
 
     const session = getSession(userId, sessionId, engineKey);
+
+    // ── Rehydrate session history from client (sidebar resume) ──
+    // Only fires when:
+    //   1. Client provided rehydrateHistory (resuming from local sidebar)
+    //   2. Backend session has empty history (i.e. it was just created OR reaped)
+    // Existing in-memory sessions are never overwritten — backend state is truth.
+    if (validated.data.rehydrateHistory && session.history.length === 0) {
+      const truncated = validated.data.rehydrateHistory.slice(-STM_MAX_TURNS);
+      for (const turn of truncated) {
+        session.history.push({
+          role: turn.role,
+          text: truncateTurnText(turn.text),
+          ts: Date.now(),
+        });
+      }
+      console.log(`[LoRa::Rehydrate] restored ${session.history.length} turns for ${engineKey}`);
+    }
+
     const messageCount = session.history.filter((t) => t.role === 'user').length;
     if (messageCount >= MAX_SESSION_MESSAGES) {
       opIncrement('session_cap_hit');
