@@ -53,48 +53,65 @@ export function registerSessionLifecycleRoute(
     const trimmedId = sessionId.trim();
     const session = manager.getSession(trimmedId);
 
-    // Verify the requester owns this session
+    // Verify the requester owns this session, when ownership is checkable.
+    // SessionManager only knows about sessions registered via /api/session/start and is wiped
+    // on every redeploy. Sessions resumed from the client-side history sidebar, restored after
+    // a Stripe checkout redirect, or started before a redeploy will NOT have a SessionManager
+    // record — but they may still have a live engine entry (the actual source of truth for
+    // conversation state). We must finalize via the engine map in those cases too, otherwise
+    // tier counters never increment for those sessions.
     if (session && requesterId && session.userId !== requesterId) {
       res.status(403).json({ error: 'session_not_owned', message: 'Cannot terminate another user\'s session.' });
       return;
     }
 
-    const ended = manager.endSession(trimmedId);
-    console.log('[LoRa] SESSION TERMINATE:', { sessionId: trimmedId, ended });
+    // Resolve owner: prefer SessionManager (authoritative when registered), else requester.
+    const ownerId = session?.userId ?? requesterId;
 
-    if (!ended || !session) {
+    // Best-effort: mark inactive in SessionManager (no-op if not registered).
+    const managerEnded = manager.endSession(trimmedId);
+
+    // Look up engine entry. The engine is the real source of truth — it holds history,
+    // EIVs, token counters. Look it up under the resolved ownerId so resumed sessions work.
+    const finalizer = getSessionFinalizer();
+    const engineKey = ownerId ? `${ownerId}::${trimmedId}` : null;
+    const engineEntry = engineKey ? engineSessions?.get(engineKey) : undefined;
+
+    console.log('[LoRa] SESSION TERMINATE:', {
+      sessionId: trimmedId,
+      managerEnded,
+      hasEngineEntry: !!engineEntry,
+      via: session ? 'manager' : (engineEntry ? 'engine_only' : 'none'),
+    });
+
+    // Nothing to finalize: no SessionManager record AND no engine entry.
+    // (Either an unknown id, or a session already terminated in this lifetime.)
+    if (!managerEnded && !engineEntry) {
       res.status(200).json({ ended: false });
       return;
     }
 
-    // Use the shared finalizeSession — single code path for all session-end reasons.
-    // Handles: engagement logging, PostHog, tier increment (if ≥2 msgs), Memory V2 (if ≥3 msgs).
-    const finalizer = getSessionFinalizer();
-    const engineKey = `${session.userId}::${trimmedId}`;
-    const engineEntry = engineSessions?.get(engineKey);
-
     let tierRecord: { tier: string; sessionCount: number } | null = null;
 
-    if (finalizer && engineEntry) {
-      tierRecord = await finalizer(session.userId, trimmedId, engineEntry, 'user_terminate');
+    if (finalizer && engineEntry && ownerId && engineKey) {
+      tierRecord = await finalizer(ownerId, trimmedId, engineEntry, 'user_terminate');
       engineSessions!.delete(engineKey);
       if (sessionDebug) console.log('[LoRa::Session] engine evicted via finalizer', { key: engineKey });
-    } else if (engineSessions) {
-      // Fallback: finalizer not registered yet (shouldn't happen in production)
+    } else if (engineSessions && engineKey) {
+      // Finalizer not registered (shouldn't happen in production) — at least evict the entry.
       engineSessions.delete(engineKey);
       if (sessionDebug) console.log('[LoRa::Session] engine evicted (no finalizer)', { key: engineKey });
     }
 
     // If finalizer didn't return a tier record (session too short or no engine), get current tier.
-    if (!tierRecord) {
-      const current = await tierService.getTierAsync(session.userId);
+    if (!tierRecord && ownerId) {
+      const current = await tierService.getTierAsync(ownerId);
       tierRecord = { tier: current.tier, sessionCount: current.sessionCount };
     }
 
     res.status(200).json({
       ended: true,
-      tier: tierRecord.tier,
-      sessionCount: tierRecord.sessionCount,
+      ...(tierRecord ? { tier: tierRecord.tier, sessionCount: tierRecord.sessionCount } : {}),
     });
     return;
   });
