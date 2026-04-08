@@ -136,10 +136,19 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   cooldownMs: 15000,
 };
 
-/** Per-request abort timeout (env-configurable, default 18 s). */
+/**
+ * Per-request abort timeout (env-configurable, default 60 s).
+ *
+ * Sonnet streaming a long structured response (1000-2000 words — research
+ * papers, multi-part essays, code generation) routinely runs 25-40 seconds
+ * end-to-end. The previous 18s default was killing every long generation
+ * mid-stream, causing both retries to time out and triggering fallback +
+ * cooldown cascade. 60s gives Sonnet enough room while still aborting on
+ * actual hangs and preventing orphaned requests.
+ */
 const llmTimeoutMs = Math.max(
   1000,
-  parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 18000
+  parseInt(process.env.LORA_LLM_TIMEOUT_MS || '', 10) || 60000
 );
 
 /**
