@@ -173,17 +173,31 @@ describe('POST /api/chat — Session Transcript Memory (STM)', () => {
     const userId = 'stm-user-b';
     const sessionId = 'stm-sess-b';
 
-    for (let i = 1; i <= 12; i++) {
+    // Send enough messages to exceed STM_MAX_TURNS (16). Each call adds 2
+    // turns (user + assistant) AFTER the LLM is invoked, but the slice sent
+    // TO the LLM uses the current history at call-time. So 11 calls produces
+    // ~21 turns at the moment of the 11th LLM payload — comfortably past 16.
+    //
+    // We deliberately keep this under MAX_REQUESTS_PER_WINDOW * WINDOW_MS
+    // (5 req / sec) by spacing calls with a small delay; otherwise the
+    // sliding-window rate limiter returns 429 on the 6th request and the
+    // loop never reaches the cap.
+    for (let i = 1; i <= 11; i++) {
       await postApiChat(port, {
         userId,
         sessionId,
         messageId: `msg-${i}`,
         text: `Message number ${i}`,
       });
+      // ~250ms spacing keeps us under 5 req/sec.
+      await new Promise((r) => setTimeout(r, 250));
     }
 
     const history = lastPayloadSeen.sessionHistory ?? [];
-    expect(history.length).toBeLessThanOrEqual(8);
+    // STM_MAX_TURNS = 16. Cap was doubled from 8 → 16 in commit a23de43
+    // (Mar 19) to fix topic regression on long sessions; this test was
+    // never updated to match.
+    expect(history.length).toBeLessThanOrEqual(16);
     const texts = history.map((t) => t.text).join(' ');
     expect(texts).not.toMatch(/\bMessage number 1\b/);
     expect(texts).not.toMatch(/\bMessage number 2\b/);

@@ -435,6 +435,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     if (messageCount >= MIN_MESSAGES_FOR_COMPLETION) {
       try {
         tierRecord = await tierService.recordSessionCompletionAsync(userId, sessionId);
+        // Counter visible on the health dashboard's TODAY'S ACTIVITY card.
+        // Fires for every session that crossed the MIN_MESSAGES guard,
+        // regardless of end reason (terminate, cap, idle, redeploy drain).
+        opIncrement('session_completed');
       } catch { /* tier increment failed — non-fatal */ }
     }
 
@@ -723,6 +727,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       // ── Deep mode pay gate ──
       // Check if user has free uses or paid credits before allowing deep mode
       if (deepModeRequested) {
+        // Counter visible on the dashboard's PERSPECTIVE ENGINE card.
+        // Pairs with deep_reasoning_completed (which fires only on success)
+        // — the gap between requested and completed = deep gate denials +
+        // pipeline failures, useful signal.
+        opIncrement('deep_reasoning_requested');
         const { getDeepModeStatus } = await import('../usage/DeepModeUsage');
         const deepStatus = await getDeepModeStatus(userId);
         if (!deepStatus.canUse) {
@@ -872,6 +881,15 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       // Now stream the GUARDED text progressively via SSE.
       // No raw LLM tokens ever reach the client.
       if (wantsStream) {
+        // Record the message BEFORE we start streaming. Doing it here (not after
+        // the stream loop) ensures the dashboard counters update even if the
+        // client disconnects mid-stream — the work was already done by the
+        // engine. Without this, the SSE path was completely uninstrumented and
+        // the dashboard showed 0 messages / 0 users despite real traffic.
+        opIncrement('messages_processed');
+        trackUser(userId);
+        recordResponseTime(Date.now() - _engineStart);
+
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
