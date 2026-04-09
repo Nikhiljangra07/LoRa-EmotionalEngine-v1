@@ -413,7 +413,11 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       durationSeconds: Math.round(durationSeconds * 100) / 100,
       endedAt: Math.floor(now / 1000),
     });
-    recordSessionEnd(messagesCount);
+    // recordSessionEnd expects session duration in seconds — NOT message count.
+    // The dashboard's "Avg session length" reads this as seconds, so passing
+    // messagesCount made it show "5s" for sessions that actually spanned
+    // 30+ minutes. Use the duration computed two lines above.
+    recordSessionEnd(Math.round(durationSeconds));
   }
 
   /**

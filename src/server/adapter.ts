@@ -201,7 +201,9 @@ function drainSessions(): void {
         durationSeconds: Math.round(durationSeconds * 100) / 100,
         endedAt: Math.floor(now / 1000),
       });
-      recordSessionEnd(messagesCount);
+      // recordSessionEnd expects session duration in seconds, not message count
+      // (matches the fix in chat.route.ts emitSessionEnd).
+      recordSessionEnd(durationSeconds);
       trackSessionEnded(userId, sessionId, {
         messagesCount,
         durationSeconds,

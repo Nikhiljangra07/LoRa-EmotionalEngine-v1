@@ -203,7 +203,10 @@ function getSystemInfo(): SystemInfo {
     rssMB: Math.round(mem.rss / 1024 / 1024),
     env: process.env.NODE_ENV || 'unknown',
     llmModel: 'Claude Sonnet 4-6',
-    llmTimeout: `${process.env.LORA_LLM_TIMEOUT_MS || '18000'}ms`,
+    // Default must match EngineOrchestrator.llmTimeoutMs (60000ms). Was '18000'
+    // here while the runtime defaulted to 60000, making the dashboard misreport
+    // the actual abort threshold.
+    llmTimeout: `${process.env.LORA_LLM_TIMEOUT_MS || '60000'}ms`,
     perspectiveUrl: process.env.LORA_PERSPECTIVE_URL ? 'configured' : 'not set',
     chromaUrl: process.env.LORA_CHROMA_URL ? 'configured' : 'not set',
     falkorUrl: process.env.LORA_FALKOR_URL ? 'configured' : 'not set',
