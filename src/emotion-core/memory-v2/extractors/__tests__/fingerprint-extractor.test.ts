@@ -297,6 +297,27 @@ describe('Fingerprint Extractor', () => {
       expect(result.emotionalFingerprint.primary).toBe('joy');
     });
 
+    it('maps undertone-vocabulary words used as primary (urgency, warmth, playfulness)', () => {
+      // Production failure: Haiku returned `primary: "urgency"` and the
+      // mapper threw 'Cannot map primary emotion: urgency'. urgency, warmth,
+      // and playfulness are all in UNDERTONE_VOCABULARY but were missing
+      // from the EMOTION_MAP — leading to crashed fingerprint extraction.
+      for (const [raw, expected] of [
+        ['urgency', 'fear'],
+        ['warmth', 'joy'],
+        ['playfulness', 'joy'],
+      ] as const) {
+        const result = validateLLMExtraction({
+          ...BREAKUP_LLM_RESPONSE,
+          emotionalFingerprint: {
+            ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
+            primary: raw,
+          },
+        });
+        expect(result.emotionalFingerprint.primary).toBe(expected);
+      }
+    });
+
     it('rejects completely unmappable primary emotion', () => {
       expect(() =>
         validateLLMExtraction({
@@ -309,16 +330,35 @@ describe('Fingerprint Extractor', () => {
       ).toThrow('Cannot map primary emotion');
     });
 
-    it('rejects empty undertones', () => {
-      expect(() =>
-        validateLLMExtraction({
-          ...BREAKUP_LLM_RESPONSE,
-          emotionalFingerprint: {
-            ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
-            undertones: [],
-          },
-        }),
-      ).toThrow('undertones must be 1-3');
+    it('falls back to a default undertone when empty (instead of throwing)', () => {
+      // Production logs showed Haiku occasionally returns [] for emotionally
+      // flat / informational sessions. Previously this threw and lost the
+      // entire fingerprint. Now we fall back to a single neutral undertone
+      // so the pipeline can finish and the profile still updates.
+      const result = validateLLMExtraction({
+        ...BREAKUP_LLM_RESPONSE,
+        emotionalFingerprint: {
+          ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
+          undertones: [],
+        },
+      });
+      expect(result.emotionalFingerprint.undertones).toHaveLength(1);
+      expect(result.emotionalFingerprint.undertones[0]).toBe('tension');
+    });
+
+    it('falls back to a default undertone when all entries are invalid', () => {
+      // Same fallback path: Haiku returned strings, but none match the
+      // vocabulary (e.g. ['foo', 'bar']). Filter empties the list →
+      // we should still produce a usable fingerprint.
+      const result = validateLLMExtraction({
+        ...BREAKUP_LLM_RESPONSE,
+        emotionalFingerprint: {
+          ...BREAKUP_LLM_RESPONSE.emotionalFingerprint,
+          undertones: ['not_an_undertone', 'also_not'],
+        },
+      });
+      expect(result.emotionalFingerprint.undertones).toHaveLength(1);
+      expect(result.emotionalFingerprint.undertones[0]).toBe('tension');
     });
 
     it('rejects more than 3 undertones', () => {

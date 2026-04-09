@@ -74,6 +74,14 @@ const EMOTION_MAP: Record<string, EkmanEmotion> = {
   numbness: 'sadness',      // emotional shutdown = sadness family
   ambivalence: 'surprise',  // conflicting signals = surprise-adjacent
   neutral: 'surprise',      // neutral mapped to least-valenced
+
+  // Undertone vocabulary used as primary — Haiku occasionally puts an
+  // undertone label in the `primary` slot. These are the missing fallbacks.
+  // (Most undertones — nostalgia, dread, guilt, shame, loneliness, hope,
+  // pride, relief, resignation, confusion — are already covered above.)
+  urgency: 'fear',         // urgency = anticipatory pressure → fear family
+  warmth: 'joy',           // affectionate openness → joy family
+  playfulness: 'joy',      // light/positive activation → joy family
 };
 
 /**
@@ -257,15 +265,29 @@ function validateLLMExtraction(raw: unknown): RawLLMExtraction {
     throw new Error(`Cannot map primary emotion: ${rawPrimary}`);
   }
 
+  // Undertones contract: 1-3 vocabulary-valid items.
+  // Production logs showed Haiku occasionally returns an empty array or
+  // entirely off-vocabulary entries on emotionally-flat sessions (factual
+  // / informational chats). Previous behaviour was to throw, which lost
+  // the entire fingerprint AND the profile update for that user — a
+  // session-eating crash for low-stakes conversations. Now we fall back
+  // to a single neutral undertone (`tension` — vocabulary-valid, broadly
+  // applicable, doesn't fabricate emotional content) so the rest of the
+  // pipeline can finish and the user's profile still gets refreshed.
+  const FALLBACK_UNDERTONE: Undertone = 'tension';
+
   const rawUndertones = efObj['undertones'];
-  if (!Array.isArray(rawUndertones) || rawUndertones.length === 0 || rawUndertones.length > 3) {
-    throw new Error(`undertones must be 1-3 items, got ${Array.isArray(rawUndertones) ? rawUndertones.length : 'non-array'}`);
-  }
-  const validUndertones = rawUndertones.filter(
-    (u): u is Undertone => UNDERTONE_VOCABULARY.includes(u as Undertone),
-  );
-  if (validUndertones.length === 0) {
-    throw new Error('No valid undertones after filtering');
+  let validUndertones: Undertone[];
+  if (!Array.isArray(rawUndertones) || rawUndertones.length === 0) {
+    validUndertones = [FALLBACK_UNDERTONE];
+  } else {
+    if (rawUndertones.length > 3) {
+      throw new Error(`undertones must be 1-3 items, got ${rawUndertones.length}`);
+    }
+    const filtered = rawUndertones.filter(
+      (u): u is Undertone => UNDERTONE_VOCABULARY.includes(u as Undertone),
+    );
+    validUndertones = filtered.length > 0 ? filtered : [FALLBACK_UNDERTONE];
   }
 
   const contextCategory = efObj['contextCategory'] as string;
