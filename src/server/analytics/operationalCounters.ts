@@ -43,6 +43,8 @@ export type CounterName =
   | 'deep_reasoning_completed'
   // Input sanitization
   | 'sanitizer_triggered'
+  // Token limit
+  | 'containment_token_warning'
   // Errors
   | 'error_500';
 

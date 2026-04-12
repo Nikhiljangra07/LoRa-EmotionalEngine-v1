@@ -64,6 +64,8 @@ export interface SessionEntry {
   tokensUsed: number;
   /** True when LoRa has offered deep analysis and is awaiting user's yes/no. */
   deepAnalysisPending?: boolean;
+  /** True after a soft token-limit warning has been issued for this session. */
+  tokenWarningIssued?: boolean;
   /** Message index when the deep analysis offer was made. */
   deepAnalysisOfferedAt?: number;
   /** Original message stored during deep mode clarification. */
@@ -628,15 +630,30 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
     const dailyLimit = getDailyLimit();
     if (dailyLimit > 0) {
+      const used = getTokensUsedToday(userId);
       const estimatedTokens = estimateRequestTokens(session.history, text);
+
       if (wouldExceedLimit(userId, estimatedTokens)) {
-        const used = getTokensUsedToday(userId);
         console.warn(`[LORA_TOKEN_LIMIT] userId=${userId} used=${used}`);
         res.status(200).json({
           error: 'daily_limit_reached',
           message: "You have reached today's usage limit. Please try again tomorrow.",
         });
         return;
+      }
+
+      // Graceful wrap-up: when approaching limit during a heavy session,
+      // flag the engine so the next reply includes a soft closure.
+      const TOKEN_WARNING_THRESHOLD = 0.9;
+      if (used > dailyLimit * TOKEN_WARNING_THRESHOLD) {
+        const eivCurve = session.engine.getSessionEIVs();
+        const recentEIVs = eivCurve.slice(-5);
+        const hasElevatedEIV = recentEIVs.some(v => v > 0.4);
+        if (hasElevatedEIV && !session.tokenWarningIssued) {
+          session.tokenWarningIssued = true;
+          opIncrement('containment_token_warning');
+          console.log(`[LoRa::TokenWarning] userId=${userId} used=${used}/${dailyLimit} — issuing graceful wrap-up`);
+        }
       }
     }
 
@@ -834,8 +851,19 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         // Deep mode: soft cap at 900 words — thorough but not a dump
         reply = enforceWordLimit(reply, 900);
       } else {
-        reply = enforceWordLimit(reply, policy.maxWords);
-        reply = enforceQuestionLimit(reply, policy.maxQuestions);
+        // Tighter limits during CONTAINMENT: shorter replies, fewer questions
+        const currentEIV = result.eiv?.value ?? 0;
+        const inContainment = currentEIV > 0.4;
+        const effectiveMaxWords = inContainment ? Math.min(policy.maxWords, 150) : policy.maxWords;
+        const effectiveMaxQuestions = inContainment ? 1 : policy.maxQuestions;
+        reply = enforceWordLimit(reply, effectiveMaxWords);
+        reply = enforceQuestionLimit(reply, effectiveMaxQuestions);
+      }
+
+      // Graceful wrap-up: append a soft closure notice when approaching token limit during heavy sessions
+      if (session.tokenWarningIssued) {
+        reply += '\n\n---\n*We are approaching today\'s session limit. What is the one thing you most need before we close?*';
+        session.tokenWarningIssued = false; // only show once
       }
 
       const consumed =
