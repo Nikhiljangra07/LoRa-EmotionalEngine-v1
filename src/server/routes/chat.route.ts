@@ -745,6 +745,13 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       let perspectiveMode: 'quick' | 'deep' | undefined;
       const deepModeRequested = featureFlags.perspectiveDeepModeEnabled && validated.data.deepMode === true;
 
+      // Clear stale deep clarification context when user sends a non-deep message
+      // (e.g. after aborting deep mode on the frontend)
+      if (!deepModeRequested && session.deepClarifyOriginal) {
+        console.log('[LoRa::DeepAnalysis] clearing stale deepClarifyOriginal — non-deep message received');
+        session.deepClarifyOriginal = undefined;
+      }
+
       // ── Deep mode pay gate ──
       // Check if user has free uses or paid credits before allowing deep mode
       if (deepModeRequested) {
@@ -767,12 +774,27 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       // Check if this is a clarification response (user answered after ambiguous deep question)
       if (deepModeRequested && session.deepClarifyOriginal) {
-        perspectiveMode = 'deep';
-        // Combine original + clarification for enriched context
-        const enrichedText = `${session.deepClarifyOriginal}\n\n[User clarified]: ${text}`;
-        (validated.data as any).text = enrichedText;
-        session.deepClarifyOriginal = undefined;
-        console.log('[LoRa::DeepAnalysis] clarification received — firing with enriched context');
+        // Detect topic shift: if the new message looks like a fresh question
+        // (long, contains '?', and shares few words with the original),
+        // discard the old context and treat as a new deep question.
+        const origWords = new Set(session.deepClarifyOriginal.toLowerCase().split(/\s+/));
+        const newWords = text.toLowerCase().split(/\s+/);
+        const overlap = newWords.filter(w => w.length > 3 && origWords.has(w)).length;
+        const overlapRatio = newWords.length > 0 ? overlap / newWords.length : 0;
+        const looksLikeNewQuestion = text.includes('?') && newWords.length > 8 && overlapRatio < 0.3;
+
+        if (looksLikeNewQuestion) {
+          // Topic shift — discard old context, start fresh deep analysis
+          session.deepClarifyOriginal = undefined;
+          perspectiveMode = 'deep';
+          console.log('[LoRa::DeepAnalysis] topic shift detected — starting fresh deep analysis');
+        } else {
+          perspectiveMode = 'deep';
+          const enrichedText = `${session.deepClarifyOriginal}\n\n[User clarified]: ${text}`;
+          (validated.data as any).text = enrichedText;
+          session.deepClarifyOriginal = undefined;
+          console.log('[LoRa::DeepAnalysis] clarification received — firing with enriched context');
+        }
       } else if (deepModeRequested) {
         perspectiveMode = 'deep';
         console.log('[LoRa::DeepAnalysis] UI triggered — firing deep mode');
