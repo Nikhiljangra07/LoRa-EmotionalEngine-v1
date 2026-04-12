@@ -13,6 +13,9 @@ import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 
 const REDIS_PREFIX = 'lora:deep:';
 const FREE_DEEP_USES = 3;
+const UNLIMITED_USERS = new Set([
+  'REDACTED-FOUNDER-ID', // Nikhil
+]);
 
 function redisKey(userId: string): string {
   return `${REDIS_PREFIX}${userId}`;
@@ -36,6 +39,9 @@ export interface DeepModeStatus {
  * Check whether a user can use deep mode right now.
  */
 export async function getDeepModeStatus(userId: string): Promise<DeepModeStatus> {
+  if (UNLIMITED_USERS.has(userId)) {
+    return { canUse: true, freeRemaining: 999, paidCredits: 999, needsPayment: false, totalUsed: 0 };
+  }
   try {
     const c = await getClient();
     const data = await c.hgetall(redisKey(userId));
@@ -65,6 +71,7 @@ export async function getDeepModeStatus(userId: string): Promise<DeepModeStatus>
  * Returns false if user has no uses remaining.
  */
 export async function consumeDeepModeUse(userId: string): Promise<boolean> {
+  if (UNLIMITED_USERS.has(userId)) return true;
   try {
     const c = await getClient();
     const data = await c.hgetall(redisKey(userId));
