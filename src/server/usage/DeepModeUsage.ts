@@ -39,6 +39,7 @@ export interface DeepModeStatus {
  * Check whether a user can use deep mode right now.
  */
 export async function getDeepModeStatus(userId: string): Promise<DeepModeStatus> {
+  console.log(`[LoRa::DeepMode] checking userId="${userId}" unlimited=${UNLIMITED_USERS.has(userId)}`);
   if (UNLIMITED_USERS.has(userId)) {
     return { canUse: true, freeRemaining: 999, paidCredits: 999, needsPayment: false, totalUsed: 0 };
   }
