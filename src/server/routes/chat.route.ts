@@ -346,7 +346,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         new ChromaVectorStore({ url: process.env.LORA_CHROMA_URL ?? 'http://localhost:8000' }),
         new FalkorGraphStore({ client: getFalkorClient() }),
         {
-          summarizerModel: 'claude-sonnet-4-20250514',
+          summarizerModel: 'claude-sonnet-4-6',
           extractorModel: 'claude-haiku-4-5-20251001',
           apiKey: process.env.ANTHROPIC_API_KEY!,
         },

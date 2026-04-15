@@ -46,7 +46,7 @@ const v2log = (msg: string, data?: unknown) => {
 // ──────────────────────────────────────────────────────
 
 export interface PipelineConfig {
-  /** Model for session summarization (e.g., claude-sonnet-4-20250514) */
+  /** Model for session summarization (e.g., claude-sonnet-4-6) */
   summarizerModel: string;
   /** Model for extraction + verification (e.g., claude-haiku-4-5-20251001) */
   extractorModel: string;

@@ -25,7 +25,7 @@ jest.mock('@anthropic-ai/sdk', () => {
 // ── Pipeline config ──
 
 const TEST_CONFIG: PipelineConfig = {
-  summarizerModel: 'claude-sonnet-4-20250514',
+  summarizerModel: 'claude-sonnet-4-6',
   extractorModel: 'claude-haiku-4-5-20251001',
   apiKey: 'test-key',
 };

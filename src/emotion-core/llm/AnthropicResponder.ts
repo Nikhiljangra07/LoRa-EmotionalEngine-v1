@@ -20,7 +20,7 @@ export class AnthropicResponder {
       throw new Error('ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic');
     }
     this.client = new Anthropic({ apiKey });
-    this.model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+    this.model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
     if (debugEnabled) {
       console.log('[LoRa::Debug][AnthropicResponder] config', {

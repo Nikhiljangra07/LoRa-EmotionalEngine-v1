@@ -15,7 +15,7 @@ jest.mock('@anthropic-ai/sdk', () => {
 });
 
 const TEST_CONFIG: SummarizerConfig = {
-  model: 'claude-sonnet-4-20250514',
+  model: 'claude-sonnet-4-6',
   apiKey: 'test-key-not-real',
 };
 
