@@ -244,6 +244,13 @@ SUPABASE_JWT_SECRET=...
 - **Fixed:** Persisted tier data in Redis hashes
 - **Commit:** `df10525`
 
+### Bug: Silent Sonnet 4 fallback — production was NEVER on Sonnet 4.6 until Apr 15, 2026
+- **Reported:** April 15, 2026 (triggered by Anthropic deprecation email for `claude-sonnet-4`)
+- **Cause:** `LLM_PROVIDER=anthropic` in Railway routes through `AnthropicResponder`, not `ClaudeResponder`. `ANTHROPIC_MODEL` env var was never set, so `AnthropicResponder` silently fell back to its hardcoded default: `claude-sonnet-4-20250514` (Sonnet 4 from May 2025). `ClaudeResponder.ts` was correctly hardcoded to `claude-sonnet-4-6` but was unused. The `ANTHROPIC_API_KEY` env var was set, but the model var was missed. CLAUDE.md docs and `ClaudeResponder.ts` both said Sonnet 4.6 — actual production traffic was on Sonnet 4 the entire time since launch (Mar 12).
+- **Impact:** Every session since launch — Dutch father, Polish father, Hinglish regular, Reddit benchmark, the 6-model G-Eval (LoRa 82.4) — was on the older model. The architecture's quality scores were achieved on a weaker LLM. Memory V2 summarizer (`chat.route.ts:349`) was also pinned to the deprecated model.
+- **Fix:** Set `ANTHROPIC_MODEL=claude-sonnet-4-6` in Railway. Updated three hardcoded fallbacks (`AnthropicResponder.ts:23`, `chat.route.ts:349`, `reasoningEngine/src/llm/client.py:74`) to match. Verified via deploy log: `[LoRa] Runtime Model: Claude Sonnet 4-6`.
+- **Commit:** `53a0910`
+
 ---
 
 ## DECISION LOG
@@ -342,6 +349,7 @@ SUPABASE_JWT_SECRET=...
 | Apr 7, 2026 | Client-side chat history sidebar (ChatGPT/Claude-style) | Tester reported losing conversation context after Stripe checkout redirect — wanted ChatGPT-style sidebar to browse and resume past sessions. Built `chatHistory.ts` lib (load/save/delete entries, auto-prune to 50 sessions, strip base64 attachments to keep storage small, relative time formatting). Hamburger menu in header opens slide-in drawer matching LoRa's dark monospace aesthetic. Auto-save on every message change. Click to load → restores messages visually. All client-side — backend stores ZERO conversation content (only Memory V2 fact anchors as before). | `9c88311` (presence-whispers) |
 | Apr 7, 2026 | Backend session rehydration — `rehydrateHistory` param on `/api/chat` | Sidebar restore had a hidden flaw: clicking an old chat → setSessionId → backend `getSession` could return a fresh empty engine (if reaped via 30min idle or redeploy). User would see old messages visually but LoRa would respond with no memory. Added `rehydrateHistory: Array<{role, text}>` body param. Backend populates `session.history` from it ONLY when the in-memory entry has zero history (never overwrites live state). Frontend stages `pendingRehydrateRef` on sidebar load + Stripe restore, sends with next chatStream call, restores on failure. Capped at STM_MAX_TURNS=16, 800 chars per turn. | `8a92b83` (backend), `b08342f`, `3168563` (presence-whispers) |
 | Apr 7, 2026 | Sidebar aligned with LoRa session model — "New session" lifecycle | Initial sidebar borrowed ChatGPT terminology ("chat", "New chat") but LoRa runs on sessions with proper lifecycle (each completed session increments `sessionCount`, may promote tier). Renamed: header "Sessions", button "New session", empty state "No sessions yet". The button now invokes `terminateSessionBridge()` (same backend lifecycle as the header New Session button) — backend finalizer fires PostHog `session_ended`, increments tier counter (if ≥2 msgs), runs Memory V2 consolidation (if ≥3 msgs), then starts a fresh session. Header New Session button now also writes to chat history sidebar so the just-completed session appears immediately. Cleanup: removed duplicate `saveChatHistoryEntry` call from sidebar handler — `terminateSessionBridge` already handles it. UX inspiration is ChatGPT/Claude, semantics are pure LoRa. | `e3466ff` (presence-whispers) |
+| Apr 15, 2026 | Migrated production from Sonnet 4 → Sonnet 4.6 (forced by deprecation discovery) | Anthropic deprecation email for `claude-sonnet-4` (retires Jun 15, degraded availability May 14) triggered an audit that revealed production had been running on Sonnet 4, not 4.6, since launch. `LLM_PROVIDER=anthropic` routes through `AnthropicResponder` whose hardcoded fallback was `claude-sonnet-4-20250514`, and `ANTHROPIC_MODEL` env var was never set. Set env var + updated three hardcoded fallbacks to `claude-sonnet-4-6`. Confirmed via deploy log. **Implication:** all prior benchmarks (6-model G-Eval, reasoningEngine 15-question benchmark, every tester case) were on the weaker model — quality is expected to improve from this point. Cost will rise proportionally (4.6 is more expensive per token). | `53a0910` (backend), `62fb923` (reasoningEngine, local) |
 
 ---
 
@@ -412,6 +420,7 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 5. **Curly apostrophes (Unicode `\u2019`) in EngineOrchestrator.ts.** Some strings use curly quotes from earlier code. The StrReplace tool in Cursor cannot match them directly. Use Python or sed with exact byte matching if you need to edit those lines.
 6. **The appraisal-lab directory has massive amounts of duplicate files** (e.g., `file 2.ts`, `file 3.ts`, `file 4.ts` up to `file 7.ts`). These are accidental copies. They are excluded from tsconfig via patterns. Do not delete them without explicit instruction — they don't affect the build.
 7. **Railway logs:** When using `railway logs`, make sure to select the **LoRa-EmotionalEngine-v1** service, NOT Redis. Redis logs are just background saves with zero LoRa data.
+8. **Model identity is split across THREE places — all must agree.** `ANTHROPIC_MODEL` env var in Railway is the source of truth (read by `AnthropicResponder` because `LLM_PROVIDER=anthropic`). `ClaudeResponder.ts:7` is hardcoded for the alternate provider path (currently unused). `chat.route.ts:349` summarizer model is hardcoded with no env override. If any of these three drifts apart, production silently runs the wrong model — this is exactly what happened from Mar 12 → Apr 15, 2026. On any model change: update env var **and** both hardcoded references, then verify the startup log line `[LoRa] Runtime Model: …`.
 
 ---
 
@@ -428,5 +437,5 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 
 ---
 
-*Last updated: April 1, 2026*
+*Last updated: April 15, 2026*
 *Branch: bugbot-init-review*
