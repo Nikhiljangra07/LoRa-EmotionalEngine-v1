@@ -459,6 +459,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           content: t.text,
         })),
         eivCurve,
+        perspectiveResults: entry.engine.getSessionPerspectives(),
       }).then(result => {
         opIncrement('memory_v2_consolidation_success');
         console.log('[LoRa::MemoryV2] session consolidated', {

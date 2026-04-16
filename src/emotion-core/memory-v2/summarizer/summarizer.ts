@@ -77,6 +77,31 @@ function validateSummary(raw: unknown): SessionSummary {
     throw new Error('unresolved must be an array');
   }
 
+  // §7 — structuralShape is optional (backward-compat + LLM may omit it)
+  let structuralShape: SessionSummary['structuralShape'];
+  const rawShape = obj['structuralShape'];
+  if (rawShape && typeof rawShape === 'object' && rawShape !== null) {
+    const shape = rawShape as Record<string, unknown>;
+    if (
+      typeof shape['dominantPattern'] === 'string' && shape['dominantPattern'].length > 0 &&
+      Array.isArray(shape['namedAvoidances']) &&
+      Array.isArray(shape['reframeAttempts'])
+    ) {
+      structuralShape = {
+        dominantPattern: shape['dominantPattern'] as string,
+        namedAvoidances: (shape['namedAvoidances'] as unknown[]).filter(
+          (v): v is string => typeof v === 'string',
+        ),
+        reframeAttempts: (shape['reframeAttempts'] as unknown[])
+          .filter((v): v is { turn: number; accepted: boolean } =>
+            typeof v === 'object' && v !== null &&
+            typeof (v as Record<string, unknown>)['turn'] === 'number' &&
+            typeof (v as Record<string, unknown>)['accepted'] === 'boolean',
+          ),
+      };
+    }
+  }
+
   return {
     primaryTopic: obj['primaryTopic'] as string,
     keyFacts: obj['keyFacts'] as string[],
@@ -84,6 +109,7 @@ function validateSummary(raw: unknown): SessionSummary {
     causeExpressionLink: link as SessionSummary['causeExpressionLink'],
     currentDirection: obj['currentDirection'] as string | null,
     unresolved: obj['unresolved'] as string[],
+    ...(structuralShape ? { structuralShape } : {}),
   };
 }
 

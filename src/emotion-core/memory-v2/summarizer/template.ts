@@ -14,6 +14,7 @@ RULES:
 - causeExpressionLink identifies (a) what is CAUSING the user's current emotional state and (b) how they are EXPRESSING it (e.g., cause: "fear of financial instability", expression: "deflecting with humor").
 - currentDirection is what was decided or what action was identified. Use null if nothing concrete was decided.
 - unresolved lists what remains open or unanswered at session end.
+- structuralShape identifies the dominant structural pattern driving the session, what the user avoided naming, and whether LoRa's reframes landed. If no clear structural pattern exists, omit this field.
 - Do NOT include raw user quotes. Summarize in third person.
 - Do NOT include LoRa's responses in the summary. Focus on the user's content and emotional trajectory.
 
@@ -31,7 +32,12 @@ OUTPUT FORMAT (strict JSON):
     "expression": "string — how the user is expressing it"
   },
   "currentDirection": "string or null — what was decided or identified as next step",
-  "unresolved": ["item1", "item2", "..."]
+  "unresolved": ["item1", "item2", "..."],
+  "structuralShape": {
+    "dominantPattern": "string — the structural pattern driving this session (e.g. 'avoidance loop around commitment', 'cost-benefit paralysis on career change')",
+    "namedAvoidances": ["what the user danced around or refused to name directly"],
+    "reframeAttempts": [{"turn": 3, "accepted": true}]
+  }
 }`;
 
 export const SESSION_SUMMARY_USER_PROMPT = `Summarize the following conversation session. Output ONLY the JSON object, nothing else.

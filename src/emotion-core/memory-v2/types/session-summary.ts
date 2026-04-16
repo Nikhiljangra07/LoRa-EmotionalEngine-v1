@@ -32,4 +32,13 @@ export interface SessionSummary {
   currentDirection: string | null;
   /** §6 — What remains open or unanswered? */
   unresolved: string[];
+  /** §7 — Structural pattern shape (optional for backward-compat with old summaries) */
+  structuralShape?: {
+    /** The dominant structural pattern driving this session */
+    dominantPattern: string;
+    /** What the user specifically avoided naming or confronting */
+    namedAvoidances: string[];
+    /** Reframe attempts by LoRa and whether the user accepted them */
+    reframeAttempts: { turn: number; accepted: boolean }[];
+  };
 }

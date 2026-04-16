@@ -1,4 +1,4 @@
-import type { SessionFingerprint, EmotionalFingerprint, FactAnchor, GraphSnapshot } from '../types';
+import type { SessionFingerprint, EmotionalFingerprint, FactAnchor, GraphSnapshot, UserProfile } from '../types';
 
 // ──────────────────────────────────────────────────────
 // Storage interfaces — pure contracts, no implementation dependency
@@ -48,6 +48,12 @@ export interface IGraphStore {
    * Returns the number of edges removed.
    */
   pruneStaleEdges(userId: string, maxAgeDays: number): Promise<number>;
+
+  /** Persist a user profile */
+  storeProfile(userId: string, profile: UserProfile): Promise<void>;
+
+  /** Load a user profile (returns null if none exists) */
+  getProfile(userId: string): Promise<UserProfile | null>;
 
   /** Remove all data for a user (GDPR / account deletion) */
   purgeUser(userId: string): Promise<void>;

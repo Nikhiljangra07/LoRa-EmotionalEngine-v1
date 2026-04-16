@@ -36,7 +36,10 @@ import { GradientEscalationTracker } from '../../appraisal-bridge/gradientEscala
 import type { GradientEscalationResult, GradientEscalationState } from '../../appraisal-bridge/gradientEscalation';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { fetchPerspectiveAnalysis } from '../analysis/perspectiveClient';
+import { matchPrior, formatPriorBlock } from '../prior/patternPrior';
 import type { PerspectiveAnalyzeResponse } from '../analysis/types';
+import type { PerspectiveSessionSummary } from '../memory-v2/pipeline/adapter-interface';
+import type { StructuralFramework } from '../memory-v2/types/vocabularies';
 import { ETVEngineV1, SESSION_GAP_MS, buildSessionSummary } from '../etv';
 import type { SessionSummaryV1, ETVPolicy } from '../etv';
 import type { MemoryV1State, ProcessMessageInput as MemoryProcessMessageInput, ProcessMessageOutput as MemoryProcessMessageOutput } from '../memory-v1/memoryV1EngineTypes';
@@ -170,10 +173,16 @@ export class EngineOrchestrator {
   private etvState: ETVState;
   private sessionEIVs: number[] = [];
   private sessionAVIs: number[] = [];
+  private sessionPerspectives: PerspectiveSessionSummary[] = [];
 
   /** Return a copy of the session EIV curve (used by Memory V2 consolidation). */
   getSessionEIVs(): number[] {
     return [...this.sessionEIVs];
+  }
+
+  /** Return accumulated LoRaMaths perspective results for this session (used by Memory V2 consolidation). */
+  getSessionPerspectives(): PerspectiveSessionSummary[] {
+    return [...this.sessionPerspectives];
   }
   private sessionStartedAt: number = 0;
   private sessionHasViolation = false;
@@ -1433,6 +1442,14 @@ export class EngineOrchestrator {
       return decision;
     }
 
+    // ── Pattern prior: structural instinct before LLM generation ──
+    const recentTexts = sessionHistory
+      ?.slice(-4)
+      .filter(t => t.role === 'user')
+      .map(t => t.text) ?? [];
+    const priorCtx = matchPrior(normalizedUserMessage, recentTexts);
+    const priorBlock = formatPriorBlock(priorCtx);
+
     const prompt = PromptTemplateBuilder.build(emotionalState, this.etvState, {
       guidanceMode,
       momentumConfidence: momentum.confidence,
@@ -1496,12 +1513,26 @@ export class EngineOrchestrator {
       ...(this.memoryV2Context && this.memoryV2Context.relatedFacts.length > 0 ? {
         memoryV2: this.memoryV2Context,
       } : {}),
+      ...(priorBlock ? { priorBlock } : {}),
       ...(() => {
         const offerDeep = featureFlags.perspectiveDeepModeEnabled && this.shouldOfferDeepAnalysis();
         if (offerDeep) this.markDeepAnalysisOffered();
         return offerDeep ? { deepAnalysisOfferHint: true } : {};
       })(),
     });
+
+    // ── Accumulate perspective result for Memory V2 consolidation ──
+    if (perspectiveAnalysis && perspectiveAnalysis.perspectives.length > 0) {
+      const topPerspective = perspectiveAnalysis.perspectives[0]!;
+      this.sessionPerspectives.push({
+        turn: this.messageCount,
+        framework: topPerspective.framework as StructuralFramework,
+        label: topPerspective.label,
+        condensed: topPerspective.condensed,
+        strength: topPerspective.strength,
+        tension: perspectiveAnalysis.tension || undefined,
+      });
+    }
 
     // ── Memory V1: debug snapshot (zero behavior impact) ──
     if (featureFlags.memoryV1DebugEnabled && memoryV1Result) {
@@ -2004,6 +2035,7 @@ export class EngineOrchestrator {
 
     this.sessionEIVs = [];
     this.sessionAVIs = [];
+    this.sessionPerspectives = [];
     this.sessionStartedAt = 0;
     this.sessionHasViolation = false;
     this.messageCount = 0;

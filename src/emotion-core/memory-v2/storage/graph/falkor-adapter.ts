@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import type { IGraphStore } from '../interfaces';
-import type { FactAnchor, GraphSnapshot, GraphNode, GraphEdge } from '../../types';
+import type { FactAnchor, GraphSnapshot, GraphNode, GraphEdge, UserProfile } from '../../types';
 
 // ──────────────────────────────────────────────────────
 // FalkorDB implementation of IGraphStore
@@ -50,6 +50,10 @@ export class FalkorGraphStore implements IGraphStore {
 
   private edgeTsKey(userId: string, ek: string): string {
     return `${KEY_PREFIX}:${userId}:edge_ts:${ek}`;
+  }
+
+  private profileKey(userId: string): string {
+    return `${KEY_PREFIX}:${userId}:profile`;
   }
 
   async storeAnchors(userId: string, sessionId: string, anchors: FactAnchor[]): Promise<void> {
@@ -210,12 +214,45 @@ export class FalkorGraphStore implements IGraphStore {
     return pruned;
   }
 
+  async storeProfile(userId: string, profile: UserProfile): Promise<void> {
+    const key = this.profileKey(userId);
+    const pipeline = this.redis.pipeline();
+    pipeline.set(key, JSON.stringify(profile));
+    pipeline.expire(key, TTL_SECONDS);
+    const results = await pipeline.exec();
+    if (results) {
+      for (const [err] of results) {
+        if (err) throw new Error(`Falkor pipeline error during storeProfile: ${err.message}`);
+      }
+    }
+  }
+
+  async getProfile(userId: string): Promise<UserProfile | null> {
+    const key = this.profileKey(userId);
+    const raw = await this.redis.get(key);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      // Minimal shape check
+      if (
+        typeof parsed === 'object' && parsed !== null &&
+        typeof parsed.userId === 'string' &&
+        typeof parsed.sessionsCompleted === 'number'
+      ) {
+        return parsed as UserProfile;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   async purgeUser(userId: string): Promise<void> {
     // Get all session IDs to find anchor keys
     const sKey = this.sessionsKey(userId);
     const sessionIds = await this.redis.smembers(sKey);
 
-    const keysToDelete: string[] = [sKey];
+    const keysToDelete: string[] = [sKey, this.profileKey(userId)];
 
     for (const sid of sessionIds) {
       keysToDelete.push(this.anchorsKey(userId, sid));

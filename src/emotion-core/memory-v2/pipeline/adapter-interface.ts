@@ -1,8 +1,30 @@
 import type {
   ConversationTurn,
   EmotionalFingerprint,
+  InterventionRecord,
   MemoryContext,
 } from '../types';
+import type { StructuralFramework } from '../types/vocabularies';
+
+// ──────────────────────────────────────────────────────
+// PerspectiveSessionSummary — accumulated LoRaMaths results
+// One per message that received a perspective analysis.
+// ──────────────────────────────────────────────────────
+
+export interface PerspectiveSessionSummary {
+  /** Which message turn this perspective was generated for */
+  turn: number;
+  /** The framework LoRaMaths classified this message under */
+  framework: StructuralFramework;
+  /** Human-readable label (e.g. "The Loyalty Tax") */
+  label: string;
+  /** Condensed 45-65 word insight */
+  condensed: string;
+  /** Framework strength score (0-1) */
+  strength: number;
+  /** Cross-framework tension (if LoRaMaths detected one) */
+  tension?: string;
+}
 
 // ──────────────────────────────────────────────────────
 // IMemoryAdapter — the plug-in interface for the backend
@@ -24,6 +46,10 @@ export interface SessionEndData {
   conversationHistory: ConversationTurn[];
   /** EIV values per turn, computed by EngineOrchestrator during the session */
   eivCurve: number[];
+  /** Accumulated LoRaMaths perspective results from the session (optional — absent if perspective engine was off/timed out) */
+  perspectiveResults?: PerspectiveSessionSummary[];
+  /** Intervention records tracking what LoRa did and how user responded (optional — not yet populated) */
+  interventionRecords?: InterventionRecord[];
 }
 
 /** Result returned after processing a session end */

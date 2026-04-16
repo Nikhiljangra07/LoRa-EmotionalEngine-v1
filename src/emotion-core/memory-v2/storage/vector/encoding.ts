@@ -1,9 +1,10 @@
-import type { EmotionalFingerprint } from '../../types';
+import type { EmotionalFingerprint, StructuralDynamic } from '../../types';
 import {
   EKMAN_EMOTIONS,
   UNDERTONE_VOCABULARY,
   CONTEXT_CATEGORIES,
   RELATIONAL_TONES,
+  STRUCTURAL_FRAMEWORKS,
 } from '../../types';
 
 // ──────────────────────────────────────────────────────
@@ -17,9 +18,10 @@ import {
 //   [21]      Intensity (raw float 0-1)
 //   [22-31]   Context category (one-hot)
 //   [32-38]   Relational tone (one-hot)
-//   [39-255]  Reserved / zero-padded
+//   [39-43]   Structural framework (one-hot, 5 dims — regression/bayesian/game_theory/constraint/causal_loop)
+//   [44-255]  Reserved / zero-padded
 //
-// Total meaningful dims: 39. The remaining 217 are padding
+// Total meaningful dims: 44. The remaining 212 are padding
 // to meet the 256-dim minimum (CLAUDE.md requirement).
 // When we add more features later, they fill the reserved space.
 // ──────────────────────────────────────────────────────
@@ -28,8 +30,9 @@ export const VECTOR_DIMS = 256;
 
 /**
  * Encode an EmotionalFingerprint into a 256-dim vector.
+ * Optionally includes structural framework encoding in dims [39-43].
  */
-export function encodeFingerprint(fp: EmotionalFingerprint): number[] {
+export function encodeFingerprint(fp: EmotionalFingerprint, structuralDynamic?: StructuralDynamic): number[] {
   const vec = new Array<number>(VECTOR_DIMS).fill(0);
 
   // [0-5] Primary emotion — one-hot scaled by intensity
@@ -60,6 +63,15 @@ export function encodeFingerprint(fp: EmotionalFingerprint): number[] {
   const toneIdx = RELATIONAL_TONES.indexOf(fp.relationalTone);
   if (toneIdx >= 0) {
     vec[32 + toneIdx] = 1.0;
+  }
+
+  // [39-43] Structural framework — one-hot (only if structural data exists)
+  // Old fingerprints have zeros here — cosine similarity treats as "no opinion"
+  if (structuralDynamic) {
+    const fwIdx = STRUCTURAL_FRAMEWORKS.indexOf(structuralDynamic.dominantFramework);
+    if (fwIdx >= 0) {
+      vec[39 + fwIdx] = 1.0;
+    }
   }
 
   return vec;

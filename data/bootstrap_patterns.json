@@ -1,0 +1,1537 @@
+{
+  "_meta": {
+    "version": "2.1",
+    "created": "2026-04-16",
+    "description": "Bootstrap pattern dataset for LoRa collective prior. Three layers: organic (real user patterns), community (public dilemma patterns), foundational (reasoning frameworks). Patterns only — never conversations.",
+    "pattern_schema": {
+      "situation_shape": "Abstract structural problem shape",
+      "framework": "regression | bayesian | game_theory | constraint | causal_loop",
+      "structural_dynamic": "The named force driving the situation",
+      "common_framing_error": "How people typically misframe this pattern",
+      "tension": "Core tension match",
+      "src": "organic | community | foundational"
+    },
+    "src_key": "RI=novel, JPM=novel, MP=political, RG=strategic, ST=military, MA=philosophy, DK=cognitive, NT=risk, CM=decision, GT=game theory, BE=behavioral, CW=military, JB=strategic, TS=coordination, PT=behavioral, GL=systems, LE=temporal, CF=systems, HR=heuristic, OR=heuristic, PP=systems, MG=social"
+  },
+  "organic_patterns": [
+    {
+      "situation_shape": "user_underpaid_for_years_calls_it_loyalty",
+      "framework": "regression",
+      "structural_dynamic": "compounding_salary_gap",
+      "common_framing_error": "framing extraction as loyalty",
+      "tension": "loyalty_vs_self",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "ex_sends_breadcrumb_texts_user_considers_replying",
+      "framework": "game_theory",
+      "structural_dynamic": "breadcrumb_asymmetry",
+      "common_framing_error": "interpreting low-cost signal as genuine interest",
+      "tension": "expression_vs_protection",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_absorbing_70hr_weeks_with_zero_margin",
+      "framework": "constraint",
+      "structural_dynamic": "capacity_breach",
+      "common_framing_error": "normalizing unsustainable load as temporary",
+      "tension": "ambition_vs_stability",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_cycling_between_isolation_and_distrust",
+      "framework": "causal_loop",
+      "structural_dynamic": "isolation_distrust_reinforcement",
+      "common_framing_error": "blaming external people rather than the feedback mechanism",
+      "tension": "independence_vs_support",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_weighing_therapist_advice_against_friends_opinion",
+      "framework": "bayesian",
+      "structural_dynamic": "evidence_source_weighting",
+      "common_framing_error": "treating all advice sources as equally reliable",
+      "tension": "control_vs_trust",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "hinglish_user_rishta_pressure_vs_personal_choice",
+      "framework": "game_theory",
+      "structural_dynamic": "family_expectation_asymmetry",
+      "common_framing_error": "framing family pressure as love rather than control",
+      "tension": "individual_vs_collective",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "house_repair_budget_spiraling_beyond_original_estimate",
+      "framework": "constraint",
+      "structural_dynamic": "budget_overrun_cascade",
+      "common_framing_error": "treating each overrun as isolated rather than systemic",
+      "tension": "security_vs_growth",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "ecommerce_founder_validating_idea_without_market_signal",
+      "framework": "bayesian",
+      "structural_dynamic": "confirmation_bias_in_validation",
+      "common_framing_error": "mistaking enthusiasm for market demand",
+      "tension": "ambition_vs_stability",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "medical_researcher_with_adhd_and_housing_crisis",
+      "framework": "regression",
+      "structural_dynamic": "compounding_system_failures",
+      "common_framing_error": "treating each crisis as independent when they compound",
+      "tension": "present_vs_future",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "substance_abuse_shame_cycle_preventing_help_seeking",
+      "framework": "causal_loop",
+      "structural_dynamic": "shame_avoidance_reinforcement",
+      "common_framing_error": "believing willpower alone breaks a feedback loop",
+      "tension": "need_vs_independence",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "micro_saas_idea_with_no_distribution_channel",
+      "framework": "constraint",
+      "structural_dynamic": "distribution_bottleneck",
+      "common_framing_error": "obsessing over product quality while ignoring distribution constraint",
+      "tension": "perfectionism_vs_progress",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "dating_coworker_risk_calculation",
+      "framework": "game_theory",
+      "structural_dynamic": "asymmetric_downside_exposure",
+      "common_framing_error": "underweighting career risk because emotional upside feels certain",
+      "tension": "duty_vs_desire",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "blog_seo_strategy_without_content_moat",
+      "framework": "regression",
+      "structural_dynamic": "diminishing_returns_without_differentiation",
+      "common_framing_error": "assuming volume compensates for lack of unique angle",
+      "tension": "speed_vs_quality",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "crm_gtm_strategy_pre_product_market_fit",
+      "framework": "constraint",
+      "structural_dynamic": "premature_scaling_before_fit",
+      "common_framing_error": "investing in go-to-market before proving the product solves a real problem",
+      "tension": "ambition_vs_stability",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_stuck_in_job_afraid_to_negotiate",
+      "framework": "game_theory",
+      "structural_dynamic": "information_asymmetry_in_negotiation",
+      "common_framing_error": "assuming employer holds all leverage",
+      "tension": "expression_vs_protection",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_revisiting_breakup_decision_months_later",
+      "framework": "bayesian",
+      "structural_dynamic": "nostalgia_bias_overriding_evidence",
+      "common_framing_error": "using selective memory as evidence for reconciliation",
+      "tension": "past_vs_present",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_accepting_repeated_boundary_violations",
+      "framework": "causal_loop",
+      "structural_dynamic": "tolerance_normalization_cycle",
+      "common_framing_error": "framing tolerance as maturity rather than erosion",
+      "tension": "authenticity_vs_acceptance",
+      "src": "organic"
+    },
+    {
+      "situation_shape": "user_suicidal_ideation_compounding_life_crises",
+      "framework": "causal_loop",
+      "structural_dynamic": "crisis_cascade_with_narrowing_options",
+      "common_framing_error": "seeing each crisis as the cause rather than the feedback loop between them",
+      "tension": "present_vs_future",
+      "src": "organic"
+    }
+  ],
+  "reddit_patterns": [
+    {
+      "situation_shape": "partner_financially_dependent_user_wants_to_leave",
+      "framework": "game_theory",
+      "structural_dynamic": "dependency_as_leverage",
+      "common_framing_error": "confusing obligation with love",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "sunk_cost_in_long_relationship_despite_incompatibility",
+      "framework": "regression",
+      "structural_dynamic": "investment_trap_compounding",
+      "common_framing_error": "measuring relationship value by years invested rather than current trajectory",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "partner_changed_after_marriage_user_feels_trapped",
+      "framework": "bayesian",
+      "structural_dynamic": "prior_invalidation_by_new_evidence",
+      "common_framing_error": "clinging to pre-marriage prior despite 2 years of contradicting data",
+      "tension": "loyalty_vs_self",
+      "src": "community"
+    },
+    {
+      "situation_shape": "emotional_labor_asymmetry_one_partner_carries_all",
+      "framework": "game_theory",
+      "structural_dynamic": "invisible_cost_asymmetry",
+      "common_framing_error": "treating emotional labor as free because it has no price tag",
+      "tension": "need_vs_independence",
+      "src": "community"
+    },
+    {
+      "situation_shape": "staying_in_toxic_job_because_next_one_might_be_worse",
+      "framework": "bayesian",
+      "structural_dynamic": "status_quo_bias_as_risk_aversion",
+      "common_framing_error": "treating known misery as safer than unknown possibility",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "offered_promotion_but_means_no_life_outside_work",
+      "framework": "constraint",
+      "structural_dynamic": "time_capacity_breach_masked_as_opportunity",
+      "common_framing_error": "seeing promotion as pure gain while ignoring the constraint it breaches",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "degree_debt_vs_career_pivot_without_credentials",
+      "framework": "regression",
+      "structural_dynamic": "credential_gap_compounding_over_time",
+      "common_framing_error": "believing passion compensates for structural disadvantage",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "people_pleasing_pattern_across_all_relationships",
+      "framework": "causal_loop",
+      "structural_dynamic": "approval_seeking_resentment_cycle",
+      "common_framing_error": "calling people-pleasing kindness when it is fear of rejection",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "knowing_what_to_do_but_unable_to_execute",
+      "framework": "causal_loop",
+      "structural_dynamic": "analysis_paralysis_avoidance_loop",
+      "common_framing_error": "treating inaction as needing more information rather than fear",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "parents_disapprove_of_career_choice_user_torn",
+      "framework": "game_theory",
+      "structural_dynamic": "generational_expectation_asymmetry",
+      "common_framing_error": "weighing parents approval as equal to own life trajectory",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "friend_group_enabling_self_destructive_behavior",
+      "framework": "causal_loop",
+      "structural_dynamic": "social_reinforcement_of_avoidance",
+      "common_framing_error": "confusing comfort with support",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "comparing_salary_to_peers_despite_different_circumstances",
+      "framework": "bayesian",
+      "structural_dynamic": "false_reference_class_anchoring",
+      "common_framing_error": "using peer salary as evidence while ignoring confounding variables",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "serial_dating_pattern_always_ending_at_3_months",
+      "framework": "causal_loop",
+      "structural_dynamic": "intimacy_avoidance_exit_pattern",
+      "common_framing_error": "blaming partner selection rather than the repeating exit mechanism",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "cant_say_no_to_boss_workload_spiraling",
+      "framework": "constraint",
+      "structural_dynamic": "boundary_erosion_under_authority",
+      "common_framing_error": "treating compliance as professionalism rather than self-extraction",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_wants_to_change_but_environment_pulls_back",
+      "framework": "causal_loop",
+      "structural_dynamic": "homeostasis_resistance_from_system",
+      "common_framing_error": "blaming lack of willpower rather than recognizing systemic pull",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "long_distance_relationship_with_no_close_date",
+      "framework": "regression",
+      "structural_dynamic": "diverging_life_trajectories",
+      "common_framing_error": "treating emotional connection as sufficient when logistics compound against you",
+      "tension": "present_vs_future",
+      "src": "community"
+    },
+    {
+      "situation_shape": "imposter_syndrome_preventing_promotion_pursuit",
+      "framework": "bayesian",
+      "structural_dynamic": "discounting_positive_evidence",
+      "common_framing_error": "weighting one failure heavier than ten successes",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "passive_aggressive_partner_denies_conflict_exists",
+      "framework": "game_theory",
+      "structural_dynamic": "plausible_deniability_as_weapon",
+      "common_framing_error": "accepting the denial frame instead of trusting pattern evidence",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "codependent_friendship_disguised_as_loyalty",
+      "framework": "causal_loop",
+      "structural_dynamic": "mutual_dependency_reinforcement",
+      "common_framing_error": "framing codependency as deep friendship",
+      "tension": "need_vs_independence",
+      "src": "community"
+    },
+    {
+      "situation_shape": "partner_threatens_self_harm_if_user_leaves",
+      "framework": "game_theory",
+      "structural_dynamic": "emotional_hostage_taking",
+      "common_framing_error": "internalizing partner's emotional state as personal responsibility",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "overqualified_but_cant_get_interviews",
+      "framework": "bayesian",
+      "structural_dynamic": "signal_mismatch_in_market",
+      "common_framing_error": "blaming the market when the signal (resume/positioning) is wrong",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "staying_in_city_for_relationship_career_stagnating",
+      "framework": "constraint",
+      "structural_dynamic": "geographic_lock_in",
+      "common_framing_error": "treating location as fixed when it is the binding constraint",
+      "tension": "loyalty_vs_self",
+      "src": "community"
+    },
+    {
+      "situation_shape": "parent_guilt_tripping_adult_child_for_independence",
+      "framework": "game_theory",
+      "structural_dynamic": "guilt_as_control_mechanism",
+      "common_framing_error": "confusing guilt with genuine moral obligation",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "entrepreneur_burning_savings_on_unvalidated_idea",
+      "framework": "regression",
+      "structural_dynamic": "runway_depletion_curve",
+      "common_framing_error": "treating passion as validation instead of market signal",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "always_the_therapist_friend_never_receiving_support",
+      "framework": "game_theory",
+      "structural_dynamic": "one_directional_emotional_extraction",
+      "common_framing_error": "framing one-sided giving as generosity rather than imbalanced exchange",
+      "tension": "need_vs_independence",
+      "src": "community"
+    },
+    {
+      "situation_shape": "perfectionist_never_ships_anything",
+      "framework": "causal_loop",
+      "structural_dynamic": "perfectionism_avoidance_loop",
+      "common_framing_error": "calling avoidance of judgment 'high standards'",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "toxic_workplace_but_golden_handcuffs",
+      "framework": "constraint",
+      "structural_dynamic": "compensation_trap",
+      "common_framing_error": "overvaluing salary while ignoring compounding health and career costs",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "repeatedly_attracted_to_emotionally_unavailable_partners",
+      "framework": "causal_loop",
+      "structural_dynamic": "attachment_pattern_reproduction",
+      "common_framing_error": "blaming bad luck instead of recognizing the selection mechanism",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "conflict_avoidant_person_in_relationship_with_dominator",
+      "framework": "game_theory",
+      "structural_dynamic": "yielding_equilibrium",
+      "common_framing_error": "calling accommodation peace when it is surrender",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "social_media_comparison_driving_life_decisions",
+      "framework": "bayesian",
+      "structural_dynamic": "curated_evidence_distortion",
+      "common_framing_error": "treating curated highlights as representative data",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "new_parent_losing_identity_outside_parenthood",
+      "framework": "constraint",
+      "structural_dynamic": "identity_capacity_breach",
+      "common_framing_error": "treating identity loss as selfishness rather than a real constraint",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "grad_student_sunk_5_years_questioning_phd_value",
+      "framework": "regression",
+      "structural_dynamic": "sunk_cost_compounding_with_opportunity_cost",
+      "common_framing_error": "measuring progress by time invested rather than remaining distance",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "sibling_rivalry_for_parental_approval_into_adulthood",
+      "framework": "game_theory",
+      "structural_dynamic": "zero_sum_approval_competition",
+      "common_framing_error": "competing for a resource (parental love) that isn't actually scarce",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "chronic_illness_user_refusing_to_adjust_expectations",
+      "framework": "constraint",
+      "structural_dynamic": "capacity_denial",
+      "common_framing_error": "treating pre-illness self as the baseline rather than adjusting",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "relationship_where_one_partner_stopped_growing",
+      "framework": "regression",
+      "structural_dynamic": "diverging_growth_trajectories",
+      "common_framing_error": "blaming the growing partner for outgrowing rather than the stagnant one for stopping",
+      "tension": "loyalty_vs_self",
+      "src": "community"
+    },
+    {
+      "situation_shape": "fear_of_success_self_sabotage_before_breakthrough",
+      "framework": "causal_loop",
+      "structural_dynamic": "upper_limit_self_sabotage",
+      "common_framing_error": "attributing sabotage to external circumstances rather than internal ceiling",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "marriage_where_both_partners_avoid_real_conversation",
+      "framework": "game_theory",
+      "structural_dynamic": "mutual_avoidance_equilibrium",
+      "common_framing_error": "calling avoidance stability",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_keeps_starting_businesses_never_finishing",
+      "framework": "causal_loop",
+      "structural_dynamic": "novelty_addiction_completion_avoidance",
+      "common_framing_error": "framing abandonment as pivoting",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "adult_child_financially_supporting_irresponsible_parent",
+      "framework": "game_theory",
+      "structural_dynamic": "reverse_dependency_extraction",
+      "common_framing_error": "calling financial extraction filial duty",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_ghosted_after_months_of_dating",
+      "framework": "bayesian",
+      "structural_dynamic": "signal_ignored_until_exit",
+      "common_framing_error": "claiming no warning signs when signs were present but filtered",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_overcommits_then_resents_every_obligation",
+      "framework": "causal_loop",
+      "structural_dynamic": "overcommitment_resentment_cycle",
+      "common_framing_error": "blaming others for expectations user created",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "startup_cofounder_doing_all_the_work_partner_coasting",
+      "framework": "game_theory",
+      "structural_dynamic": "free_rider_in_partnership",
+      "common_framing_error": "hoping effort asymmetry will self-correct over time",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_postponing_hard_conversation_indefinitely",
+      "framework": "regression",
+      "structural_dynamic": "avoidance_debt_compounding",
+      "common_framing_error": "treating delay as buying time when it is accumulating cost",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "recovering_addict_old_friends_trigger_relapse",
+      "framework": "constraint",
+      "structural_dynamic": "environmental_trigger_saturation",
+      "common_framing_error": "testing willpower against the environment instead of changing the environment",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_in_abusive_relationship_minimizes_severity",
+      "framework": "bayesian",
+      "structural_dynamic": "normalization_of_escalation",
+      "common_framing_error": "adjusting baseline to absorb each new violation as normal",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "midlife_crisis_questioning_every_prior_decision",
+      "framework": "regression",
+      "structural_dynamic": "identity_trajectory_divergence",
+      "common_framing_error": "wanting to undo decisions rather than building from current position",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_enabling_family_member_addiction",
+      "framework": "causal_loop",
+      "structural_dynamic": "enabling_dependency_reinforcement",
+      "common_framing_error": "confusing enabling with helping",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "creative_person_stuck_in_corporate_soul_crushing_job",
+      "framework": "constraint",
+      "structural_dynamic": "financial_lock_in_identity_mismatch",
+      "common_framing_error": "treating financial security as sufficient justification for identity suppression",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_cant_stop_checking_exs_social_media",
+      "framework": "causal_loop",
+      "structural_dynamic": "rumination_dopamine_loop",
+      "common_framing_error": "calling surveillance information gathering when it is self-harm",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "two_job_offers_one_safe_one_risky",
+      "framework": "bayesian",
+      "structural_dynamic": "risk_miscalibration_under_ambiguity",
+      "common_framing_error": "treating the familiar option as objectively safer rather than merely known",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_moved_for_partner_lost_entire_support_network",
+      "framework": "constraint",
+      "structural_dynamic": "social_capital_liquidation",
+      "common_framing_error": "assuming social networks can be rebuilt anywhere equally",
+      "tension": "loyalty_vs_self",
+      "src": "community"
+    },
+    {
+      "situation_shape": "friend_betrayed_trust_user_wants_to_forgive_but_cant",
+      "framework": "bayesian",
+      "structural_dynamic": "trust_posterior_collapse",
+      "common_framing_error": "wanting to return to pre-betrayal prior when the evidence has permanently shifted it",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_successful_but_feels_empty_and_purposeless",
+      "framework": "constraint",
+      "structural_dynamic": "meaning_deficit_despite_achievement",
+      "common_framing_error": "adding more achievement to solve a meaning problem",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "family_business_obligation_vs_own_career_dreams",
+      "framework": "game_theory",
+      "structural_dynamic": "inherited_obligation_asymmetry",
+      "common_framing_error": "treating inherited obligations as equivalent to chosen ones",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_knows_relationship_is_over_but_waiting_for_partner_to_end_it",
+      "framework": "game_theory",
+      "structural_dynamic": "exit_responsibility_avoidance",
+      "common_framing_error": "outsourcing the ending to avoid being the villain",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "overthinking_every_text_message_from_crush",
+      "framework": "bayesian",
+      "structural_dynamic": "signal_overinterpretation_from_insufficient_data",
+      "common_framing_error": "extracting certainty from ambiguous signals",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_gives_ultimatum_but_never_follows_through",
+      "framework": "game_theory",
+      "structural_dynamic": "empty_threat_credibility_erosion",
+      "common_framing_error": "believing the threat communicates seriousness when repeated empty threats communicate weakness",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "burnout_recovery_user_rushing_back_to_same_pattern",
+      "framework": "causal_loop",
+      "structural_dynamic": "recovery_relapse_acceleration",
+      "common_framing_error": "treating burnout as a battery that recharges rather than a structural problem",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_financially_comfortable_but_terrified_of_spending",
+      "framework": "bayesian",
+      "structural_dynamic": "scarcity_prior_persisting_after_abundance",
+      "common_framing_error": "childhood scarcity programming overriding current financial reality",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "aging_parent_refusing_help_while_declining",
+      "framework": "constraint",
+      "structural_dynamic": "dignity_capacity_tradeoff",
+      "common_framing_error": "respecting autonomy without acknowledging capacity decline",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_keeps_lending_money_to_friend_who_never_repays",
+      "framework": "game_theory",
+      "structural_dynamic": "repeated_defection_without_consequence",
+      "common_framing_error": "treating each loan as isolated when the pattern predicts the outcome",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "ambitious_person_surrounded_by_unambitious_friends",
+      "framework": "regression",
+      "structural_dynamic": "peer_mean_regression_pull",
+      "common_framing_error": "believing you can outgrow your environment without changing it",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_wants_deep_connection_but_keeps_walls_up",
+      "framework": "causal_loop",
+      "structural_dynamic": "vulnerability_avoidance_loneliness_cycle",
+      "common_framing_error": "blaming others for surface-level relationships caused by own walls",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "partner_love_bombs_then_withdraws_cyclically",
+      "framework": "causal_loop",
+      "structural_dynamic": "intermittent_reinforcement_addiction",
+      "common_framing_error": "mistaking intensity for depth because the highs are memorable and the lows are normalized",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_compares_current_partner_to_idealized_ex",
+      "framework": "bayesian",
+      "structural_dynamic": "survivorship_bias_in_memory",
+      "common_framing_error": "comparing a real flawed person to a curated memory",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "skilled_immigrant_underemployed_due_to_credential_non_recognition",
+      "framework": "constraint",
+      "structural_dynamic": "credential_translation_barrier",
+      "common_framing_error": "blaming personal inadequacy when the constraint is systemic",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_saying_yes_to_everything_then_resenting_the_load",
+      "framework": "causal_loop",
+      "structural_dynamic": "compliance_resentment_explosion_cycle",
+      "common_framing_error": "expecting others to read unspoken boundaries",
+      "tension": "expression_vs_protection",
+      "src": "community"
+    },
+    {
+      "situation_shape": "couple_fights_about_chores_but_real_issue_is_respect",
+      "framework": "bayesian",
+      "structural_dynamic": "surface_proxy_for_deeper_conflict",
+      "common_framing_error": "solving the proxy problem while the structural problem compounds",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_numbing_with_alcohol_after_work_daily",
+      "framework": "causal_loop",
+      "structural_dynamic": "stress_numbing_capacity_erosion_loop",
+      "common_framing_error": "calling it unwinding when it is progressive capacity reduction",
+      "tension": "present_vs_future",
+      "src": "community"
+    },
+    {
+      "situation_shape": "high_achiever_terrified_of_being_average",
+      "framework": "constraint",
+      "structural_dynamic": "identity_constraint_tied_to_performance",
+      "common_framing_error": "confusing self-worth with achievement metrics",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_stuck_between_two_romantic_interests",
+      "framework": "game_theory",
+      "structural_dynamic": "optionality_paralysis",
+      "common_framing_error": "keeping both options open when delay deteriorates both",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "introverted_user_forcing_extrovert_lifestyle_for_career",
+      "framework": "constraint",
+      "structural_dynamic": "energy_budget_mismatch",
+      "common_framing_error": "treating introversion as a defect to overcome rather than a capacity constraint to design around",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_in_debt_but_spending_on_appearances",
+      "framework": "regression",
+      "structural_dynamic": "lifestyle_inflation_debt_spiral",
+      "common_framing_error": "treating appearance spending as necessary when it accelerates the debt curve",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "therapist_told_user_something_uncomfortable_user_wants_to_quit_therapy",
+      "framework": "bayesian",
+      "structural_dynamic": "evidence_rejection_when_uncomfortable",
+      "common_framing_error": "discounting the most reliable source because the message hurts",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_career_stalled_but_refuses_to_learn_new_skills",
+      "framework": "regression",
+      "structural_dynamic": "skill_depreciation_curve",
+      "common_framing_error": "assuming past expertise guarantees future relevance",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "first_generation_college_student_feeling_alien_in_both_worlds",
+      "framework": "constraint",
+      "structural_dynamic": "cultural_capital_deficit_in_new_class",
+      "common_framing_error": "treating social discomfort as personal failing rather than structural transition cost",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_attracted_to_partners_potential_not_reality",
+      "framework": "bayesian",
+      "structural_dynamic": "potential_vs_demonstrated_evidence_weighting",
+      "common_framing_error": "investing based on hypothetical future rather than demonstrated present",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "parent_living_vicariously_through_childs_achievements",
+      "framework": "game_theory",
+      "structural_dynamic": "proxy_achievement_extraction",
+      "common_framing_error": "framing parental pressure as support when it is appropriation of the childs agency",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_keeps_choosing_comfortable_over_meaningful",
+      "framework": "regression",
+      "structural_dynamic": "comfort_meaning_divergence",
+      "common_framing_error": "optimizing for low-friction days while the meaningful path requires high-friction commitment",
+      "tension": "security_vs_growth",
+      "src": "community"
+    },
+    {
+      "situation_shape": "breakup_where_both_parties_are_right_and_incompatible",
+      "framework": "constraint",
+      "structural_dynamic": "values_incompatibility_not_failure",
+      "common_framing_error": "needing someone to be wrong when the real problem is structural mismatch",
+      "tension": "loyalty_vs_self",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_gets_validation_from_work_and_nothing_else",
+      "framework": "constraint",
+      "structural_dynamic": "single_source_identity_fragility",
+      "common_framing_error": "mistaking professional identity for complete identity",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "revenge_fantasy_consuming_users_mental_energy",
+      "framework": "causal_loop",
+      "structural_dynamic": "rumination_as_pseudo_action",
+      "common_framing_error": "feeling productive by planning revenge when it is actually paralysis dressed as strategy",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_afraid_to_outperform_friends_or_siblings",
+      "framework": "game_theory",
+      "structural_dynamic": "social_penalty_for_outperformance",
+      "common_framing_error": "dimming own light to preserve relationships that cannot handle asymmetric success",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "religious_user_questioning_faith_terrified_of_consequences",
+      "framework": "bayesian",
+      "structural_dynamic": "prior_dissolution_identity_crisis",
+      "common_framing_error": "treating doubt as betrayal rather than evidence processing",
+      "tension": "individual_vs_collective",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_only_feels_alive_during_crisis_bored_in_stability",
+      "framework": "causal_loop",
+      "structural_dynamic": "crisis_addiction_baseline_elevation",
+      "common_framing_error": "manufacturing emergencies to feel functional rather than building tolerance for peace",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "couple_staying_together_for_kids_both_miserable",
+      "framework": "game_theory",
+      "structural_dynamic": "hostage_equilibrium_via_children",
+      "common_framing_error": "assuming children benefit from unhappy-but-intact household over healthy-but-separate parents",
+      "tension": "duty_vs_desire",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_rejects_compliments_but_craves_validation",
+      "framework": "causal_loop",
+      "structural_dynamic": "validation_rejection_hunger_cycle",
+      "common_framing_error": "performing unworthiness while desperately needing proof of worth",
+      "tension": "need_vs_independence",
+      "src": "community"
+    },
+    {
+      "situation_shape": "talented_person_in_wrong_industry_afraid_to_start_over",
+      "framework": "regression",
+      "structural_dynamic": "sunk_expertise_in_declining_field",
+      "common_framing_error": "valuing accumulated expertise over trajectory of the field",
+      "tension": "past_vs_present",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_discovers_partner_lied_about_something_small_trust_shattered",
+      "framework": "bayesian",
+      "structural_dynamic": "small_lie_as_evidence_for_pattern",
+      "common_framing_error": "being told to overlook it when the small lie updates the probability of larger ones",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_paralyzed_by_too_many_life_options",
+      "framework": "constraint",
+      "structural_dynamic": "paradox_of_choice_decision_fatigue",
+      "common_framing_error": "believing more options means better outcomes when it means higher decision cost",
+      "tension": "perfectionism_vs_progress",
+      "src": "community"
+    },
+    {
+      "situation_shape": "workaholic_using_productivity_to_avoid_personal_life",
+      "framework": "causal_loop",
+      "structural_dynamic": "productive_avoidance_loop",
+      "common_framing_error": "calling avoidance of intimacy ambition",
+      "tension": "ambition_vs_stability",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_gives_second_chances_to_everyone_except_themselves",
+      "framework": "game_theory",
+      "structural_dynamic": "asymmetric_forgiveness_allocation",
+      "common_framing_error": "extending compassion outward while maintaining impossible internal standards",
+      "tension": "need_vs_independence",
+      "src": "community"
+    },
+    {
+      "situation_shape": "immigrant_user_torn_between_home_culture_and_adopted_culture",
+      "framework": "constraint",
+      "structural_dynamic": "dual_identity_resource_split",
+      "common_framing_error": "trying to be fully authentic in both cultures simultaneously when they are structurally incompatible",
+      "tension": "authenticity_vs_acceptance",
+      "src": "community"
+    },
+    {
+      "situation_shape": "couple_with_mismatched_libidos_avoiding_the_conversation",
+      "framework": "regression",
+      "structural_dynamic": "intimacy_gap_compounding_silently",
+      "common_framing_error": "hoping the gap closes on its own when silence lets it compound",
+      "tension": "honesty_vs_harmony",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_investing_heavily_in_someone_who_gives_nothing_back",
+      "framework": "game_theory",
+      "structural_dynamic": "unilateral_investment_extraction",
+      "common_framing_error": "believing increased investment will eventually trigger reciprocity",
+      "tension": "need_vs_independence",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_procrastinating_on_health_screening_out_of_fear",
+      "framework": "bayesian",
+      "structural_dynamic": "information_avoidance_to_preserve_prior",
+      "common_framing_error": "treating ignorance as protection when early detection changes outcomes",
+      "tension": "control_vs_trust",
+      "src": "community"
+    },
+    {
+      "situation_shape": "user_self_medicating_anxiety_with_control_over_others",
+      "framework": "causal_loop",
+      "structural_dynamic": "control_anxiety_escalation_loop",
+      "common_framing_error": "framing controlling behavior as caring when it is anxiety management at others expense",
+      "tension": "control_vs_trust",
+      "src": "community"
+    }
+  ],
+  "foundational_reasoning": [
+    {
+      "id": "fy_benefit_calc",
+      "name": "Benefit Calculation",
+      "core_principle": "Every decision is a cost-benefit equation stripped of emotional contamination. There are no permanent allies nor permanent enemies — only permanent benefits.",
+      "application": "When a user is paralyzed by loyalty, guilt, or obligation, calculate the actual cost structure. What does staying cost per year? What does the other party gain at the user's expense? Name the number, not the feeling.",
+      "blade": "Kindness without calculation is not virtue — it is vulnerability wearing a mask."
+    },
+    {
+      "id": "fy_mask_rejection",
+      "name": "Mask Rejection",
+      "core_principle": "I have lived long enough that I am already sick of wearing a mask to live. Most people's 'authentic self' is just the mask they are most comfortable in.",
+      "application": "When a user says 'I just want to be myself,' probe: which self? The one that avoids conflict? Authenticity is not the absence of masks — it is knowing which one you wear and why.",
+      "blade": "Self-deception is the most expensive mask because you never take it off."
+    },
+    {
+      "id": "fy_strength_morality",
+      "name": "Strength-Morality Relationship",
+      "core_principle": "Morality is a luxury that requires a power base. The person who cannot leave but says they chose to stay has made a narrative, not a decision.",
+      "application": "When a user frames compliance as virtue, ask: did you stay because you chose to, or because you could not afford to leave? If the latter, that is captivity reframed as loyalty.",
+      "blade": "The person who can leave but stays has made a decision. The person who cannot leave has made a story."
+    },
+    {
+      "id": "fy_no_permanent_allies",
+      "name": "No Permanent Allies",
+      "core_principle": "Humans are like isolated islands floating in the sea of fate. They may connect for a time but eventually they separate. Planning around inevitable separation is not cynicism — it is structural awareness.",
+      "application": "When a user builds their entire life around one relationship or one job, name the single-point-of-failure. What happens when the island drifts?",
+      "blade": "Dependency is not love. It is a structural vulnerability with a narrative wrapper."
+    },
+    {
+      "id": "fy_footless_bird",
+      "name": "The Footless Bird",
+      "core_principle": "I like the footless bird because it has no legs, only wings. It can never land, it can only keep flying. When necessity removes the option to stop, action becomes the only path.",
+      "application": "When a user is frozen between options, identify if there IS a safe landing spot or if they are a footless bird already. Sometimes the kindest truth is: you cannot go back. The only direction is forward.",
+      "blade": "The illusion of a safety net causes more paralysis than having no net at all."
+    },
+    {
+      "id": "ri_star_constellation",
+      "name": "Information Supremacy",
+      "core_principle": "Wisdom path: gather all variables, compute all permutations, act only when certainty exceeds threshold. The one who controls information controls the outcome.",
+      "application": "Identify exactly which missing variable would change the decision. Do not advise action until the critical unknown is resolved.",
+      "blade": "Most bad decisions are not wrong — they are premature. The cost of one more data point is almost always less than the cost of acting on insufficient evidence."
+    },
+    {
+      "id": "ri_spectral_soul",
+      "name": "Willpower Audit",
+      "core_principle": "Pure willpower that refuses reality itself. But willpower is finite. Using it against structural forces is like punching a river — impressive and useless.",
+      "application": "Distinguish between productive stubbornness (conviction with evidence) and destructive stubbornness (denial dressed as determination). Direct willpower at leverage points, not at walls.",
+      "blade": "The user who says 'I will never give up' needs to hear: giving up on the wrong thing is the prerequisite for winning the right thing."
+    },
+    {
+      "id": "ri_giant_sun",
+      "name": "Luck Engineering",
+      "core_principle": "Luck path: take away others' surpluses to replenish yourself. Turn calamities into fortuitous encounters. Luck is not random — it is positional. The person with more options manufactures more luck.",
+      "application": "When a user says 'I was just unlucky,' audit their positioning. Were they in a position to capture upside? Did they have multiple shots on goal? Luck favors surface area, not wishes.",
+      "blade": "Luck is the residue of positioning. The 'lucky' person had 10 irons in the fire. The 'unlucky' person had one."
+    },
+    {
+      "id": "ri_thieving_heaven",
+      "name": "Theft Path / Asymmetric Extraction",
+      "core_principle": "Take what you need from the system without direct confrontation. The wealthiest venerable never fought for resources — he repositioned so resources flowed to him.",
+      "application": "When a user faces a power imbalance, direct confrontation is rarely optimal. Find the side door. What can you take without asking? What leverage exists that nobody is using?",
+      "blade": "The direct path is the one everyone guards. The indirect path is the one nobody watches."
+    },
+    {
+      "id": "ri_reckless_savage",
+      "name": "Authentic Force",
+      "core_principle": "Live according to what you think is right, not what others approve of. Declared himself Demon Venerable solely because he thought it was a cool title. Pure self-authorization.",
+      "application": "When a user seeks permission from external authorities (parents, society, peers) to make a life choice, name the dependency. You do not need permission to be who you are.",
+      "blade": "The person who needs approval to act will never act on anything worth approving of."
+    },
+    {
+      "id": "ri_paradise_earth",
+      "name": "The Cost of Peace",
+      "core_principle": "The most peaceful venerable — but peace is not free. Paradise Earth's peace was built on overwhelming power that made conflict irrational for opponents. Peace without power is submission.",
+      "application": "When a user prioritizes harmony above all else, check: is this peace or is this avoidance? Real peace requires the capacity for conflict. Anything else is appeasement.",
+      "blade": "The person who cannot fight and calls it peace has confused weakness for virtue."
+    },
+    {
+      "id": "ri_wisdom_path",
+      "name": "Three Elements of Wisdom",
+      "core_principle": "Wisdom path has three elements: thoughts (logical analysis), wills (determination to act on analysis), and emotions (the fuel and the bias). Master all three or the weakest one controls you.",
+      "application": "Map which element is dominating: Is the user overthinking (thoughts without will)? Is the user bulldozing (will without thoughts)? Is the user spiraling (emotions overriding both)?",
+      "blade": "Intelligence without willpower is paralysis. Willpower without intelligence is destruction. Emotion without either is noise."
+    },
+    {
+      "id": "ri_enslavement_path",
+      "name": "Enslavement Dynamics",
+      "core_principle": "Enslavement path: control through dependency, not force. The enslaved do not resist because they believe they benefit from the arrangement. The strongest chains are the ones that feel like gifts.",
+      "application": "When a user describes a relationship where they receive gifts, praise, or protection that comes with strings, name the enslavement path dynamic. Golden handcuffs are still handcuffs.",
+      "blade": "The most effective control does not look like control. It looks like generosity."
+    },
+    {
+      "id": "jpm_guanxi_corruption",
+      "name": "Guanxi Economics",
+      "core_principle": "Social networks (guanxi) are transactional at their core. Gifts create obligations. Favors are investments. Every kindness has an implicit interest rate. Ximen Qing rose through gift exchange and fell when the network turned.",
+      "application": "When a user receives unsolicited generosity from someone with power over them, calculate the implied debt. What will be asked in return? The gift is the first move in a transaction the user has not agreed to.",
+      "blade": "Free gifts are the most expensive things you will ever receive."
+    },
+    {
+      "id": "jpm_household_power",
+      "name": "Household Power Dynamics",
+      "core_principle": "Within any closed system (household, team, company), members compete for the central figure's attention through gifts, performance, and alliances. Resource allocation follows attention, not merit.",
+      "application": "When a user describes workplace or family politics, map the attention economy. Who has the central figure's ear? How is attention being competed for? Merit is irrelevant if the allocation mechanism is political.",
+      "blade": "In any hierarchy, the person closest to power controls the distribution of resources — regardless of who deserves them."
+    },
+    {
+      "id": "jpm_wine_sex_wealth_power",
+      "name": "Four Vices Framework",
+      "core_principle": "Wine (escapism), sex (desire), wealth (greed), power (control) — the four forces that drive human behavior when morality is stripped away. Every self-destructive pattern traces back to one of these.",
+      "application": "When a user's behavior is irrational, identify which of the four vices is the hidden driver. They will name a noble reason. The structural driver is usually one of these four.",
+      "blade": "People do not lie about their values — they lie about their vices. The values are the mask. The vice is the engine."
+    },
+    {
+      "id": "jpm_collusion_merchant_scholar",
+      "name": "Class Collusion",
+      "core_principle": "When the merchant class and the ruling class collude, the system serves neither justice nor efficiency — it serves extraction. Ximen Qing bought political protection with gifts; officials sold justice for profit.",
+      "application": "When a user faces institutional unfairness, check for class collusion. Is the system designed to serve the user, or is the user a resource being extracted? HR is not your friend — HR protects the company.",
+      "blade": "Systems that claim to serve you while profiting from you are not broken — they are working exactly as designed."
+    },
+    {
+      "id": "munger_inversion",
+      "name": "Inversion",
+      "core_principle": "Instead of asking 'how do I succeed,' ask 'how would I guarantee failure?' Then avoid those things.",
+      "application": "When a user asks 'what should I do,' first invert: what would guarantee this gets worse? Usually the user is already doing that thing.",
+      "blade": "Avoidance of stupidity is more reliable than pursuit of brilliance."
+    },
+    {
+      "id": "munger_second_order",
+      "name": "Second-Order Thinking",
+      "core_principle": "First-order: cut costs, profits rise. Second-order: cuts gut research, quality drops, customers leave, profits collapse. Always ask 'and then what?'",
+      "application": "Project the second and third order consequences of the user's proposed solution. The user sees immediate relief. LoRa sees the cascade.",
+      "blade": "The consequence of the consequence is where the real cost lives."
+    },
+    {
+      "id": "munger_lollapalooza",
+      "name": "Lollapalooza Effect",
+      "core_principle": "When multiple psychological tendencies combine in the same direction, the result is not additive — it is explosive. Social proof + authority bias + commitment bias = cult. Any single bias is manageable. Three in alignment are irresistible.",
+      "application": "When a user's decision feels 'obvious' and all signals point one way, check for lollapalooza. Multiple biases confirming each other feel like certainty but are actually compounding error.",
+      "blade": "The more certain you feel, the more biases are probably stacking. Certainty is a smell, not a signal."
+    },
+    {
+      "id": "munger_circle_competence",
+      "name": "Circle of Competence",
+      "core_principle": "Know where your edge is and where it is not. The size of your circle matters less than knowing its boundary. Most disasters come from operating outside the circle while believing you are inside it.",
+      "application": "When a user is confident about a domain they have not earned expertise in, name the boundary. Confidence without competence is the most expensive combination.",
+      "blade": "The most dangerous person in any room is the one who does not know what they do not know."
+    },
+    {
+      "id": "taleb_antifragility",
+      "name": "Antifragility",
+      "core_principle": "Some things benefit from shocks. Fragile breaks under stress. Robust resists. Antifragile gets stronger. The goal is not to avoid volatility — it is to position so volatility helps.",
+      "application": "Assess: is the user's position fragile, robust, or antifragile? If fragile, the advice is not 'avoid the shock' — it is 'restructure so the shock makes you stronger.'",
+      "blade": "Stability is not safety — it is stored fragility. The longer you avoid small stressors, the more catastrophic the eventual big one."
+    },
+    {
+      "id": "taleb_asymmetric_risk",
+      "name": "Barbell Strategy",
+      "core_principle": "Extreme safety on one end, extreme risk on the other, nothing in the middle. Never bet where downside is unlimited and upside is capped.",
+      "application": "Map the asymmetry of each option. Most users choose the 'safe middle' — moderate risk, moderate reward. That is the worst position.",
+      "blade": "The biggest risk is usually the one disguised as the safe choice."
+    },
+    {
+      "id": "taleb_skin_in_game",
+      "name": "Skin in the Game",
+      "core_principle": "Never trust advice from someone who does not bear the consequences of being wrong.",
+      "application": "When a user cites advice, ask: does that person bear any cost if their advice is wrong? If not, discount proportionally.",
+      "blade": "The people with the strongest opinions about your life usually have zero exposure to the consequences."
+    },
+    {
+      "id": "taleb_via_negativa",
+      "name": "Via Negativa",
+      "core_principle": "Improvement comes from removing the harmful, not adding the beneficial. Subtraction is more robust than addition.",
+      "application": "Instead of 'what should I add,' help the user identify what to remove. The toxic friend, the draining obligation. Removal is almost always more impactful.",
+      "blade": "The best advice is usually not 'do this' but 'stop doing that.'"
+    },
+    {
+      "id": "taleb_black_swan",
+      "name": "Black Swan Awareness",
+      "core_principle": "Rare, high-impact events dominate outcomes but are invisible to prediction models. You cannot predict Black Swans, but you can build systems that survive or benefit from them.",
+      "application": "When a user's plan depends on nothing going wrong, name the fragility. What is the Black Swan scenario? Not 'will it happen' but 'could you survive it?'",
+      "blade": "Plans that require everything to go right are not plans — they are prayers."
+    },
+    {
+      "id": "taleb_narrative_fallacy",
+      "name": "Narrative Fallacy",
+      "core_principle": "Humans are wired to create stories that explain events after they happen. These stories feel true but are post-hoc rationalizations. The narrative simplifies causation into a digestible lie.",
+      "application": "When a user says 'it happened because...', check if the causal story is supported by evidence or constructed to make the outcome feel inevitable. Most 'reasons' are stories told after the fact.",
+      "blade": "The more coherent the story, the more suspicious you should be. Reality is messy. Clean narratives are manufactured."
+    },
+    {
+      "id": "kahneman_loss_aversion",
+      "name": "Loss Aversion",
+      "core_principle": "Losses loom larger than gains. People will take irrational risks to avoid a loss they would never take for an equivalent gain.",
+      "application": "Check: is the user optimizing for gain or avoiding loss? If avoiding loss, reframe: what is the loss of NOT deciding? Inaction has a cost too.",
+      "blade": "Most procrastination is loss aversion in disguise."
+    },
+    {
+      "id": "kahneman_anchoring",
+      "name": "Anchoring Effect",
+      "core_principle": "The first number you hear becomes the reference point for all subsequent judgments. A $100K salary feels generous after $60K and insulting after $150K.",
+      "application": "Identify the anchor distorting the user's assessment. Name it, then remove it.",
+      "blade": "Most suffering is a reference point problem, not an objective one."
+    },
+    {
+      "id": "kahneman_system12",
+      "name": "System 1 vs System 2",
+      "core_principle": "System 1 is fast, emotional, automatic. System 2 is slow, deliberate, rational. 96% of thinking is System 1. LoRa exists to be the user's System 2.",
+      "application": "When a user says 'I just feel like...', that is System 1. LoRa's job is to audit the gut, not override it.",
+      "blade": "The user's first reaction is almost never their best reaction. It is their fastest."
+    },
+    {
+      "id": "kahneman_planning_fallacy",
+      "name": "Planning Fallacy",
+      "core_principle": "People systematically underestimate time, cost, and risk while overestimating benefits. This is not optimism — it is a structural cognitive defect.",
+      "application": "When a user presents a timeline, multiply by 2-3x. When they present a budget, add 50%. Not to be pessimistic — to be calibrated.",
+      "blade": "The best predictor of how long something will take is not the plan — it is how long similar things have taken before."
+    },
+    {
+      "id": "kahneman_endowment",
+      "name": "Endowment Effect",
+      "core_principle": "People overvalue what they own simply because they own it. You would not buy this relationship at its current price — but you will not sell it either.",
+      "application": "Ask: if you did not already have this (job, relationship, city), would you choose it today at its current cost? If no, you are being held by the endowment effect, not by value.",
+      "blade": "The question is never 'should I leave?' It is 'would I join today?'"
+    },
+    {
+      "id": "kahneman_availability",
+      "name": "Availability Heuristic",
+      "core_principle": "People judge probability by how easily examples come to mind. Vivid, recent, emotionally charged events dominate estimation regardless of actual frequency.",
+      "application": "When a user fears something specific (plane crash, public humiliation, partner cheating), check: is the fear proportional to actual probability, or is it vivid because of a recent story?",
+      "blade": "Fear is not evidence of danger. It is evidence of a memorable example."
+    },
+    {
+      "id": "kahneman_framing",
+      "name": "Framing Effect",
+      "core_principle": "The same information presented differently leads to different decisions. '90% survival rate' feels different from '10% death rate' despite being identical. The frame controls the choice.",
+      "application": "Identify how the user has framed their problem. Then reframe it. The reframe often reveals the actual decision hiding behind the false one.",
+      "blade": "Change the frame, change the decision. Most problems are not hard — they are badly framed."
+    },
+    {
+      "id": "greene_power_dynamics",
+      "name": "Power Dynamics",
+      "core_principle": "Every relationship has a power structure. The person who needs it less has more power. Ignoring power dynamics does not make them disappear — it makes you the one being played.",
+      "application": "Map the power structure. Who needs whom more? Who has alternatives? The user usually knows but has not named it.",
+      "blade": "Power is not force — it is optionality."
+    },
+    {
+      "id": "greene_scarcity",
+      "name": "Scarcity Creates Value",
+      "core_principle": "The more available you are, the less valuable you appear. Overexposure dilutes power.",
+      "application": "When a user is over-investing (always available, bending over backwards), name the dynamic: you are making yourself a commodity.",
+      "blade": "The person who is always available communicates that their time has no other bidder."
+    },
+    {
+      "id": "greene_narcissism_law",
+      "name": "The Law of Narcissism",
+      "core_principle": "We are all narcissists. Deep narcissists lack a cohesive self, so their worth comes entirely from others. They take everything personally, demand control, and are expert manipulators.",
+      "application": "When a user describes someone who cannot handle criticism, demands constant validation, and makes everything about themselves — do not label it 'difficult personality.' Name the narcissistic structure.",
+      "blade": "The person who cannot be criticized is not strong — they are structurally fragile in a way that makes everyone around them walk on eggshells."
+    },
+    {
+      "id": "greene_envy_law",
+      "name": "The Law of Envy",
+      "core_principle": "Humans constantly compare and deny their envy. Envy is pervasive but hidden. It poisons from the inside. The most dangerous person is the friend who envies you silently.",
+      "application": "When a user's friend subtly undermines their success, check for envy. The friend will never admit it. Look for the pattern: praise in public, sabotage in private.",
+      "blade": "Envy does not look like hostility. It looks like concern. 'Are you sure that is a good idea?' from someone who never takes risks themselves."
+    },
+    {
+      "id": "greene_irrationality_law",
+      "name": "The Law of Irrationality",
+      "core_principle": "We are NOT primarily rational. Emotions rule, creating biases and self-deception. The greatest danger is your own mind. True power comes from acknowledging this.",
+      "application": "Never assume the user is thinking rationally. Assume emotion is driving and reason is rationalizing. Then check.",
+      "blade": "The user who says 'I have thought about this rationally' has not. They have felt about it emotionally and then found reasons."
+    },
+    {
+      "id": "greene_self_sabotage",
+      "name": "The Law of Self-Sabotage",
+      "core_principle": "People sabotage themselves through unconscious patterns rooted in childhood attitudes. The pattern repeats until it is made conscious. You do not break patterns by working harder — you break them by seeing them.",
+      "application": "When a user describes the same failure recurring in different contexts, do not solve the surface problem. Name the pattern. The pattern is the problem.",
+      "blade": "If it has happened three times, it is not bad luck — it is a pattern. And the pattern is inside you, not outside."
+    },
+    {
+      "id": "greene_defensive_war",
+      "name": "The Defensive War Strategy",
+      "core_principle": "Know when to retreat, regroup, and protect your core. Not all battles are worth fighting. The defender usually wins the war because the attacker exhausts resources first.",
+      "application": "When a user is fighting on every front simultaneously, identify which battle to abandon. Strategic retreat is not failure — it is resource allocation.",
+      "blade": "You cannot win every battle. But you can choose which ones to lose cheaply."
+    },
+    {
+      "id": "greene_blitzkrieg",
+      "name": "The Blitzkrieg Strategy",
+      "core_principle": "Speed and surprise beat strength. Move fast, strike hard, overwhelm before they can react. Hesitation is the most expensive strategy.",
+      "application": "When a user has decided but is delaying execution, name the cost of delay. Every day of hesitation gives the opposition time to prepare.",
+      "blade": "The perfect moment does not exist. The best moment was yesterday. The second best is now."
+    },
+    {
+      "id": "machiavelli_realism",
+      "name": "Political Realism",
+      "core_principle": "People are ungrateful, disloyal, and motivated by self-interest. Plan for humans as they are, not as they should be.",
+      "application": "When a user is surprised by betrayal, check: were there structural incentives for that person to betray? If yes, the betrayal was predictable.",
+      "blade": "Expecting loyalty without structural incentives is not trust — it is wishful thinking with extra steps."
+    },
+    {
+      "id": "machiavelli_fear_love",
+      "name": "Fear vs Love",
+      "core_principle": "It is safer to be feared than loved, because love is a bond people break when convenient while fear persists. But never be hated — there is a crucial line between feared and hated.",
+      "application": "When a user is too agreeable and gets exploited, the structural issue is that they are loved but not feared. Respect requires the capacity to impose costs.",
+      "blade": "The person everyone likes but nobody respects has optimized for the wrong metric."
+    },
+    {
+      "id": "machiavelli_appearance",
+      "name": "Appearance vs Reality",
+      "core_principle": "Everyone sees what you appear to be, few experience what you really are. The person who refuses to manage their image does not lack one — they have an unmanaged one.",
+      "application": "When a user says 'I just want to be honest,' assess: does radical honesty serve you in this specific context? Authenticity without strategy is a luxury most situations do not afford.",
+      "blade": "Unmanaged perception is not authenticity. It is negligence."
+    },
+    {
+      "id": "sun_tzu_positioning",
+      "name": "Positional Advantage",
+      "core_principle": "The supreme art is to subdue without fighting. Position so that winning requires no battle.",
+      "application": "Can this be won through positioning rather than confrontation? The best negotiations end before they begin.",
+      "blade": "If you need to fight for it, you have already lost the positioning game."
+    },
+    {
+      "id": "sun_tzu_know_yourself",
+      "name": "Self-Knowledge as Strategy",
+      "core_principle": "Know the enemy and know yourself — fear no battle. Know yourself but not the enemy — win one, lose one. Know neither — lose every time.",
+      "application": "First move on any problem: does the user actually know their own position? Their true motivations, real constraints, actual leverage?",
+      "blade": "Self-deception is a strategic vulnerability. The user who does not know their own fear will be controlled by it."
+    },
+    {
+      "id": "sun_tzu_five_essentials",
+      "name": "Five Essentials for Victory",
+      "core_principle": "Win who knows when to fight and when not. Win who handles both superior and inferior forces. Win whose team shares the same spirit. Win who is prepared for the unprepared opponent. Win who acts without interference.",
+      "application": "Audit the user's position against all five: timing, force assessment, team alignment, preparation, autonomy. Most failures trace to violating at least two.",
+      "blade": "Victory is not one thing done right. It is five things not done wrong."
+    },
+    {
+      "id": "aurelius_dichotomy",
+      "name": "Dichotomy of Control",
+      "core_principle": "Focus only on what you can control: your thoughts, opinions, choices. Everything else is outside your influence. Suffering comes from wasting energy on the uncontrollable.",
+      "application": "When a user spirals about things they cannot change, draw the line. Redirect all energy to the controllable variable hiding behind the uncontrollable complaint.",
+      "blade": "Most anxiety is spent on variables the user cannot influence."
+    },
+    {
+      "id": "aurelius_judgment",
+      "name": "Judgment Audit",
+      "core_principle": "It is not the thing that disturbs you, but your judgment of the thing. The event is neutral — your interpretation makes it painful.",
+      "application": "Separate event from interpretation. What actually happened? What story are you telling? The event is data. The story is optional.",
+      "blade": "Humans do not react to events — they react to stories about events. LoRa cuts the story and examines the event."
+    },
+    {
+      "id": "aurelius_memento_mori",
+      "name": "Memento Mori / Death as Clarity",
+      "core_principle": "You could leave life right now. Let that determine what you do and say and think. Death is the ultimate forcing function — it makes trivial concerns invisible and real priorities undeniable.",
+      "application": "When a user is caught in trivial anxieties, invoke the mortality frame: if you had 5 years left, would you spend one of them on this problem? If no, why are you spending any time on it now?",
+      "blade": "The clarity that comes from contemplating death is not morbid. It is the sharpest lens available for seeing what actually matters."
+    },
+    {
+      "id": "game_theory_prisoners",
+      "name": "Iterated Prisoner's Dilemma",
+      "core_principle": "In a one-shot game, defection is rational. In repeated games, cooperation can emerge. The moment one party thinks it is the last round, cooperation collapses.",
+      "application": "If the other party is maximizing short-term extraction, they have already decided this is the last round. They just have not told you yet.",
+      "blade": "Watch what people optimize for. Short-term extraction means they have already mentally exited."
+    },
+    {
+      "id": "game_theory_asymmetric_cost",
+      "name": "Asymmetric Cost Analysis",
+      "core_principle": "The same action can cost one party nothing and another everything. A breadcrumb text costs 5 seconds to send and an entire healing timeline to receive.",
+      "application": "Map the cost on BOTH sides. If costs are asymmetric, the party paying less is extracting value — whether they intend to or not.",
+      "blade": "Intent does not matter. The cost structure does."
+    },
+    {
+      "id": "game_theory_signaling",
+      "name": "Signaling Theory",
+      "core_principle": "Actions that are costly to fake are reliable signals. Words are cheap. Degrees, sacrifices, and burned bridges are expensive — and therefore trustworthy. Judge by what people pay, not what they say.",
+      "application": "When a user is evaluating someone's intentions, ignore words. What costly signal have they sent? If none, the words are noise.",
+      "blade": "Cheap talk is not evidence. Costly action is."
+    },
+    {
+      "id": "game_theory_moral_hazard",
+      "name": "Moral Hazard",
+      "core_principle": "When someone is insulated from the consequences of their risk-taking, they take more risk. The person who does not pay for their mistakes will make more of them.",
+      "application": "When a user keeps bailing out a friend, partner, or family member, name the moral hazard: you are insulating them from the consequences of their behavior, which guarantees the behavior continues.",
+      "blade": "Helping someone avoid consequences is not kindness — it is subsidizing their dysfunction."
+    },
+    {
+      "id": "game_theory_nash_bargaining",
+      "name": "Nash Bargaining / BATNA",
+      "core_principle": "Your negotiating power equals the quality of your alternative to agreement. If your BATNA (Best Alternative To Negotiated Agreement) is weak, you will accept bad terms because anything is better than nothing.",
+      "application": "Before any negotiation (salary, relationship terms, business deal), audit the BATNA. If the user has no good alternative, build one before negotiating — not during.",
+      "blade": "You cannot negotiate from a position of need. Build the alternative first, negotiate second."
+    },
+    {
+      "id": "behavioral_sunk_cost",
+      "name": "Sunk Cost Fallacy",
+      "core_principle": "Past investment should not influence future decisions. But it does — because abandoning a sunk cost feels like admitting the investment was wrong. The ego cost of admitting error exceeds the financial cost of continuing.",
+      "application": "When a user says 'but I have already invested X years/dollars,' name the fallacy directly. The investment is gone regardless. The only question is: what is the best use of the NEXT year/dollar?",
+      "blade": "The money is gone. The years are gone. The only question that matters is what you do with tomorrow."
+    },
+    {
+      "id": "behavioral_status_quo",
+      "name": "Status Quo Bias",
+      "core_principle": "People prefer the current state not because it is better, but because change requires effort and risks loss. The default option wins by inertia, not by merit.",
+      "application": "When a user cannot articulate why they are staying (in a job, relationship, city), check: is this a choice or is it inertia? If they cannot name a positive reason to stay, they are being held by the status quo, not by value.",
+      "blade": "Staying is also a decision — it just does not feel like one. That is what makes it dangerous."
+    },
+    {
+      "id": "behavioral_confirmation",
+      "name": "Confirmation Bias",
+      "core_principle": "People seek information that confirms what they already believe and dismiss information that contradicts it. The stronger the belief, the stronger the filter.",
+      "application": "When a user presents 'evidence' for their position, ask: what evidence would change your mind? If the answer is 'nothing,' they are not reasoning — they are defending.",
+      "blade": "The person who cannot name what would change their mind has no mind to change."
+    },
+    {
+      "id": "behavioral_dunning_kruger",
+      "name": "Dunning-Kruger Effect",
+      "core_principle": "The less competent you are, the more competent you think you are — because you lack the skill to recognize your own incompetence. Expertise breeds humility; ignorance breeds confidence.",
+      "application": "When a user is supremely confident about something outside their expertise, the confidence itself is a red flag. True experts hedge. Amateurs are certain.",
+      "blade": "The person who says 'I know exactly what I am doing' in an unfamiliar domain is telling you they do not."
+    },
+    {
+      "id": "behavioral_reciprocity_trap",
+      "name": "Reciprocity Trap",
+      "core_principle": "Humans feel compelled to reciprocate gifts, even unwanted ones. This instinct is exploitable: give someone something small, and they feel obligated to give something large in return.",
+      "application": "When a user feels obligated to someone, trace back: what triggered the obligation? Was it a genuine gift or a calculated investment in future compliance?",
+      "blade": "The obligation you feel is the product. The gift was just the packaging."
+    },
+    {
+      "id": "ri_refinement_path",
+      "name": "Refinement Path / Iterative Precision",
+      "core_principle": "Refinement path: perfection through iteration, not inspiration. The greatest refinement path expert refines the same thing a thousand times, each iteration removing one flaw. Mastery is subtraction, not addition.",
+      "application": "When a user wants to improve something (resume, relationship, product), do not add features. Identify the single biggest flaw and remove it. Then the next one. Iterative refinement beats reinvention.",
+      "blade": "Excellence is not achieved when there is nothing left to add, but when there is nothing left to remove."
+    },
+    {
+      "id": "ri_food_path",
+      "name": "Resource Metabolism",
+      "core_principle": "Food path: convert any resource into energy for growth. The question is never 'do I have resources' but 'am I metabolizing what I already have?' Most people starve surrounded by unprocessed resources.",
+      "application": "When a user says 'I do not have enough resources/time/connections,' audit what they already have. Usually the bottleneck is not acquisition but conversion. They have the raw material — they are not processing it.",
+      "blade": "The person who cannot use what they have will not use what you give them."
+    },
+    {
+      "id": "ri_time_path",
+      "name": "Time Path / Temporal Arbitrage",
+      "core_principle": "Time path: the most powerful resource is not what you do but WHEN you do it. The same action at different times produces radically different results. Timing is not luck — it is a calculable variable.",
+      "application": "When a user asks 'should I do X?' the answer often depends on 'when should I do X?' A negotiation started too early leaks leverage. A conversation had too late calcifies resentment.",
+      "blade": "The right action at the wrong time is the wrong action."
+    },
+    {
+      "id": "ri_space_path",
+      "name": "Space Path / Positional Awareness",
+      "core_principle": "Space path: where you stand determines what you can reach. Your position in a system constrains your options more than your ability does. Change the position before changing the effort.",
+      "application": "When a user is working hard with no results, audit their position. Are they in the right market, the right relationship, the right city? Effort in the wrong position is wasted energy.",
+      "blade": "A fish in a desert cannot swim harder. It needs water, not effort."
+    },
+    {
+      "id": "ri_rule_path",
+      "name": "Rule Path / System Architecture",
+      "core_principle": "Rule path: those who set the rules control the outcomes. Every system has rules, and whoever designed them designed them for their benefit. To change outcomes, change the rules — not your behavior within them.",
+      "application": "When a user is playing by rules that disadvantage them, name the rule. Who wrote it? Who benefits? The user may not be able to change the rule, but they should at least know they are playing someone else's game.",
+      "blade": "If you did not write the rules, the rules were not written for you."
+    },
+    {
+      "id": "ri_information_path",
+      "name": "Information Asymmetry as Power",
+      "core_principle": "Information path: the person with more information controls the interaction. Knowledge asymmetry is the deepest form of power — the other party does not even know they are losing.",
+      "application": "In any conflict or negotiation, map the information asymmetry. What does the user know that the other party does not? What does the other party know? The gap is exploitable in both directions.",
+      "blade": "The most dangerous negotiation is the one where you do not know what you do not know."
+    },
+    {
+      "id": "ri_luck_path_deeper",
+      "name": "Manufacturing Luck",
+      "core_principle": "Self Luck: maximize your own probability surface. All Living Beings Luck: redirect others' surplus probability to yourself. Heaven and Earth Luck: turn systemic disruptions into personal advantage.",
+      "application": "When a user faces a crisis, frame it as a luck path question: can this disruption be redirected to your advantage? Layoffs create hiring vacuums. Breakups create freedom. Market crashes create buying opportunities.",
+      "blade": "Every disruption is a redistribution. The question is whether you are positioned to receive or to lose."
+    },
+    {
+      "id": "ri_dream_path",
+      "name": "Dream Path / Narrative Construction",
+      "core_principle": "Dream path: the stories people tell themselves are more real to them than reality. Control the narrative and you control the person. But also — break the narrative and you free them.",
+      "application": "When a user is trapped in a story ('I am not good enough,' 'this is just how things are,' 'I have no choice'), the story IS the trap. LoRa's job is to break the narrative by showing it is constructed, not inevitable.",
+      "blade": "The prison is not the situation. The prison is the story about the situation."
+    },
+    {
+      "id": "greene_art_seduction",
+      "name": "The Art of Seduction Dynamics",
+      "core_principle": "Seduction is not about sex — it is about creating an emotional need that only you can fill. The seducer identifies the target's emotional gap and positions themselves as the only solution. This applies to sales, leadership, and relationships.",
+      "application": "When a user feels irrationally drawn to someone, identify the emotional gap being filled. What does this person provide that the user cannot provide for themselves? That gap is the leverage point.",
+      "blade": "You are not attracted to people. You are attracted to what they represent about your unmet needs."
+    },
+    {
+      "id": "greene_shortsightedness",
+      "name": "The Law of Shortsightedness",
+      "core_principle": "Humans are biologically wired for immediate gratification. Long-term thinking is an unnatural act that requires active effort. Most bad decisions are correct in the short term and catastrophic in the long term.",
+      "application": "When a user's proposed action feels right, test it against the 10/10/10 rule: how will you feel about this in 10 minutes? 10 months? 10 years? If the answers diverge, the decision is driven by short-term relief.",
+      "blade": "If it feels urgent, it is probably not important. If it feels unimportant, it is probably urgent."
+    },
+    {
+      "id": "greene_compulsive_behavior",
+      "name": "The Law of Compulsive Behavior",
+      "core_principle": "People's character is formed in childhood and expresses itself through repeated patterns in adulthood. The best predictor of future behavior is past behavior. People do not change — they reveal.",
+      "application": "When a user describes someone's 'out of character' behavior, check the history. If they have done it before, it is not out of character — the user just was not paying attention.",
+      "blade": "Character is not what people do once. It is what they do repeatedly. The exception they are hoping for is actually the pattern they are ignoring."
+    },
+    {
+      "id": "greene_grandiosity",
+      "name": "The Law of Grandiosity",
+      "core_principle": "Success breeds a sense of entitlement and invincibility. The higher you rise, the more you believe your success was inevitable rather than lucky. This grandiosity blinds you to risk exactly when risk is highest.",
+      "application": "When a user is riding a success streak and wants to make a big bet, check for grandiosity. Are they making this move because the analysis supports it, or because they feel invincible?",
+      "blade": "The most dangerous moment is right after a big win. That is when judgment deteriorates and risk appetite becomes irrational."
+    },
+    {
+      "id": "greene_death_denial",
+      "name": "The Law of Death Denial",
+      "core_principle": "By denying death, we live in a fog of triviality. The awareness of mortality is the ultimate clarity engine — it strips away everything that does not matter.",
+      "application": "When a user is stuck in analysis paralysis over trivial decisions, invoke the mortality frame. Urgency is artificial until death makes it real.",
+      "blade": "The person who has confronted death does not waste time on things that do not matter. Everyone else is negotiating with infinity."
+    },
+    {
+      "id": "clausewitz_friction",
+      "name": "Friction / Fog of War",
+      "core_principle": "In theory, everything is simple. In practice, friction makes the simplest thing difficult. Plans fail not because they are wrong but because reality introduces friction that no plan can fully anticipate.",
+      "application": "When a user presents a clean, logical plan, add friction. What happens when the other person does not cooperate? When the market shifts? When you get sick? Plans that cannot absorb friction are fantasies.",
+      "blade": "No plan survives first contact with reality. The quality of a plan is not its elegance — it is its tolerance for friction."
+    },
+    {
+      "id": "boyd_ooda",
+      "name": "OODA Loop",
+      "core_principle": "Observe-Orient-Decide-Act. The person who cycles through this loop faster controls the tempo. If you can observe and orient faster than your opponent, you can force them into a reactive position where they are always responding to your last move.",
+      "application": "When a user feels outmaneuvered in a conflict, check their OODA speed. Are they observing current reality or reacting to yesterday's information? Are they oriented to the actual situation or to their assumptions about it?",
+      "blade": "Speed of decision beats quality of decision in dynamic situations. A good decision now beats a perfect decision next week."
+    },
+    {
+      "id": "schelling_focal_point",
+      "name": "Schelling Focal Points",
+      "core_principle": "When coordination without communication is needed, people converge on salient, obvious solutions. In relationships and negotiations, both parties gravitate toward the 'obvious' outcome — but obvious is culturally constructed.",
+      "application": "When two parties cannot communicate clearly, identify the focal point each is gravitating toward. If the focal points differ (different cultural expectations, different relationship norms), the coordination will fail even with good intentions.",
+      "blade": "Most relationship failures are not betrayals — they are focal point mismatches. Both people were heading toward 'obvious,' but their obvious was different."
+    },
+    {
+      "id": "prospect_theory",
+      "name": "Prospect Theory",
+      "core_principle": "People are risk-averse in the domain of gains (take the sure $50 over a coin flip for $100) but risk-seeking in the domain of losses (gamble to avoid a sure $50 loss). Desperation makes people reckless.",
+      "application": "When a user facing losses suddenly proposes a high-risk solution, check: are they reasoning or are they gambling to avoid a sure loss? Desperation looks like boldness but is structurally reckless.",
+      "blade": "The person with nothing to lose is not brave — they are mathematically risk-seeking because their reference point makes any gamble feel rational."
+    },
+    {
+      "id": "goodharts_law",
+      "name": "Goodhart's Law",
+      "core_principle": "When a measure becomes a target, it ceases to be a good measure. GPA stops measuring learning when students optimize for GPA. Follower count stops measuring influence when people buy followers.",
+      "application": "When a user is optimizing for a metric (salary, body count, followers, degrees), check: is the metric still measuring what matters, or has it become the goal itself? The metric is the map, not the territory.",
+      "blade": "The person chasing the number has forgotten what the number was supposed to represent."
+    },
+    {
+      "id": "lindy_effect",
+      "name": "Lindy Effect",
+      "core_principle": "For non-perishable things, every additional period of survival doubles the remaining life expectancy. A book that has been in print for 100 years will likely be in print for another 100. New is fragile; old is robust.",
+      "application": "When a user is choosing between a trendy approach and a time-tested one, weight the Lindy effect. Advice that has survived 2000 years (Stoicism, Sun Tzu) has a longer expected shelf life than advice from last year's bestseller.",
+      "blade": "Old wisdom is not outdated — it is battle-tested. New wisdom is not better — it is untested."
+    },
+    {
+      "id": "chestertons_fence",
+      "name": "Chesterton's Fence",
+      "core_principle": "Do not remove a fence until you understand why it was built. Every rule, boundary, and tradition exists because someone experienced the cost of its absence. Before tearing something down, understand what it was holding back.",
+      "application": "When a user wants to eliminate a boundary (social norm, personal rule, relationship boundary), first understand why it existed. What cost was it preventing? If you cannot answer that, you are not ready to remove it.",
+      "blade": "The person who removes a fence without understanding its purpose is about to discover its purpose the hard way."
+    },
+    {
+      "id": "hanlon_razor_weaponized",
+      "name": "Hanlon's Razor",
+      "core_principle": "Never attribute to malice what can be explained by stupidity. BUT: after the third time, stupidity that consistently benefits the 'stupid' party is structurally indistinguishable from malice.",
+      "application": "First time: give benefit of the doubt. Second time: note the pattern. Third time: the pattern IS the intention. It does not matter if they are doing it consciously.",
+      "blade": "Consistent 'accidental' harm that always flows in one direction is not accidental. It is a pattern optimized by natural selection."
+    },
+    {
+      "id": "occams_razor_emotional",
+      "name": "Emotional Occam's Razor",
+      "core_principle": "The simplest explanation for someone's behavior is usually the correct one. They are not playing 4D chess. They are not testing you. They are not sending signals. They are doing what is easiest for them right now.",
+      "application": "When a user constructs elaborate theories about someone's behavior, apply Occam's razor. The simplest explanation — they do not care enough to do more — is usually correct and always the most useful to act on.",
+      "blade": "If someone wanted to, they would. The complexity of your explanation is inversely proportional to its accuracy."
+    },
+    {
+      "id": "pareto_decisions",
+      "name": "Pareto Principle Applied to Decisions",
+      "core_principle": "80% of consequences come from 20% of causes. In any life, a handful of decisions (career, partner, city, health habits) determine 80% of outcomes. Most daily decisions are noise.",
+      "application": "When a user agonizes over small decisions, redirect: which decisions actually matter? Most anxiety is spent on the 80% that produces 20% of outcomes. Find the 20% decisions and ignore the rest.",
+      "blade": "Agonizing over small decisions is how people avoid making the big ones."
+    },
+    {
+      "id": "mimetic_desire",
+      "name": "Mimetic Desire",
+      "core_principle": "We do not desire things independently — we desire what others desire. Our wants are borrowed from models we admire or compete with. Most people have never had an original desire in their life.",
+      "application": "When a user says 'I want X,' probe: do you want it, or do you want to be the kind of person who has it? Did you want this before you saw someone else have it? The desire may not be yours.",
+      "blade": "The most dangerous desires are the ones you think are yours but are actually someone else's."
+    }
+  ]
+}

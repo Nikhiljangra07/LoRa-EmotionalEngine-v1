@@ -78,7 +78,7 @@ export class ChromaVectorStore implements IVectorStore {
 
   async store(userId: string, fingerprint: SessionFingerprint): Promise<void> {
     const collection = await this.getCollection();
-    const vector = encodeFingerprint(fingerprint.emotionalFingerprint);
+    const vector = encodeFingerprint(fingerprint.emotionalFingerprint, fingerprint.structuralDynamic);
     const docId = makeDocId(userId, fingerprint.sessionId);
 
     await collection.upsert({

@@ -65,6 +65,8 @@ function createMockGraphStore(anchors: FactAnchor[]): IGraphStore {
     getAnchorsForSessions: jest.fn().mockResolvedValue(anchors),
     getUserGraph: jest.fn(),
     pruneStaleEdges: jest.fn(),
+    storeProfile: jest.fn(),
+    getProfile: jest.fn().mockResolvedValue(null),
     purgeUser: jest.fn(),
   };
 }

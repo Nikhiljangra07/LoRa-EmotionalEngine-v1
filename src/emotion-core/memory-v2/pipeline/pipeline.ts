@@ -15,6 +15,7 @@ import { extractFacts } from '../extractors/fact-extractor';
 import { extractFingerprint } from '../extractors/fingerprint-extractor';
 import { verifyExtraction } from '../verifier/verifier';
 import { retrieveMemory } from '../retrieval/retriever';
+import { wordJaccard } from '../retrieval/similarity';
 import { isVisible, touchAccess } from '../decay/decay-engine';
 import { updateProfile } from '../profile/profile-manager';
 
@@ -86,6 +87,7 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
       const result = await Promise.race([
         this._processSessionEndInner(
           userId, sessionId, conversationHistory, eivCurve, uid, sid, t0,
+          sessionData.perspectiveResults,
         ),
         new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(
@@ -117,6 +119,7 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
     userId: string, sessionId: string,
     conversationHistory: ConversationTurn[], eivCurve: number[],
     uid: string, sid: string, t0: number,
+    perspectiveResults?: import('../pipeline/adapter-interface').PerspectiveSessionSummary[],
   ): Promise<ProcessResult> {
     // ── Step 1: Summarize ──
     // Summary exists ONLY in memory — never persisted.
@@ -149,7 +152,7 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
     const t2 = Date.now();
     const [factsResult, fingerprintResult] = await Promise.allSettled([
       extractFacts(summary, extractorConfig),
-      extractFingerprint(summary, eivCurve, metadata, extractorConfig),
+      extractFingerprint(summary, eivCurve, metadata, extractorConfig, perspectiveResults),
     ]);
 
     const facts: FactAnchor[] = factsResult.status === 'fulfilled' ? factsResult.value : [];
@@ -186,6 +189,8 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
         importance: fingerprint.importanceScore,
         peakEIV: fingerprint.peakIntensity,
         resolution: fingerprint.resolution,
+        structuralFramework: fingerprint.structuralDynamic?.dominantFramework,
+        structuralLabel: fingerprint.structuralDynamic?.label,
       });
     }
 
@@ -228,7 +233,7 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
           }
           if (verificationResult.fingerprintIssues.length > 0) {
             finalFingerprint = await extractFingerprint(
-              summary, eivCurve, metadata, extractorConfig,
+              summary, eivCurve, metadata, extractorConfig, perspectiveResults,
             );
           }
 
@@ -244,6 +249,35 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
           finalFacts = facts;
           finalFingerprint = fingerprint;
         }
+      }
+    }
+
+    // ── Step 5b: Cross-session recurrence detection (no LLM call, pure data) ──
+    if (finalFingerprint?.structuralDynamic) {
+      try {
+        const recentFingerprints = await this.vectorStore.querySimilar(
+          userId, finalFingerprint.emotionalFingerprint, 10,
+        );
+        const matching = recentFingerprints.filter(fp =>
+          fp.structuralDynamic?.dominantFramework === finalFingerprint!.structuralDynamic!.dominantFramework &&
+          wordJaccard(fp.structuralDynamic?.label ?? '', finalFingerprint!.structuralDynamic!.label) > 0.4,
+        );
+        if (matching.length > 0) {
+          finalFingerprint.structuralDynamic.patternRecurrence = {
+            priorSessionIds: matching.map(fp => fp.sessionId),
+            occurrenceCount: matching.length + 1,
+          };
+          v2log(`recurrence detected`, {
+            uid,
+            framework: finalFingerprint.structuralDynamic.dominantFramework,
+            label: finalFingerprint.structuralDynamic.label,
+            priorSessions: matching.length,
+            totalOccurrences: matching.length + 1,
+          });
+        }
+      } catch (recErr) {
+        // Recurrence detection failure is non-fatal
+        console.warn(`[LoRa::MemoryV2] recurrence detection failed`, { uid, error: (recErr as Error).message });
       }
     }
 
@@ -276,9 +310,20 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
     // ── Step 7: Update profile (only if fingerprint stored) ──
     let profileUpdated = false;
     if (fingerprintStored && finalFingerprint) {
+      await this._ensureProfile(userId);
       const existingProfile = this.userProfiles.get(userId) ?? null;
       const updatedProfile = updateProfile(existingProfile, finalFingerprint);
       this.userProfiles.set(userId, updatedProfile);
+      // Persist to Redis so profile survives redeploys
+      try {
+        await this._storeWithRetry(
+          () => this.graphStore.storeProfile(userId, updatedProfile),
+          'profile', uid,
+        );
+      } catch {
+        // Profile persistence failure is non-fatal — in-memory copy still works
+        console.warn(`[LoRa::MemoryV2] profile persist failed`, { uid });
+      }
       profileUpdated = true;
     }
 
@@ -301,6 +346,22 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
       profileUpdated,
       reExtracted,
     };
+  }
+
+  /**
+   * Lazy-load a user's profile from Redis if not in memory.
+   * Called at the start of processSessionEnd and retrieveContext.
+   */
+  private async _ensureProfile(userId: string): Promise<void> {
+    if (this.userProfiles.has(userId)) return;
+    try {
+      const stored = await this.graphStore.getProfile(userId);
+      if (stored) {
+        this.userProfiles.set(userId, stored);
+      }
+    } catch {
+      // Profile load failure is non-fatal — we'll create a fresh one
+    }
   }
 
   /**
@@ -340,6 +401,9 @@ export class MemoryV2Pipeline implements IMemoryAdapter {
       responseMode: 'silent',
       topSimilarity: 0,
     };
+
+    // Ensure profile is hydrated from Redis (lazy load after redeploy)
+    await this._ensureProfile(userId).catch(() => {});
 
     // ── Step 1: Retrieve raw matches ──
     let rawContext;

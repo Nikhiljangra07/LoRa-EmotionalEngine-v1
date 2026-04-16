@@ -9,6 +9,7 @@ import {
   W_UNDERTONE,
   W_INTENSITY,
   W_CONTEXT,
+  W_STRUCTURE,
 } from '../similarity';
 
 // ──────────────────────────────────────────────────────
@@ -94,17 +95,14 @@ describe('Similarity sub-functions', () => {
 });
 
 describe('computeSimilarity', () => {
-  it('returns maximum (0.90) for identical fingerprints', () => {
+  it('returns maximum (0.90) for identical fingerprints without structural data', () => {
     const fp = makeFP();
-    // Without recency boost, max is 0.90
-    expect(computeSimilarity(fp, fp)).toBeCloseTo(
-      W_EMOTION + W_UNDERTONE + W_INTENSITY + W_CONTEXT,
-      5,
-    );
+    // Without recency boost or structural data, redistribution still yields 0.90
+    expect(computeSimilarity(fp, fp)).toBeCloseTo(0.90, 5);
   });
 
-  it('weights sum to 0.90 (without recency)', () => {
-    expect(W_EMOTION + W_UNDERTONE + W_INTENSITY + W_CONTEXT).toBeCloseTo(0.90, 5);
+  it('base weights (emotion + undertone + intensity + context) sum to 0.75, structural adds 0.15', () => {
+    expect(W_EMOTION + W_UNDERTONE + W_INTENSITY + W_CONTEXT + W_STRUCTURE).toBeCloseTo(0.90, 5);
   });
 
   it('same emotion = high score even with different context', () => {

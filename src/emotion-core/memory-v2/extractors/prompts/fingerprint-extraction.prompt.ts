@@ -5,6 +5,7 @@ import {
   RELATIONAL_TONES,
   AVOIDANCE_VOCABULARY,
   TENSION_VOCABULARY,
+  STRUCTURAL_FRAMEWORKS,
 } from '../../types';
 
 // ──────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ contextCategory (pick exactly 1): ${JSON.stringify(CONTEXT_CATEGORIES)}
 relationalTone (pick exactly 1): ${JSON.stringify(RELATIONAL_TONES)}
 avoidanceSignals (pick 0+): ${JSON.stringify(AVOIDANCE_VOCABULARY)}
 primaryTension (pick exactly 1): ${JSON.stringify(TENSION_VOCABULARY)}
+dominantFramework (pick exactly 1): ${JSON.stringify(STRUCTURAL_FRAMEWORKS)}
 
 IMPORTANCE SCORE GUIDELINES:
 - 9-10: Life anchors — breakup, job loss, self-harm disclosure, major life commitment, death of someone close
@@ -52,7 +54,13 @@ OUTPUT FORMAT (strict JSON):
     "avoidanceSignals": [],
     "primaryTension": "one of the allowed tensions"
   },
-  "importanceScore": 5
+  "importanceScore": 5,
+  "structuralDynamic": {
+    "dominantFramework": "one of the allowed frameworks",
+    "label": "short descriptive label, max 60 chars (e.g. 'The Loyalty Tax')",
+    "framingErrors": ["up to 3 structural reasoning errors the user is making"],
+    "reframeEffectiveness": 0.5
+  }
 }
 
 EXTRACTION FOCUS:
@@ -64,7 +72,24 @@ EXTRACTION FOCUS:
 - decisionPattern: From §5 (CURRENT DIRECTION) and §6 (UNRESOLVED)
 - topicRevisits: How many times the user circled back to the same concern (0 if linear progression)
 - avoidanceSignals: What the user is steering away from — fears they won't name directly
-- primaryTension: The core conflict underlying the session`;
+- primaryTension: The core conflict underlying the session
+
+STRUCTURAL DYNAMIC EXTRACTION:
+- dominantFramework: Which analytical lens best describes the user's situation?
+  regression = measurable trend/gap compounding over time
+  bayesian = weighing conflicting evidence sources
+  game_theory = asymmetric costs between parties from the same action
+  constraint = hard capacity limit being breached
+  causal_loop = self-reinforcing cycle (A causes B causes more A)
+  If §7 (STRUCTURAL SHAPE) names a pattern, classify it into one of these.
+- label: A human-readable name for the structural pattern. Max 60 characters.
+  Capture the essence of the tension (e.g., "The Loyalty Tax", "Breadcrumb Asymmetry").
+- framingErrors: Where is the user's reasoning structurally flawed? Max 3 items.
+  Examples: "sunk cost on 6-year tenure", "false binary: quit vs stay",
+  "confusing correlation with causation on relationship timeline"
+- reframeEffectiveness: If §7 lists reframe attempts, what fraction were accepted?
+  0.0 = none accepted, 1.0 = all accepted. Use 0.5 if no reframes attempted.
+  If no §7 section exists, use 0.5 as default.`;
 
 export const FINGERPRINT_EXTRACTION_USER_PROMPT = `Extract the emotional fingerprint and decision pattern from the following session summary. Output ONLY the JSON object.
 

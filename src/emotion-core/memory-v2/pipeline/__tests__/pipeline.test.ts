@@ -187,6 +187,8 @@ function createMockGraphStore(): IGraphStore & { anchors: Map<string, FactAnchor
     }),
     getUserGraph: jest.fn(async () => ({ nodes: [], edges: [] })),
     pruneStaleEdges: jest.fn(async () => 0),
+    storeProfile: jest.fn(async () => {}),
+    getProfile: jest.fn(async () => null),
     purgeUser: jest.fn(async () => {
       anchors.clear();
     }),

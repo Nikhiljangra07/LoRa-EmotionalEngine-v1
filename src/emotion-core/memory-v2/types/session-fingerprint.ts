@@ -5,6 +5,7 @@ import type {
   RelationalTone,
   AvoidanceSignal,
   Tension,
+  StructuralFramework,
 } from './vocabularies';
 
 // ──────────────────────────────────────────────────────
@@ -45,6 +46,22 @@ export interface StyleSnapshot {
   directness: number;
 }
 
+export interface StructuralDynamic {
+  /** Which analytical framework best describes this session's structural pattern */
+  dominantFramework: StructuralFramework;
+  /** Human-readable label for the pattern (max 60 chars), e.g. "The Loyalty Tax" */
+  label: string;
+  /** Where the user's reasoning is structurally flawed (max 3) */
+  framingErrors: string[];
+  /** Fraction of LoRa's reframes the user accepted (0–1) */
+  reframeEffectiveness: number;
+  /** Non-null when this pattern has appeared in prior sessions */
+  patternRecurrence?: {
+    priorSessionIds: string[];
+    occurrenceCount: number;
+  };
+}
+
 export interface SessionFingerprint {
   sessionId: string;
   userId: string;
@@ -69,6 +86,10 @@ export interface SessionFingerprint {
 
   // ── Communication style snapshot ──
   styleSnapshot: StyleSnapshot;
+
+  // ── Structural dynamic (NEW — captures the analytical pattern shape) ──
+  /** Structural pattern from LoRaMaths framework analysis (optional for backward-compat) */
+  structuralDynamic?: StructuralDynamic;
 
   // ── Decay metadata ──
   /** Importance score for decay (1–10) */

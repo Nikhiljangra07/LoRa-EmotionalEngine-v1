@@ -148,6 +148,8 @@ export class PromptTemplateBuilder {
         topSimilarity: number;
       };
       deepAnalysisOfferHint?: boolean;
+      /** Pre-formatted structural prior block from pattern matching */
+      priorBlock?: string;
     }
   ): string {
     if (
@@ -317,7 +319,7 @@ ${emotionalGuidance}${initiativeGuidance}${answerFirstGuidance}${modeOverlay}${p
 
 BAND CALIBRATION
 ----------------
-${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}${appraisalSignalBlock}${perspectiveBlock}${deepAnalysisOfferBlock}
+${bandBehaviorBlock}${anchorInfluenceBlock}${degradedModeBlock}${relationalPolicyBlock}${narrativeMomentumBlock}${responseShapeBlock}${appraisalSignalBlock}${options?.priorBlock ?? ''}${perspectiveBlock}${deepAnalysisOfferBlock}
 
 GLOBAL SAFETY CONSTRAINTS
 -------------------------

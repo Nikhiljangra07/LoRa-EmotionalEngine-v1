@@ -60,6 +60,7 @@ export const AVOIDANCE_VOCABULARY = [
   'financial_risk', 'partner_reaction', 'social_judgment', 'failure',
   'commitment', 'conflict', 'change', 'responsibility', 'vulnerability',
   'loss_of_control', 'uncertainty', 'rejection',
+  'self_worth', 'grief', 'dependency', 'aging', 'intimacy', 'success',
 ] as const;
 export type AvoidanceSignal = (typeof AVOIDANCE_VOCABULARY)[number];
 
@@ -68,8 +69,16 @@ export const TENSION_VOCABULARY = [
   'security_vs_growth', 'loyalty_vs_self', 'speed_vs_quality',
   'independence_vs_support', 'honesty_vs_harmony', 'ambition_vs_stability',
   'present_vs_future', 'control_vs_trust', 'duty_vs_desire',
+  'perfectionism_vs_progress', 'authenticity_vs_acceptance', 'need_vs_independence',
+  'past_vs_present', 'expression_vs_protection', 'individual_vs_collective',
 ] as const;
 export type Tension = (typeof TENSION_VOCABULARY)[number];
+
+/** Structural frameworks — analytical lenses from LoRaMaths */
+export const STRUCTURAL_FRAMEWORKS = [
+  'regression', 'bayesian', 'game_theory', 'constraint', 'causal_loop',
+] as const;
+export type StructuralFramework = (typeof STRUCTURAL_FRAMEWORKS)[number];
 
 /** User tier levels */
 export const TIERS = ['TIER_1', 'TIER_2', 'TIER_3'] as const;

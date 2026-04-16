@@ -4,6 +4,7 @@ import type {
   SessionSummary,
   SessionFingerprint,
   EmotionalFingerprint,
+  StructuralDynamic,
   StyleSnapshot,
   ConversationTurn,
   EkmanEmotion,
@@ -12,6 +13,7 @@ import type {
   RelationalTone,
   AvoidanceSignal,
   Tension,
+  StructuralFramework,
 } from '../types';
 import {
   EKMAN_EMOTIONS,
@@ -20,7 +22,9 @@ import {
   RELATIONAL_TONES,
   AVOIDANCE_VOCABULARY,
   TENSION_VOCABULARY,
+  STRUCTURAL_FRAMEWORKS,
 } from '../types';
+import type { PerspectiveSessionSummary } from '../pipeline/adapter-interface';
 import {
   FINGERPRINT_EXTRACTION_SYSTEM_PROMPT,
   FINGERPRINT_EXTRACTION_USER_PROMPT,
@@ -225,6 +229,13 @@ export function computeStyleSnapshot(turns: ConversationTurn[]): StyleSnapshot {
 
 // ── LLM extraction validation ──
 
+interface RawStructuralDynamic {
+  dominantFramework: string;
+  label: string;
+  framingErrors: string[];
+  reframeEffectiveness: number;
+}
+
 interface RawLLMExtraction {
   emotionalFingerprint: {
     primary: string;
@@ -239,6 +250,7 @@ interface RawLLMExtraction {
     primaryTension: string;
   };
   importanceScore: number;
+  structuralDynamic?: RawStructuralDynamic;
 }
 
 /**
@@ -336,6 +348,36 @@ function validateLLMExtraction(raw: unknown): RawLLMExtraction {
     throw new Error(`importanceScore must be 1-10, got ${importanceScore}`);
   }
 
+  // Validate structuralDynamic (optional — graceful degradation, never throw)
+  let structuralDynamic: RawStructuralDynamic | undefined;
+  const rawSD = obj['structuralDynamic'];
+  if (rawSD && typeof rawSD === 'object' && rawSD !== null) {
+    const sd = rawSD as Record<string, unknown>;
+    const framework = typeof sd['dominantFramework'] === 'string' ? sd['dominantFramework'] : '';
+    const label = typeof sd['label'] === 'string' ? sd['label'] : '';
+    const rawErrors = Array.isArray(sd['framingErrors']) ? sd['framingErrors'] : [];
+    const reframeEff = typeof sd['reframeEffectiveness'] === 'number' ? sd['reframeEffectiveness'] : -1;
+
+    if (
+      STRUCTURAL_FRAMEWORKS.includes(framework as StructuralFramework) &&
+      label.length > 0 && label.length <= 60 &&
+      reframeEff >= 0 && reframeEff <= 1
+    ) {
+      structuralDynamic = {
+        dominantFramework: framework,
+        label,
+        framingErrors: rawErrors
+          .filter((e): e is string => typeof e === 'string')
+          .slice(0, 3),
+        reframeEffectiveness: Math.round(reframeEff * 100) / 100,
+      };
+    } else {
+      console.warn('[LoRa::MemoryV2::FingerprintExtractor] structuralDynamic malformed, skipping', {
+        framework, labelLen: label.length, reframeEff,
+      });
+    }
+  }
+
   return {
     emotionalFingerprint: {
       primary,
@@ -350,6 +392,7 @@ function validateLLMExtraction(raw: unknown): RawLLMExtraction {
       primaryTension,
     },
     importanceScore: Math.round(importanceScore as number),
+    ...(structuralDynamic ? { structuralDynamic } : {}),
   };
 }
 
@@ -366,6 +409,7 @@ export async function extractFingerprint(
   eivCurve: number[],
   metadata: ConversationMetadata,
   config: FingerprintExtractorConfig,
+  perspectiveResults?: PerspectiveSessionSummary[],
 ): Promise<SessionFingerprint> {
   const client = new Anthropic({ apiKey: config.apiKey, timeout: 15_000 });
 
@@ -408,6 +452,62 @@ export async function extractFingerprint(
 
   const now = new Date().toISOString();
 
+  // Build structuralDynamic — cross-validate with LoRaMaths perspective results
+  let structuralDynamic: StructuralDynamic | undefined;
+  if (llmResult.structuralDynamic) {
+    let dominantFramework = llmResult.structuralDynamic.dominantFramework as StructuralFramework;
+
+    // Cross-validation: if LoRaMaths perspective results exist, use the most frequent
+    // framework as ground truth (it ran on raw conversation, more accurate than Haiku on a summary)
+    if (perspectiveResults && perspectiveResults.length > 0) {
+      const frameworkCounts = new Map<string, number>();
+      for (const pr of perspectiveResults) {
+        frameworkCounts.set(pr.framework, (frameworkCounts.get(pr.framework) ?? 0) + 1);
+      }
+      let bestFramework = dominantFramework;
+      let bestCount = 0;
+      for (const [fw, count] of frameworkCounts) {
+        if (count > bestCount) {
+          bestFramework = fw as StructuralFramework;
+          bestCount = count;
+        }
+      }
+      // Override only if LoRaMaths had a clear majority (>50% of messages agreed)
+      if (bestCount > perspectiveResults.length / 2) {
+        dominantFramework = bestFramework;
+      }
+    }
+
+    structuralDynamic = {
+      dominantFramework,
+      label: llmResult.structuralDynamic.label,
+      framingErrors: llmResult.structuralDynamic.framingErrors,
+      reframeEffectiveness: llmResult.structuralDynamic.reframeEffectiveness,
+    };
+  } else if (perspectiveResults && perspectiveResults.length > 0) {
+    // LLM didn't produce structuralDynamic, but we have LoRaMaths data — construct from it
+    const frameworkCounts = new Map<string, number>();
+    for (const pr of perspectiveResults) {
+      frameworkCounts.set(pr.framework, (frameworkCounts.get(pr.framework) ?? 0) + 1);
+    }
+    let bestFramework: StructuralFramework = perspectiveResults[0]!.framework;
+    let bestCount = 0;
+    for (const [fw, count] of frameworkCounts) {
+      if (count > bestCount) {
+        bestFramework = fw as StructuralFramework;
+        bestCount = count;
+      }
+    }
+    // Use the label from the highest-strength perspective
+    const bestPerspective = perspectiveResults.reduce((a, b) => a.strength > b.strength ? a : b);
+    structuralDynamic = {
+      dominantFramework: bestFramework,
+      label: bestPerspective.label.slice(0, 60),
+      framingErrors: [],
+      reframeEffectiveness: 0.5,
+    };
+  }
+
   const fingerprint: SessionFingerprint = {
     sessionId: metadata.sessionId,
     userId: metadata.userId,
@@ -434,6 +534,8 @@ export async function extractFingerprint(
     },
 
     styleSnapshot,
+
+    ...(structuralDynamic ? { structuralDynamic } : {}),
 
     importanceScore: llmResult.importanceScore,
     lastAccessed: now,

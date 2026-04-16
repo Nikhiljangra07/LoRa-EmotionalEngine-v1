@@ -1,4 +1,4 @@
-import type { EmotionalFingerprint, MemoryContext, MatchedSession, ResponseMode, FactAnchor } from '../types';
+import type { EmotionalFingerprint, StructuralDynamic, MemoryContext, MatchedSession, ResponseMode, FactAnchor } from '../types';
 import type { IVectorStore, IGraphStore } from '../storage/interfaces';
 import { computeSimilarity } from './similarity';
 
@@ -56,9 +56,11 @@ function fullSimilarity(
   past: EmotionalFingerprint,
   pastTimestamp: string,
   nowMs: number,
+  currentSD?: StructuralDynamic,
+  pastSD?: StructuralDynamic,
 ): number {
-  // computeSimilarity returns the 0.90 base (emotion + undertone + intensity + context)
-  const base = computeSimilarity(current, past);
+  // computeSimilarity returns the 0.90 base (emotion + undertone + intensity + context + structure)
+  const base = computeSimilarity(current, past, currentSD, pastSD);
   const recency = recencyBoost(pastTimestamp, nowMs);
   return base + 0.10 * recency;
 }
@@ -112,6 +114,8 @@ export async function retrieveMemory(
       candidate.emotionalFingerprint,
       candidate.timestamp,
       nowMs,
+      undefined, // currentSD — not available during per-message retrieval
+      candidate.structuralDynamic,
     );
     if (similarity >= SIMILARITY_THRESHOLD) {
       scored.push({ fingerprint: candidate, similarity });

@@ -10,6 +10,7 @@ export {
   RESISTANCE_PATTERNS,
   AVOIDANCE_VOCABULARY,
   TENSION_VOCABULARY,
+  STRUCTURAL_FRAMEWORKS,
   TIERS,
 } from './vocabularies';
 
@@ -23,6 +24,7 @@ export type {
   ResistancePattern,
   AvoidanceSignal,
   Tension,
+  StructuralFramework,
   Tier,
 } from './vocabularies';
 
@@ -30,6 +32,7 @@ export type {
   EmotionalFingerprint,
   DecisionPattern,
   StyleSnapshot,
+  StructuralDynamic,
   SessionFingerprint,
 } from './session-fingerprint';
 
