@@ -1339,16 +1339,18 @@ export class EngineOrchestrator {
     }
 
     // ── Multi-Perspective Engine: await with timeout for quick mode ──
-    // Quick mode: perspective gets 3s max. If Haiku is slow, proceed without it.
+    // Quick mode: perspective gets 6s max. Nano API call ~1.5-2s + Railway
+    // internal networking ~1-2s = ~3.5-4s typical. 6s covers cold starts
+    // without adding latency on actual failures.
     // Deep mode: no timeout — user expects the full analysis.
     // LoRa works identically without perspective (it's supplementary context).
-    const PERSPECTIVE_RACE_MS = 5000;
+    const PERSPECTIVE_RACE_MS = 6000;
     let perspectiveAnalysis: PerspectiveAnalyzeResponse | null = null;
     if (perspectivePromise) {
       if (perspectiveMode === 'deep') {
         perspectiveAnalysis = await perspectivePromise;
       } else {
-        // Race: perspective vs timeout — if Haiku is slow, proceed without framework analysis
+        // Race: perspective vs timeout — if Nano/LoRaMaths is slow, proceed without framework analysis
         perspectiveAnalysis = await Promise.race([
           perspectivePromise,
           new Promise<null>(resolve => setTimeout(() => resolve(null), PERSPECTIVE_RACE_MS)),
