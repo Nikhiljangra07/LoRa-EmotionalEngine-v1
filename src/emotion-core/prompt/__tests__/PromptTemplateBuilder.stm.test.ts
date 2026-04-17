@@ -152,7 +152,9 @@ describe('PromptTemplateBuilder — Session Transcript Memory', () => {
       expect(prompt).not.toContain('SESSION CONTEXT');
     });
 
-    it('SESSION CONTEXT appears before GLOBAL SAFETY CONSTRAINTS', () => {
+    it('SESSION CONTEXT lives in the dynamic suffix (after GLOBAL SAFETY CONSTRAINTS)', () => {
+      // Static blocks are now at the top for prompt caching; SESSION CONTEXT
+      // (per-session transcript) lives after GLOBAL SAFETY CONSTRAINTS.
       const history: ChatTurn[] = [
         { role: 'user', text: 'hi', ts: 1000 },
       ];
@@ -165,7 +167,7 @@ describe('PromptTemplateBuilder — Session Transcript Memory', () => {
       const gcIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
       expect(scIdx).toBeGreaterThan(-1);
       expect(gcIdx).toBeGreaterThan(-1);
-      expect(scIdx).toBeLessThan(gcIdx);
+      expect(scIdx).toBeGreaterThan(gcIdx);
     });
 
     it('SESSION CONTEXT does not contain forbidden phrases', () => {

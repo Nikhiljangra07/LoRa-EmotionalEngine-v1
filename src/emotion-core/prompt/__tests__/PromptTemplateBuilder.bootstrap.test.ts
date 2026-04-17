@@ -86,7 +86,11 @@ describe('PromptTemplateBuilder — BOOTSTRAP CONTEXT block', () => {
     expect(bootstrapSection).not.toMatch(MARKER_PATTERN);
   });
 
-  it('BOOTSTRAP CONTEXT is placed before GLOBAL SAFETY CONSTRAINTS', () => {
+  it('BOOTSTRAP CONTEXT lives in the dynamic suffix (after GLOBAL SAFETY CONSTRAINTS)', () => {
+    // Static blocks (identity, principles, formatting, safety) are now at the top
+    // of the prompt so Anthropic prompt caching can reuse them. Per-request blocks
+    // like BOOTSTRAP CONTEXT live after GLOBAL SAFETY CONSTRAINTS in the dynamic
+    // suffix. See PromptTemplateBuilder.build() and CACHE_BOUNDARY sentinel.
     const prompt = PromptTemplateBuilder.build(emotionalState, etvState, {
       bootstrapContext: 'Themes: exercise.',
       band: 'B2',
@@ -97,7 +101,7 @@ describe('PromptTemplateBuilder — BOOTSTRAP CONTEXT block', () => {
     const constraintsIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
     expect(bootstrapIdx).toBeGreaterThan(-1);
     expect(constraintsIdx).toBeGreaterThan(-1);
-    expect(bootstrapIdx).toBeLessThan(constraintsIdx);
+    expect(bootstrapIdx).toBeGreaterThan(constraintsIdx);
   });
 
   it('coexists with FACT CONTEXT when both provided', () => {

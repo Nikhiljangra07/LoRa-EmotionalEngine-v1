@@ -2,11 +2,48 @@ import Anthropic from '@anthropic-ai/sdk';
 import { recordLLMSuccess } from '../../server/llmTelemetry';
 import { increment as opIncrement } from '../../server/analytics/operationalCounters';
 import { debugEnabled } from '../debug/debugGate';
-import type { ChatTurn } from '../prompt/PromptTemplateBuilder';
+import { CACHE_BOUNDARY, type ChatTurn } from '../prompt/PromptTemplateBuilder';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 const TEMPERATURE = 0.6;
+
+/**
+ * Split the combined system prompt on CACHE_BOUNDARY sentinel and return
+ * the Anthropic `system` param. When the sentinel is present and the prefix
+ * is substantial, returns a two-block array with cache_control on the
+ * static prefix. Otherwise returns the original string (no caching).
+ *
+ * Anthropic's prefix-based prompt cache requires the cached prefix to be
+ * >= 1024 tokens (~4000 chars) to activate. Below that threshold we fall
+ * back to the string form so we don't pay overhead for a no-op cache.
+ */
+function buildSystemParam(
+  systemPrompt: string,
+): string | Anthropic.Messages.MessageCreateParams['system'] {
+  const idx = systemPrompt.indexOf(CACHE_BOUNDARY);
+  if (idx === -1) return systemPrompt;
+
+  const rawPrefix = systemPrompt.slice(0, idx);
+  const rawSuffix = systemPrompt.slice(idx + CACHE_BOUNDARY.length);
+
+  // Trim only the sentinel-adjacent whitespace, preserve internal formatting.
+  const prefix = rawPrefix.replace(/\s+$/, '');
+  const suffix = rawSuffix.replace(/^\s+/, '');
+
+  // Cache only when prefix clears Anthropic's ~1024-token minimum. Rough
+  // 4-char-per-token estimate — safely conservative for our mixed content.
+  if (prefix.length < 4000) return `${prefix}\n\n${suffix}`;
+
+  // Anthropic concatenates text blocks with no separator, so the suffix
+  // carries the paragraph break. Keeping the separator on the suffix (not
+  // the prefix) preserves cache-key stability: the prefix bytes stay
+  // identical across (tier, band) replays.
+  return [
+    { type: 'text', text: prefix, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: `\n\n${suffix}` },
+  ];
+}
 
 /** Image or document attachment for multimodal messages. */
 export type LLMAttachment = {
@@ -134,7 +171,7 @@ export class ClaudeResponder {
         model: MODEL,
         max_tokens: MAX_TOKENS,
         temperature: TEMPERATURE,
-        system: systemPrompt,
+        system: buildSystemParam(systemPrompt),
         messages,
       },
       options?.signal ? { signal: options.signal } : {}
@@ -201,7 +238,7 @@ export class ClaudeResponder {
         model: MODEL,
         max_tokens: MAX_TOKENS,
         temperature: TEMPERATURE,
-        system: systemPrompt,
+        system: buildSystemParam(systemPrompt),
         messages,
       },
       options?.signal ? { signal: options.signal } : {},

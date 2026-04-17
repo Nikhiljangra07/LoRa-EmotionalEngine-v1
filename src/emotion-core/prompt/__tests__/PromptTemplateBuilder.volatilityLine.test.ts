@@ -83,6 +83,11 @@ describe('PromptTemplateBuilder — volatility line', () => {
   });
 
   test('volatility line appears in RELATIONAL CONTEXT section', () => {
+    // Static blocks (RESPONSE PRINCIPLES, FORMATTING, GLOBAL SAFETY) are now
+    // at the top of the prompt for Anthropic prompt caching. RELATIONAL
+    // CONTEXT is in the dynamic suffix that follows, so the volatility line
+    // lives between RELATIONAL CONTEXT and the next dynamic block, AFTER
+    // RESPONSE PRINCIPLES.
     const prompt = PromptTemplateBuilder.build(
       makeEmotionalState(),
       makeETVState(),
@@ -95,7 +100,7 @@ describe('PromptTemplateBuilder — volatility line', () => {
 
     expect(relCtxStart).toBeGreaterThan(-1);
     expect(volIdx).toBeGreaterThan(relCtxStart);
-    expect(volIdx).toBeLessThan(responsePrinciplesStart);
+    expect(volIdx).toBeGreaterThan(responsePrinciplesStart);
   });
 });
 

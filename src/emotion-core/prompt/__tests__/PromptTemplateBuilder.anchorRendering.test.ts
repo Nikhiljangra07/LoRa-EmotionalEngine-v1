@@ -100,8 +100,12 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
     PromptTemplateBuilder.resetMemoryShadowLimiter();
   });
 
-  describe('prompt ordering: MEMORY CONTEXT > FACT CONTEXT > GLOBAL SAFETY CONSTRAINTS', () => {
-    it('anchors appear AFTER memory context (schemas) and BEFORE global safety constraints', () => {
+  describe('prompt ordering: static prefix (incl. GLOBAL SAFETY) > dynamic suffix (MEMORY CONTEXT > FACT CONTEXT)', () => {
+    it('anchors live in the dynamic suffix, AFTER global safety and AFTER memory context schemas', () => {
+      // Static blocks (identity, principles, formatting, safety) are at the top
+      // of the prompt for Anthropic prompt caching. Per-request blocks like
+      // MEMORY CONTEXT and FACT CONTEXT live in the dynamic suffix after
+      // GLOBAL SAFETY CONSTRAINTS. MEMORY CONTEXT still precedes FACT CONTEXT.
       const anchors = [
         makeAnchor({ anchorId: 'a1', contentSummary: 'Job interview prep', band: 'B3' }),
       ];
@@ -123,11 +127,11 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
       expect(factContextIdx).toBeGreaterThan(-1);
       expect(globalConstraintsIdx).toBeGreaterThan(-1);
 
+      expect(globalConstraintsIdx).toBeLessThan(memoryContextIdx);
       expect(memoryContextIdx).toBeLessThan(factContextIdx);
-      expect(factContextIdx).toBeLessThan(globalConstraintsIdx);
     });
 
-    it('anchors appear before global safety constraints even when no memory context provided', () => {
+    it('anchors live after global safety constraints even when no memory context provided', () => {
       const anchors = [
         makeAnchor({ anchorId: 'a1', contentSummary: 'Meeting with manager', band: 'B2' }),
       ];
@@ -143,7 +147,7 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
 
       expect(factContextIdx).toBeGreaterThan(-1);
       expect(globalConstraintsIdx).toBeGreaterThan(-1);
-      expect(factContextIdx).toBeLessThan(globalConstraintsIdx);
+      expect(factContextIdx).toBeGreaterThan(globalConstraintsIdx);
     });
   });
 

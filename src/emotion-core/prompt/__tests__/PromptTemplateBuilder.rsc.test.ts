@@ -112,7 +112,9 @@ describe('PromptTemplateBuilder — Response Shape Contract block', () => {
     expect(rscIdx).toBeGreaterThan(narrativeIdx);
   });
 
-  it('RSC appears before GLOBAL SAFETY CONSTRAINTS', () => {
+  it('RSC lives in the dynamic suffix (after GLOBAL SAFETY CONSTRAINTS)', () => {
+    // Static blocks are now at the top for prompt caching; per-request blocks
+    // like RESPONSE SHAPE CONTRACT live after GLOBAL SAFETY CONSTRAINTS.
     const prompt = PromptTemplateBuilder.build(makeEmotionalState(), makeETVState(), {
       band: 'B2',
       eiv: 0.5,
@@ -126,7 +128,7 @@ describe('PromptTemplateBuilder — Response Shape Contract block', () => {
     const constraintsIdx = prompt.indexOf('GLOBAL SAFETY CONSTRAINTS');
     expect(rscIdx).toBeGreaterThan(-1);
     expect(constraintsIdx).toBeGreaterThan(-1);
-    expect(rscIdx).toBeLessThan(constraintsIdx);
+    expect(rscIdx).toBeGreaterThan(constraintsIdx);
   });
 
   it('existing context blocks remain unaffected when RSC is present', () => {
