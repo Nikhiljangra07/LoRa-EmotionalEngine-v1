@@ -461,15 +461,32 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         eivCurve,
         perspectiveResults: entry.engine.getSessionPerspectives(),
       }).then(result => {
-        opIncrement('memory_v2_consolidation_success');
-        console.log('[LoRa::MemoryV2] session consolidated', {
+        // The V2 pipeline swallows its own timeouts/partial failures and
+        // resolves with a zeroed result instead of rejecting. Treat that
+        // case as a no-op, not a success — otherwise the dashboard counter
+        // and logs look healthy while data was actually lost upstream.
+        const didAnything =
+          result.factsCount > 0 ||
+          result.fingerprintStored ||
+          result.profileUpdated;
+        const payload = {
           userId: userId.slice(0, 8),
           sessionId: sessionId.slice(0, 8),
           factsCount: result.factsCount,
           fingerprintStored: result.fingerprintStored,
           profileUpdated: result.profileUpdated,
           reExtracted: result.reExtracted,
-        });
+        };
+        if (didAnything) {
+          opIncrement('memory_v2_consolidation_success');
+          console.log('[LoRa::MemoryV2] session consolidated', payload);
+        } else {
+          opIncrement('memory_v2_consolidation_failure');
+          console.warn(
+            '[LoRa::MemoryV2] consolidation produced no-op (upstream failure swallowed)',
+            payload,
+          );
+        }
       }).catch(err => {
         opIncrement('memory_v2_consolidation_failure');
         console.error('[LoRa::MemoryV2] consolidation failed', (err as Error).message);

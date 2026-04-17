@@ -45,6 +45,36 @@ function buildSystemParam(
   ];
 }
 
+/**
+ * Log Anthropic prompt-cache usage per request so Railway logs expose the
+ * real cache hit rate. Without this, there's no way to verify caching is
+ * actually hitting without manually checking the Anthropic Console. Cheap
+ * side effect — one log line per LLM call.
+ */
+function logCacheUsage(
+  requestId: string,
+  usage: Anthropic.Messages.Usage | null | undefined,
+  latencyMs: number,
+): void {
+  if (!usage) return;
+  const input = usage.input_tokens ?? 0;
+  const output = usage.output_tokens ?? 0;
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  const totalInput = input + cacheRead + cacheWrite;
+  const hitPercent = totalInput > 0 ? Math.round((cacheRead / totalInput) * 100) : 0;
+
+  console.log('[LoRa::Cache]', {
+    requestId,
+    input,
+    cacheRead,
+    cacheWrite,
+    output,
+    hitPercent,
+    latencyMs,
+  });
+}
+
 /** Image or document attachment for multimodal messages. */
 export type LLMAttachment = {
   type: 'image' | 'document';
@@ -178,6 +208,7 @@ export class ClaudeResponder {
     );
 
     const latencyMs = Date.now() - startTime;
+    logCacheUsage(requestId, response.usage, latencyMs);
 
     const firstBlock = response.content[0];
     const text =
@@ -254,6 +285,16 @@ export class ClaudeResponder {
 
     const text = accumulated.trim();
     const latencyMs = Date.now() - startTime;
+
+    // finalMessage() resolves after the stream completes with the full
+    // message (including usage). Wrapped in a best-effort try/catch so a
+    // telemetry-only failure never breaks the response path.
+    try {
+      const finalMessage = await stream.finalMessage();
+      logCacheUsage(requestId, finalMessage.usage, latencyMs);
+    } catch {
+      /* telemetry only */
+    }
 
     if (!text) {
       throw new Error('Empty streaming response from Claude');
