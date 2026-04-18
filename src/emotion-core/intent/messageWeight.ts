@@ -73,7 +73,7 @@ function isTrivial(normalized: string): boolean {
 // ---------------------------------------------------------------------------
 
 const EMOTIONAL_VOCAB =
-  /\b(feel(?:ing|s)?|felt|sad|anxious|anxiety|worried|worry|scared|afraid|angry|furious|frustrated|stressed|overwhelmed|depressed|lonely|hopeless|empty|numb|hurt|hurting|broken|guilty|ashamed|shame|stuck|lost|exhausted|burnt\s*out|burnout|crying|panic|panicked|miserable|devastated|grieving|grief|trauma|triggered|insecure)\b/i;
+  /\b(feel(?:ing|s)?|felt|sad|anxious|anxiety|worried|worry|scared|afraid|angry|furious|frustrated|stressed|overwhelmed|depressed|lonely|hopeless|empty|numb|hurt|hurting|broken|guilty|ashamed|shame|stuck|lost|exhausted|burnt\s*out|burnout|crying|panic|panicked|miserable|devastated|grieving|grief|trauma|triggered|insecure|hate|tired|drained|done\s+with)\b/i;
 
 const DECISION_VOCAB =
   /\b(should\s+i|what\s+should|do\s+i\s+(?:need|have)|i'?m\s+(?:thinking|considering|planning|debating|torn|stuck|unsure)|i\s+(?:want|need|wish)\s+to|i\s+don'?t\s+know\s+(?:what|if|whether)|help\s+me\s+decide|decide|choosing|choice|dilemma|on\s+the\s+fence|two\s+minds)\b/i;
@@ -119,17 +119,11 @@ export function classifyMessageWeight(
 
   const normalized = text.toLowerCase();
 
-  if (isTrivial(normalized)) {
-    return { weight: 'trivial', reason: 'trivial_pattern' };
-  }
-
-  // Length gate: long messages are almost always substantive (multi-clause,
-  // explanation, or rant). Cheap early exit.
-  if (text.length > HARD_LENGTH_LIMIT) {
-    return { weight: 'substantive', reason: 'long_message' };
-  }
-
-  // Hard negatives — any one of these locks us to substantive.
+  // Hard negatives FIRST — emotional / decision / relationship / self-reflection
+  // content overrides any "trivial-by-length" heuristic. This catches short but
+  // heavy messages like "sad", "i'm anxious", "scared", "lost", "i'm done with it".
+  // Without this ordering, the length-≤-8 branch in `isTrivial` would
+  // incorrectly route those to Haiku.
   if (EMOTIONAL_VOCAB.test(text)) {
     return { weight: 'substantive', reason: 'emotional_vocab' };
   }
@@ -141,6 +135,17 @@ export function classifyMessageWeight(
   }
   if (SELF_REFLECTION_VOCAB.test(text)) {
     return { weight: 'substantive', reason: 'self_reflection' };
+  }
+
+  if (isTrivial(normalized)) {
+    return { weight: 'trivial', reason: 'trivial_pattern' };
+  }
+
+  // Length gate: long messages with no negative cues are still substantive
+  // (multi-clause, descriptive). Runs after negative cues so explicit signals
+  // win over a generic length default.
+  if (text.length > HARD_LENGTH_LIMIT) {
+    return { weight: 'substantive', reason: 'long_message' };
   }
 
   // Positive cues — at least one must match for lightweight routing.

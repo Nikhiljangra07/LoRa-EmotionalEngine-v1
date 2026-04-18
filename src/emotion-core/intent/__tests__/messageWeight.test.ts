@@ -118,6 +118,20 @@ describe('classifyMessageWeight', () => {
       expectWeight('   ', 'substantive', 'empty'));
   });
 
+  describe('regression — short emotional words must NOT be misread as trivial', () => {
+    // The trivial detector originally fired on length ≤ 8 with no special tokens,
+    // catching "sad", "anxious", "i\'m sad", "i\'m done with it" etc. Negative cues
+    // now run first so these route to Sonnet (substantive), not Haiku.
+    it('"sad" → substantive', () => expectWeight('sad', 'substantive', 'emotional_vocab'));
+    it('"anxious" → substantive', () => expectWeight('anxious', 'substantive', 'emotional_vocab'));
+    it('"scared" → substantive', () => expectWeight('scared', 'substantive', 'emotional_vocab'));
+    it('"lost" → substantive', () => expectWeight('lost', 'substantive', 'emotional_vocab'));
+    it('"hopeless" → substantive', () => expectWeight('hopeless', 'substantive', 'emotional_vocab'));
+    it('"hate" → substantive', () => expectWeight('hate', 'substantive', 'emotional_vocab'));
+    it('"i\'m sad" → substantive', () => expectWeight("i'm sad", 'substantive', 'emotional_vocab'));
+    it('"i\'m done with it" → substantive', () => expectWeight("i'm done with it", 'substantive', 'emotional_vocab'));
+  });
+
   describe('regression — must NOT route emotional+factual hybrids to Haiku', () => {
     it('"explain why i feel anxious about exams" → substantive (emotional vocab wins)', () =>
       expectWeight('explain why i feel anxious about exams', 'substantive', 'emotional_vocab'));
