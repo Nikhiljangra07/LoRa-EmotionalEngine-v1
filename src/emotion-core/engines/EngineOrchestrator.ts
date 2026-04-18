@@ -36,6 +36,7 @@ import { GradientEscalationTracker } from '../../appraisal-bridge/gradientEscala
 import type { GradientEscalationResult, GradientEscalationState } from '../../appraisal-bridge/gradientEscalation';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { fetchPerspectiveAnalysis } from '../analysis/perspectiveClient';
+import { classifyMessageWeight, type MessageWeight } from '../intent/messageWeight';
 import { matchPrior, formatPriorBlock } from '../prior/patternPrior';
 import type { PerspectiveAnalyzeResponse } from '../analysis/types';
 import type { PerspectiveSessionSummary } from '../memory-v2/pipeline/adapter-interface';
@@ -116,6 +117,8 @@ type LLMResponderOptions = {
   requestId?: string;
   sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[];
   attachments?: Array<{ type: 'image' | 'document'; mimeType: string; data: string }>;
+  /** Adaptive routing: 'haiku' for lightweight queries, 'sonnet' (default) otherwise. */
+  model?: 'sonnet' | 'haiku';
 };
 
 type LLMResponder = {
@@ -1134,6 +1137,37 @@ export class EngineOrchestrator {
       });
     }
 
+    // ── Adaptive routing: classify message weight to pick model tier ──
+    // Trivial / lightweight → Haiku (faster, cheaper). Substantive → Sonnet
+    // (depth preserved). Deep mode is independent — synthesis bypasses LLM
+    // entirely, so routing doesn't apply. The classifier defaults to
+    // `substantive` on uncertainty, so quality is the safe failure mode.
+    let routedModel: 'sonnet' | 'haiku' | undefined = undefined;
+    let routedWeight: MessageWeight = 'substantive';
+    let routedReason = 'flag_off';
+    if (featureFlags.adaptiveRoutingEnabled && perspectiveMode !== 'deep') {
+      const classification = classifyMessageWeight(userMessage);
+      routedWeight = classification.weight;
+      routedReason = classification.reason;
+      if (classification.weight === 'trivial') {
+        routedModel = 'haiku';
+        opIncrement('route_haiku_trivial');
+      } else if (classification.weight === 'lightweight') {
+        routedModel = 'haiku';
+        opIncrement('route_haiku_lightweight');
+      } else {
+        routedModel = 'sonnet';
+        opIncrement('route_sonnet');
+      }
+      if (decisionLogEnabled) {
+        console.log('[LoRa::Routing]', {
+          weight: routedWeight,
+          reason: routedReason,
+          model: routedModel,
+        });
+      }
+    }
+
     // ── Memory Service: dual DB retrieval (gated by memoryServiceEnabled) ──
     let memServiceAnchors: AnchorRecord[] = [];
     let memServiceDegraded = { falkor: false, chroma: false };
@@ -1629,6 +1663,7 @@ export class EngineOrchestrator {
       sessionHistory,
       onToken,
       attachments,
+      routedModel,
     );
 
     // ── Bootstrap Memory: record assistant reply summary ──
@@ -2266,6 +2301,8 @@ export class EngineOrchestrator {
     sessionHistory?: import('../prompt/PromptTemplateBuilder').ChatTurn[],
     onToken?: (chunk: string) => void,
     attachments?: Array<{ type: 'image' | 'document'; mimeType: string; data: string }>,
+    /** Model tier for this request. Default Sonnet; Haiku for adaptive routing. */
+    modelTier?: 'sonnet' | 'haiku',
   ): Promise<string> {
     const now = Date.now();
     if (this.llmAvailability === 'UNAVAILABLE') {
@@ -2358,6 +2395,7 @@ export class EngineOrchestrator {
           requestId,
           sessionHistory: sessionHistory ?? [],
           ...(attachments && attachments.length > 0 ? { attachments } : {}),
+          ...(modelTier ? { model: modelTier } : {}),
         };
         if (process.env.NODE_ENV === 'test') {
           console.log(Object.keys(payload));

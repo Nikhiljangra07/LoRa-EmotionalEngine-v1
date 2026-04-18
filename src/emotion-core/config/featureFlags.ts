@@ -54,6 +54,7 @@ const rawFlags = Object.freeze({
   memoryV2ShadowEnabled: flag(process.env.LORA_MEMORY_V2_SHADOW, 'memoryV2ShadowEnabled'),
   multiPerspectiveEnabled: flag(process.env.LORA_MULTI_PERSPECTIVE, 'multiPerspectiveEnabled'),
   perspectiveDeepModeEnabled: flag(process.env.LORA_PERSPECTIVE_DEEP_MODE, 'perspectiveDeepModeEnabled'),
+  adaptiveRoutingEnabled: flag(process.env.LORA_ADAPTIVE_ROUTING, 'adaptiveRoutingEnabled'),
 });
 
 /**

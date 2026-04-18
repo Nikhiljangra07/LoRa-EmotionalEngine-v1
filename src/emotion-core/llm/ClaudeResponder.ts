@@ -4,9 +4,31 @@ import { increment as opIncrement } from '../../server/analytics/operationalCoun
 import { debugEnabled } from '../debug/debugGate';
 import { CACHE_BOUNDARY, type ChatTurn } from '../prompt/PromptTemplateBuilder';
 
+/** Default model — Sonnet 4.6, used for substantive / decision content. */
 const MODEL = 'claude-sonnet-4-6';
+/**
+ * Lightweight model — Haiku 4.5. Used by adaptive routing for trivial /
+ * factual queries where Sonnet's depth isn't needed. Already in use elsewhere
+ * (fact extraction, V2 verifier) so the SDK + cost path are well known.
+ */
+const MODEL_LIGHTWEIGHT = 'claude-haiku-4-5';
 const MAX_TOKENS = 1024;
+/** Lightweight responses are typically shorter — cap at 512 to save tokens. */
+const MAX_TOKENS_LIGHTWEIGHT = 512;
 const TEMPERATURE = 0.6;
+
+/** Model tier — selected per-request by EngineOrchestrator via adaptive routing. */
+export type ResponderModel = 'sonnet' | 'haiku';
+
+function resolveModel(tier: ResponderModel | undefined): {
+  model: string;
+  maxTokens: number;
+} {
+  if (tier === 'haiku') {
+    return { model: MODEL_LIGHTWEIGHT, maxTokens: MAX_TOKENS_LIGHTWEIGHT };
+  }
+  return { model: MODEL, maxTokens: MAX_TOKENS };
+}
 
 /**
  * Split the combined system prompt on CACHE_BOUNDARY sentinel and return
@@ -89,6 +111,12 @@ export type GenerateResponseOptions = {
   sessionHistory?: ChatTurn[];
   /** Attachments (images, PDFs) to include with the user message. */
   attachments?: LLMAttachment[];
+  /**
+   * Override model tier for this request. Defaults to Sonnet. Pass `'haiku'`
+   * for adaptive routing of lightweight queries. The caller (orchestrator)
+   * owns the routing decision — this responder is dumb pipe.
+   */
+  model?: ResponderModel;
 };
 
 /**
@@ -180,10 +208,12 @@ export class ClaudeResponder {
       : history;
 
     const messages = buildMessages(priorTurns, userMessage, options?.attachments);
+    const { model: modelId, maxTokens } = resolveModel(options?.model);
 
     if (debugEnabled) {
       console.log('[LoRa::Debug][ClaudeResponder] role separation', {
         requestId,
+        model: modelId,
         systemPromptLength: systemPrompt.length,
         userMessageLength: userMessage.length,
         priorTurnsCount: priorTurns.length,
@@ -193,13 +223,13 @@ export class ClaudeResponder {
 
     if (process.env.LORA_DEBUG_LLM_PAYLOAD === '1') {
       console.log('[LoRa] LLM PAYLOAD:');
-      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messageCount: messages.length }, null, 2));
+      console.log(JSON.stringify({ model: modelId, system: systemPrompt.slice(0, 200) + '...', messageCount: messages.length }, null, 2));
     }
 
     const response = await this.client.messages.create(
       {
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
+        model: modelId,
+        max_tokens: maxTokens,
         temperature: TEMPERATURE,
         system: buildSystemParam(systemPrompt),
         messages,
@@ -224,7 +254,7 @@ export class ClaudeResponder {
     if (debugEnabled) {
       console.log('[LoRa::Debug][ClaudeResponder] success', {
         requestId,
-        model: MODEL,
+        model: modelId,
         latencyMs,
         outputLength: text.length,
       });
@@ -256,18 +286,19 @@ export class ClaudeResponder {
       : history;
 
     const messages = buildMessages(priorTurns, userMessage, options?.attachments);
+    const { model: modelId, maxTokens } = resolveModel(options?.model);
 
     if (process.env.LORA_DEBUG_LLM_PAYLOAD === '1') {
       console.log('[LoRa] LLM STREAM PAYLOAD:');
-      console.log(JSON.stringify({ system: systemPrompt.slice(0, 200) + '...', messageCount: messages.length }, null, 2));
+      console.log(JSON.stringify({ model: modelId, system: systemPrompt.slice(0, 200) + '...', messageCount: messages.length }, null, 2));
     }
 
     let accumulated = '';
 
     const stream = this.client.messages.stream(
       {
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
+        model: modelId,
+        max_tokens: maxTokens,
         temperature: TEMPERATURE,
         system: buildSystemParam(systemPrompt),
         messages,
@@ -306,7 +337,7 @@ export class ClaudeResponder {
     if (debugEnabled) {
       console.log('[LoRa::Debug][ClaudeResponder] stream complete', {
         requestId,
-        model: MODEL,
+        model: modelId,
         latencyMs,
         outputLength: text.length,
       });

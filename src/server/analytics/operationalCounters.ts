@@ -21,6 +21,10 @@ export type CounterName =
   | 'llm_fallback_cooldown'
   | 'llm_fallback_retry_exhausted'
   | 'llm_cooldown_activated'
+  // Adaptive routing — model-tier selection per message
+  | 'route_sonnet'
+  | 'route_haiku_trivial'
+  | 'route_haiku_lightweight'
   // Rate limiting
   | 'rate_limit_user'
   | 'rate_limit_ip'
