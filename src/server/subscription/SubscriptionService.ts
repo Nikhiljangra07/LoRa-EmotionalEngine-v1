@@ -25,8 +25,10 @@ import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 const REDIS_PREFIX = 'lora:sub:';
 
 // Founder bypass — Nikhil always gets deep mode, independent of Stripe state.
-const UNLIMITED_USERS = new Set([
-  'REDACTED-FOUNDER-ID', // Nikhil
+// TEMPORARILY DISABLED for end-to-end Stripe pipeline testing.
+// RESTORE after verification: add 'REDACTED-FOUNDER-ID' back.
+const UNLIMITED_USERS = new Set<string>([
+  // 'REDACTED-FOUNDER-ID', // Nikhil — TEMP DISABLED for pipeline test
 ]);
 
 function redisKey(userId: string): string {
