@@ -585,7 +585,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
       opIncrement('sanitizer_triggered');
       console.warn(`[LORA_INJECTION] userId=${userId} patterns=${sanitized.matchedPatterns.join(',')}`);
     }
-    const text = sanitized.text;
+    let text = sanitized.text;
 
     if (blockedUsers.has(userId)) {
       console.warn(`[LORA_BLOCKED] userId=${userId}`);
@@ -866,6 +866,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
           perspectiveMode = 'deep';
           const enrichedText = `${session.deepClarifyOriginal}\n\n[User clarified]: ${text}`;
           (validated.data as any).text = enrichedText;
+          text = enrichedText;
           session.deepClarifyOriginal = undefined;
           console.log('[LoRa::DeepAnalysis] clarification received — firing with enriched context');
         }
