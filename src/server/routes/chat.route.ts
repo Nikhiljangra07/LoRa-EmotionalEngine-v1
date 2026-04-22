@@ -31,6 +31,7 @@ import {
   addTokens,
 } from '../usage/DailyTokenUsage';
 import { logSessionEnd } from '../analytics/engagementLogger';
+import { isActiveSubscriber } from '../subscription/SubscriptionService';
 import {
   incrementTokensToday,
   recordSessionEnd,
@@ -812,12 +813,37 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         session.deepClarifyOriginal = undefined;
       }
 
-      // ── Deep-mode request counter (pay gate removed — subscription migration pending) ──
-      // DeepModeUsage.ts + stripe.route.ts remain in the tree as dead code
-      // for the upcoming subscription migration (Phase 4). The per-use
-      // paywall is off: deep mode is unlocked for all authenticated users.
+      // ── Deep-mode gate ──
+      // When LORA_SUBSCRIPTION_ENABLED is OFF (default), Deep Mode is open to
+      // all authenticated users — matches the current prod behaviour.
+      // When ON, Deep Mode requires an active Stripe subscription
+      // (customer.subscription.* webhook events drive the Redis state).
+      // Guests are blocked regardless — userId is empty.
       if (deepModeRequested) {
         opIncrement('deep_reasoning_requested');
+
+        if (featureFlags.subscriptionEnabled) {
+          if (!userId) {
+            opIncrement('deep_reasoning_gated_no_auth');
+            res.status(401).json({
+              error: 'auth_required',
+              message: 'Sign in to use Deep Mode',
+              action: 'sign_in',
+            });
+            return;
+          }
+          const subscribed = await isActiveSubscriber(userId);
+          if (!subscribed) {
+            opIncrement('deep_reasoning_gated_no_subscription');
+            res.status(402).json({
+              error: 'subscription_required',
+              message: 'Deep Mode requires a Depth subscription. CA$19.99/mo, cancel anytime.',
+              action: 'subscribe',
+              subscribeUrl: '/pricing',
+            });
+            return;
+          }
+        }
       }
 
       // Check if this is a clarification response (user answered after ambiguous deep question)

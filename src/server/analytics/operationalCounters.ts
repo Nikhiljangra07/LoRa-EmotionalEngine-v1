@@ -49,6 +49,8 @@ export type CounterName =
   // Deep reasoning
   | 'deep_reasoning_requested'
   | 'deep_reasoning_completed'
+  | 'deep_reasoning_gated_no_auth'
+  | 'deep_reasoning_gated_no_subscription'
   // Input sanitization
   | 'sanitizer_triggered'
   // Token limit

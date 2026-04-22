@@ -9,6 +9,10 @@
 import express, { Router, Request, Response } from 'express';
 import { getDeepModeStatus, addPaidCredit } from '../usage/DeepModeUsage';
 import { getEffectiveUserId } from '../auth/supabaseAuth';
+import {
+  upsertSubscription,
+  SubscriptionStatusCode,
+} from '../subscription/SubscriptionService';
 
 // ── Stripe client (lazy singleton) ─────────────────────────────────
 // Use require() to avoid subpath export issues with stripe v22 on Node 18
@@ -144,7 +148,9 @@ export function registerStripeWebhook(app: express.Express): void {
         const session = event.data.object;
         const userId = session.metadata?.userId;
 
-        if (userId && session.payment_status === 'paid') {
+        // Legacy $3/use path — only when mode is 'payment' (not 'subscription').
+        // Subscriptions are handled by customer.subscription.* events below.
+        if (userId && session.mode === 'payment' && session.payment_status === 'paid') {
           try {
             await addPaidCredit(userId);
             console.log(`[LoRa::Stripe] Payment confirmed → +1 credit for ${userId}`);
@@ -156,7 +162,72 @@ export function registerStripeWebhook(app: express.Express): void {
         }
       }
 
+      // ── Subscription lifecycle events ─────────────────────────────
+      // customer.subscription.{created,updated,deleted} mirror Stripe state into
+      // Redis via SubscriptionService.upsertSubscription. Metadata.userId was
+      // set during checkout creation (see subscription.route.ts → subscription_data).
+      if (event.type.startsWith('customer.subscription.')) {
+        const sub = event.data.object;
+        const userId = sub.metadata?.userId;
+
+        if (!userId) {
+          console.warn(
+            `[LoRa::Stripe] ${event.type} missing metadata.userId — subscriptionId=${sub.id}`,
+          );
+        } else {
+          const status = mapStripeStatusToLora(event.type, sub.status);
+          try {
+            await upsertSubscription({
+              userId,
+              stripeCustomerId: sub.customer,
+              stripeSubscriptionId: sub.id,
+              status,
+              currentPeriodEnd: sub.current_period_end
+                ? new Date(sub.current_period_end * 1000)
+                : undefined,
+              cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
+              canceledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : null,
+            });
+            console.log(
+              `[LoRa::Stripe] ${event.type} → mirrored to Redis for ${userId} (${status})`,
+            );
+          } catch (err) {
+            console.error(`[LoRa::Stripe] Subscription mirror failed for ${userId}`, err);
+            // Return 500 so Stripe retries the webhook (built-in exponential backoff).
+            res.status(500).json({ error: 'subscription_mirror_failed' });
+            return;
+          }
+        }
+      }
+
       res.json({ received: true });
     }
   );
+}
+
+/**
+ * Map a Stripe subscription `status` field + event type to our internal
+ * SubscriptionStatusCode. customer.subscription.deleted always maps to
+ * 'canceled' regardless of the status field (which can be stale at delete time).
+ */
+function mapStripeStatusToLora(
+  eventType: string,
+  stripeStatus: string | undefined,
+): SubscriptionStatusCode {
+  if (eventType === 'customer.subscription.deleted') return 'canceled';
+  switch (stripeStatus) {
+    case 'active':
+    case 'trialing':
+      return 'active';
+    case 'past_due':
+    case 'unpaid':
+      return 'past_due';
+    case 'canceled':
+      return 'canceled';
+    case 'incomplete':
+    case 'incomplete_expired':
+      return 'incomplete';
+    default:
+      return 'none';
+  }
 }

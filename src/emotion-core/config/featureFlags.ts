@@ -54,6 +54,11 @@ const rawFlags = Object.freeze({
   memoryV2ShadowEnabled: flag(process.env.LORA_MEMORY_V2_SHADOW, 'memoryV2ShadowEnabled'),
   multiPerspectiveEnabled: flag(process.env.LORA_MULTI_PERSPECTIVE, 'multiPerspectiveEnabled'),
   perspectiveDeepModeEnabled: flag(process.env.LORA_PERSPECTIVE_DEEP_MODE, 'perspectiveDeepModeEnabled'),
+  // Phase 4: $19.99 CAD/mo subscription gating Deep Mode.
+  // When OFF (default), Deep Mode is open to all authenticated users (current state).
+  // When ON, Deep Mode requires an active Stripe subscription. Flip to '0' in
+  // Railway for instant rollback if anything goes sideways.
+  subscriptionEnabled: flag(process.env.LORA_SUBSCRIPTION_ENABLED, 'subscriptionEnabled'),
   // Adaptive routing is now unconditional — the outer router in
   // src/emotion-core/routing decides tier on every message. Former flags
   // LORA_ADAPTIVE_ROUTING (v1) and LORA_ADAPTIVE_ROUTER_V2 were removed
