@@ -11,7 +11,7 @@ import { featureFlags } from '../emotion-core/config/featureFlags';
 import { supabaseAuthMiddleware } from './auth/supabaseAuth';
 import { registerDebugMemoryRoute } from './routes/debug.memory.route';
 import { registerHealthDashboardRoute } from './routes/health.dashboard.route';
-import { createStripeRouter, registerStripeWebhook } from './routes/stripe.route';
+import { registerStripeWebhook } from './routes/stripe.route';
 import { createSubscriptionRouter } from './routes/subscription.route';
 import { shutdownPosthog, trackSessionEnded } from './analytics/posthogClient';
 import { sharedTierService } from './tier/TierService';
@@ -116,7 +116,6 @@ try {
 registerOnboardingRoute(app);
 registerSessionLifecycleRoute(app, engineSessions);
 registerHealthDashboardRoute(app, engineSessions);
-app.use(createStripeRouter());
 app.use(createSubscriptionRouter());
 
 // ── Health: simple liveness for stress test and load balancers ─────────

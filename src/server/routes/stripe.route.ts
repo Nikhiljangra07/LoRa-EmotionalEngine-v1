@@ -1,14 +1,13 @@
 /**
- * Stripe routes for deep mode pay-as-you-go.
+ * Stripe webhook — subscription lifecycle events.
  *
- * POST /api/deep/check     — check if user can use deep mode
- * POST /api/deep/checkout   — create Stripe Checkout session ($3)
- * POST /api/stripe/webhook  — handle payment confirmation (raw body)
+ * POST /api/stripe/webhook  — handle subscription events (raw body)
+ *
+ * The legacy $3/use flow (/api/deep/check, /api/deep/checkout) was removed
+ * in favour of the monthly subscription model (see subscription.route.ts).
  */
 
-import express, { Router, Request, Response } from 'express';
-import { getDeepModeStatus, addPaidCredit } from '../usage/DeepModeUsage';
-import { getEffectiveUserId } from '../auth/supabaseAuth';
+import express, { Request, Response } from 'express';
 import {
   upsertSubscription,
   SubscriptionStatusCode,
@@ -25,89 +24,6 @@ function getStripe(): any {
     _stripe = new Stripe(key);
   }
   return _stripe;
-}
-
-function getPriceId(): string {
-  return process.env.STRIPE_DEEP_PRICE_ID || '';
-}
-
-function getSuccessUrl(): string {
-  return process.env.STRIPE_SUCCESS_URL || 'https://asklora.io?deep=success';
-}
-
-function getCancelUrl(): string {
-  return process.env.STRIPE_CANCEL_URL || 'https://asklora.io?deep=cancelled';
-}
-
-// ── API routes (JSON body) ─────────────────────────────────────────
-export function createStripeRouter(): Router {
-  const router = Router();
-
-  /**
-   * POST /api/deep/check
-   * Returns whether user can use deep mode, free uses remaining, etc.
-   */
-  router.post('/api/deep/check', async (req: Request, res: Response) => {
-    try {
-      const userId = getEffectiveUserId(req, req.body?.userId);
-      if (!userId) {
-        res.json({
-          canUse: false,
-          freeRemaining: 0,
-          paidCredits: 0,
-          needsPayment: true,
-          totalUsed: 0,
-          requiresAuth: true,
-        });
-        return;
-      }
-
-      const status = await getDeepModeStatus(userId);
-      res.json(status);
-    } catch (err) {
-      console.error('[LoRa::Stripe] /api/deep/check failed', err);
-      res.status(500).json({ error: 'internal_error' });
-    }
-  });
-
-  /**
-   * POST /api/deep/checkout
-   * Creates a Stripe Checkout Session for one deep analysis ($3).
-   * Returns { url } for the frontend to redirect to.
-   */
-  router.post('/api/deep/checkout', async (req: Request, res: Response) => {
-    try {
-      const userId = getEffectiveUserId(req, req.body?.userId);
-      if (!userId) {
-        res.status(401).json({ error: 'auth_required', message: 'Sign in to use Deep Analysis' });
-        return;
-      }
-
-      const priceId = getPriceId();
-      if (!priceId) {
-        console.error('[LoRa::Stripe] STRIPE_DEEP_PRICE_ID not configured');
-        res.status(500).json({ error: 'payment_not_configured' });
-        return;
-      }
-
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        payment_method_types: ['card'],
-        line_items: [{ price: priceId, quantity: 1 }],
-        success_url: getSuccessUrl(),
-        cancel_url: getCancelUrl(),
-        metadata: { userId, purpose: 'deep_analysis' },
-      });
-
-      res.json({ url: session.url });
-    } catch (err) {
-      console.error('[LoRa::Stripe] Checkout creation failed', err);
-      res.status(500).json({ error: 'checkout_failed' });
-    }
-  });
-
-  return router;
 }
 
 /**
@@ -142,24 +58,6 @@ export function registerStripeWebhook(app: express.Express): void {
         console.error('[LoRa::Stripe] Webhook signature failed:', (err as Error).message);
         res.status(400).json({ error: 'invalid_signature' });
         return;
-      }
-
-      if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const userId = session.metadata?.userId;
-
-        // Legacy $3/use path — only when mode is 'payment' (not 'subscription').
-        // Subscriptions are handled by customer.subscription.* events below.
-        if (userId && session.mode === 'payment' && session.payment_status === 'paid') {
-          try {
-            await addPaidCredit(userId);
-            console.log(`[LoRa::Stripe] Payment confirmed → +1 credit for ${userId}`);
-          } catch (err) {
-            console.error(`[LoRa::Stripe] Credit failed for ${userId}`, err);
-            res.status(500).json({ error: 'credit_failed' });
-            return;
-          }
-        }
       }
 
       // ── Subscription lifecycle events ─────────────────────────────
