@@ -51,6 +51,8 @@ import { MIN_MESSAGES_FOR_COMPLETION, MIN_MESSAGES_FOR_MEMORY } from '../session
 import { getEffectiveUserId } from '../auth/supabaseAuth';
 import { sanitizeInput } from '../auth/inputSanitizer';
 import type { TierRecord } from '../tier/TierTypes';
+import { routeMessage as routeMessageV2 } from '../../emotion-core/routing';
+import type { Tier as RouterTier, RouteDecision as RouterDecisionV2 } from '../../emotion-core/routing';
 
 /** Canonical relational reply when LORA_RELATIONAL_ROUTER=1 and intent detected. Returned without engine call. */
 export const RELATIONAL_REPLY = 'Thanks for saying that — your warmth is appreciated.';
@@ -70,6 +72,11 @@ export interface SessionEntry {
   deepAnalysisOfferedAt?: number;
   /** Original message stored during deep mode clarification. */
   deepClarifyOriginal?: string;
+  /**
+   * Most recent router tier decisions, oldest → newest, capped to 3 entries.
+   * Fed into the router's SessionContext for continuation_inherit + arc_bias.
+   */
+  recentRouterTiers?: RouterTier[];
 }
 
 const DEFAULT_ETV = 0.5;
@@ -724,6 +731,41 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       const historyForPrompt = session.history.slice(-STM_MAX_TURNS);
 
+      // ── Adaptive Router (always on) ──
+      // Computes the routing decision using the user's message + session
+      // context (recent tier chain drives continuation_inherit / arc_bias).
+      // The decision feeds perspectiveMode + the engine's model selection.
+      //
+      // Crisis safety: if router returns reason='crisis_override' we skip
+      // framework analysis entirely (routerSkipPerspective) so LoRaMaths
+      // doesn't run game theory / Bayesian analysis on a suicide message.
+      // Still routes to substantive (Sonnet + LoRa identity + CRISIS block).
+      const recentTiers = session.recentRouterTiers ?? [];
+      const routerDecisionV2: RouterDecisionV2 = routeMessageV2({
+        text,
+        context: {
+          messageCount: session.history.filter(t => t.role === 'user').length - 1,
+          recentTiers: recentTiers.slice(-3),
+          recentEIVs: session.engine.getSessionEIVs().slice(-3),
+          inClarificationLoop: !!session.deepClarifyOriginal,
+        },
+      });
+      // Crisis content skips framework analysis. Trivial tier also skips —
+      // greetings and acks don't benefit from LoRaMaths and shouldn't pay
+      // the 3-4s latency.
+      const routerSkipPerspective =
+        routerDecisionV2.reason === 'crisis_override' ||
+        routerDecisionV2.tier === 'trivial';
+      if (isDev) {
+        console.log('[LoRa::Router]', {
+          tier: routerDecisionV2.tier,
+          reason: routerDecisionV2.reason,
+          confidence: routerDecisionV2.confidence,
+          skipPerspective: routerSkipPerspective,
+          recentTiers,
+        });
+      }
+
       // ── Memory V2 retrieval (active mode only, not shadow) ──
       if (memoryV2Enabled && memoryV2Service) {
         try {
@@ -770,24 +812,12 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         session.deepClarifyOriginal = undefined;
       }
 
-      // ── Deep mode pay gate ──
-      // Check if user has free uses or paid credits before allowing deep mode
+      // ── Deep-mode request counter (pay gate removed — subscription migration pending) ──
+      // DeepModeUsage.ts + stripe.route.ts remain in the tree as dead code
+      // for the upcoming subscription migration (Phase 4). The per-use
+      // paywall is off: deep mode is unlocked for all authenticated users.
       if (deepModeRequested) {
-        // Counter visible on the dashboard's PERSPECTIVE ENGINE card.
-        // Pairs with deep_reasoning_completed (which fires only on success)
-        // — the gap between requested and completed = deep gate denials +
-        // pipeline failures, useful signal.
         opIncrement('deep_reasoning_requested');
-        const { getDeepModeStatus } = await import('../usage/DeepModeUsage');
-        const deepStatus = await getDeepModeStatus(userId);
-        if (!deepStatus.canUse) {
-          res.json({
-            reply: '',
-            deepModeGated: true,
-            deepModeStatus: deepStatus,
-          });
-          return;
-        }
       }
 
       // Check if this is a clarification response (user answered after ambiguous deep question)
@@ -829,6 +859,17 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         }
       }
 
+      // ── Crisis safety override: crisis content ALWAYS bypasses deep mode ──
+      // Even if the user manually toggled deep OR accepted the offer, crisis
+      // vocabulary must never reach the Vortex deep synthesis pipeline (which
+      // would run game-theory / Bayesian frameworks on suicide content). The
+      // crisis response goes through the standard Sonnet path with the
+      // CRISIS_RESPONSE_BLOCK appended; LoRaMaths is skipped entirely.
+      if (routerDecisionV2.signals.hasCrisis && perspectiveMode === 'deep') {
+        console.warn('[LoRa::Crisis] overriding deepMode — crisis content must not reach deep synthesis');
+        perspectiveMode = undefined;
+      }
+
       // ── Attachment-only clarification ──
       // When user sends an image/document without meaningful text, LoRa sees the
       // attachment and asks what specifically they need. Feels like LoRa is engaged
@@ -860,9 +901,25 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         wantsStream ? () => {} : undefined,
         // Attachments (images, PDFs) — passed through to Claude API
         validated.data.attachments,
+        // Router tier — engine uses this for model selection (Haiku/Sonnet).
+        routerDecisionV2.tier,
+        // Router skip-perspective — true for trivial tier + crisis content.
+        routerSkipPerspective,
+        // Router crisis signal — engine appends CRISIS_RESPONSE_BLOCK to
+        // the system prompt when true, suspending the 6 Laws for this reply.
+        routerDecisionV2.signals.hasCrisis,
       );
 
       const debug = result.debug ?? emptyDebug();
+
+      // ── Record router tier into session context (arc_bias + continuation_inherit) ──
+      // Only after a successful processMessage — the tier reflects a
+      // committed decision. Cap to last 3 entries.
+      {
+        const recent = session.recentRouterTiers ?? [];
+        recent.push(routerDecisionV2.tier);
+        session.recentRouterTiers = recent.slice(-3);
+      }
 
       // Sync deep analysis pending state from engine → session
       if (featureFlags.perspectiveDeepModeEnabled && session.engine.isDeepAnalysisPending()) {
@@ -883,13 +940,16 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
 
       if (isDeepAnalysis) {
         opIncrement('deep_reasoning_completed');
-        // Consume one deep mode use (free or paid) after successful analysis
-        const { consumeDeepModeUse } = await import('../usage/DeepModeUsage');
-        consumeDeepModeUse(userId).catch(err =>
-          console.warn('[LoRa::DeepMode] Failed to consume use:', err)
-        );
         // Deep mode: soft cap at 900 words — thorough but not a dump
+        // (consumeDeepModeUse removed — per-use paywall retired, pending Phase 4 subscription)
         reply = enforceWordLimit(reply, 900);
+      } else if (routerDecisionV2.signals.hasCrisis) {
+        // Crisis response: tight cap, one safety question. Presence,
+        // not exposition. Matches the CRISIS_RESPONSE_BLOCK's "Under 120
+        // words" instruction — 150 is the post-generation backstop in
+        // case the model overshoots.
+        reply = enforceWordLimit(reply, 150);
+        reply = enforceQuestionLimit(reply, 1);
       } else {
         // Tighter limits during CONTAINMENT: shorter replies, fewer questions
         const currentEIV = result.eiv?.value ?? 0;
@@ -920,6 +980,10 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
         anchorsUsed: debug.anchorsUsed ?? 0,
         replyLengthChars: reply.length,
         tokensEstimated: consumed,
+        routedTier: routerDecisionV2.tier,
+        routedReason: routerDecisionV2.reason,
+        routedConfidence: routerDecisionV2.confidence,
+        routedSkipPerspective: routerSkipPerspective,
       });
 
       if (reply) {

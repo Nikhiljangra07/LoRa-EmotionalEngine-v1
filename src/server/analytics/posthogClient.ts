@@ -33,6 +33,16 @@ export function trackMessageSent(
     anchorsUsed: number;
     replyLengthChars: number;
     tokensEstimated: number;
+    /**
+     * Adaptive router outputs. Named `routedTier` (not `tier`) to avoid
+     * collision with the session-count tier (TIER_1/2/3). Optional because
+     * the relational-router short-circuit fires trackMessageSent before
+     * the main router runs — those messages don't have routing data.
+     */
+    routedTier?: 'trivial' | 'lightweight' | 'substantive';
+    routedReason?: string;
+    routedConfidence?: number;
+    routedSkipPerspective?: boolean;
   },
 ): void {
   getClient()?.capture({

@@ -36,7 +36,10 @@ import { GradientEscalationTracker } from '../../appraisal-bridge/gradientEscala
 import type { GradientEscalationResult, GradientEscalationState } from '../../appraisal-bridge/gradientEscalation';
 import { AVIScorer } from '../scorers/AVIScorer';
 import { fetchPerspectiveAnalysis } from '../analysis/perspectiveClient';
-import { classifyMessageWeight, type MessageWeight } from '../intent/messageWeight';
+// Router tier type used by the single remaining routing path (v2 — the
+// outer router in src/emotion-core/routing). The v1 classifyMessageWeight
+// was removed in Phase 3 of the adaptive router integration.
+type RouterTier = 'trivial' | 'lightweight' | 'substantive';
 import { matchPrior, formatPriorBlock } from '../prior/patternPrior';
 import type { PerspectiveAnalyzeResponse } from '../analysis/types';
 import type { PerspectiveSessionSummary } from '../memory-v2/pipeline/adapter-interface';
@@ -68,41 +71,12 @@ import { buildResponseShapeContract } from '../prompt/ResponseShapeContract';
 import type { ResponseShapeResult } from '../prompt/ResponseShapeContract';
 import { isMaskedPressurePersistent } from './maskedPressurePersistence';
 import { enforceIdentity } from '../policy/IdentityGuard';
+import { CRISIS_RESPONSE_BLOCK } from '../policy/CrisisResponseBlock';
 
-/**
- * Detect trivial messages that don't benefit from perspective analysis.
- * Greetings, thanks, short acknowledgments — skip the 3-4s Haiku call.
- *
- * NOT trivial: "tell me more", "go deeper", "explain" — these request
- * deeper evaluation and SHOULD trigger perspective analysis.
- */
-function isTrivialMessage(normalized: string): boolean {
-  const trimmed = normalized.trim();
-
-  // Very short messages (1-2 words) that aren't questions or commands
-  if (trimmed.length <= 8 && !trimmed.includes('?') && !trimmed.includes('why') && !trimmed.includes('how')) {
-    // Check it's not a short but substantive word
-    const substantive = /^(explain|elaborate|deeper|more|expand|continue|analyse|analyze)$/;
-    if (!substantive.test(trimmed)) return true;
-  }
-
-  // Greetings
-  if (/^(hi|hey|hello|hii|hiii|hlo|hnji|yo|sup|howdy|good\s*(morning|evening|afternoon|night)|namaste|hola)\b/.test(trimmed)) return true;
-
-  // Thanks / appreciation
-  if (/^(thanks?|thank\s*you|thx|ty|shukriya|dhanyavaad|great|awesome|perfect|cool|nice|good|ok|okay|fine|alright|got\s*it|understood|makes?\s*sense)\b/.test(trimmed) && trimmed.length < 40) return true;
-
-  // Agreement / acknowledgment
-  if (/^(yes|yeah|yep|yup|sure|haan|ha|hmm|hm|mm|right|true|correct|exactly|agreed|absolutely)\b/.test(trimmed) && trimmed.length < 25) return true;
-
-  // Farewell
-  if (/^(bye|goodbye|good\s*bye|see\s*you|take\s*care|later|gn|good\s*night)\b/.test(trimmed)) return true;
-
-  // Laughter / filler
-  if (/^(lol|lmao|haha|hehe|ha+|wow|oh|ooh|ahh?|hmm+)\s*$/.test(trimmed)) return true;
-
-  return false;
-}
+// Local isTrivialMessage() removed in Phase 3 — the outer router in
+// src/emotion-core/routing now owns trivial detection and passes the tier
+// via processMessage's routerV2Tier parameter. routerV2SkipPerspective
+// directly signals "skip LoRaMaths" for trivial + crisis content.
 
 type LLMAvailability = 'AVAILABLE' | 'UNAVAILABLE';
 
@@ -399,6 +373,27 @@ export class EngineOrchestrator {
     onToken?: (chunk: string) => void,
     /** Image/document attachments to include with the LLM call. */
     attachments?: Array<{ type: 'image' | 'document'; mimeType: string; data: string }>,
+    /**
+     * Router tier decision from chat.route.ts. Drives model selection
+     * (Haiku for trivial/lightweight, Sonnet for substantive). Always
+     * provided on the live path; optional for legacy test callers only.
+     */
+    routerV2Tier?: 'trivial' | 'lightweight' | 'substantive',
+    /**
+     * Router skip-perspective signal. True when tier=trivial OR the router
+     * flagged crisis content — crisis messages must not go through framework
+     * analysis (game theory / Bayesian reasoning on suicide content would
+     * be grotesquely wrong).
+     */
+    routerV2SkipPerspective?: boolean,
+    /**
+     * Adaptive Router V2 crisis signal. When true, the CRISIS_RESPONSE_BLOCK
+     * is appended to the system prompt — suspends the 6 Laws for this ONE
+     * response and redirects LoRa to presence + safety question + resource.
+     * Orthogonal to routerV2SkipPerspective (both fire on crisis content,
+     * but serve different parts of the safety path).
+     */
+    routerV2HasCrisis?: boolean,
   ) {
     const executionToken = Symbol('LLM_EXECUTION');
     if (this.activeExecution) {
@@ -1120,9 +1115,16 @@ export class EngineOrchestrator {
     }
 
     // ── Kick off perspective analysis early (runs in parallel with memory) ──
-    const skipPerspective = perspectiveMode !== 'deep' && isTrivialMessage(normalizedUserMessage);
+    // Perspective is skipped when:
+    //   (a) the outer router flagged skipPerspective (trivial tier + crisis
+    //       content — greetings don't need LoRaMaths; crisis content must
+    //       not run framework analysis).
+    //   (b) deep mode is explicitly NOT requested AND router says skip.
+    // Deep mode always runs perspective — it IS the deep pipeline.
+    const skipPerspective =
+      perspectiveMode !== 'deep' && routerV2SkipPerspective === true;
     if (skipPerspective && decisionLogEnabled) {
-      console.log('[LoRa::Perspective] skipped — trivial message');
+      console.log('[LoRa::Perspective] skipped (router)');
     }
     let perspectivePromise: Promise<PerspectiveAnalyzeResponse | null> | null = null;
     if (featureFlags.multiPerspectiveEnabled && !skipPerspective) {
@@ -1137,22 +1139,19 @@ export class EngineOrchestrator {
       });
     }
 
-    // ── Adaptive routing: classify message weight to pick model tier ──
+    // ── Model selection from router tier ──
     // Trivial / lightweight → Haiku (faster, cheaper). Substantive → Sonnet
     // (depth preserved). Deep mode is independent — synthesis bypasses LLM
-    // entirely, so routing doesn't apply. The classifier defaults to
-    // `substantive` on uncertainty, so quality is the safe failure mode.
+    // entirely, so routing doesn't apply.
     let routedModel: 'sonnet' | 'haiku' | undefined = undefined;
-    let routedWeight: MessageWeight = 'substantive';
-    let routedReason = 'flag_off';
-    if (featureFlags.adaptiveRoutingEnabled && perspectiveMode !== 'deep') {
-      const classification = classifyMessageWeight(userMessage);
-      routedWeight = classification.weight;
-      routedReason = classification.reason;
-      if (classification.weight === 'trivial') {
+    let routedWeight: RouterTier = 'substantive';
+    const routedReason = 'router_v2';
+    if (routerV2Tier !== undefined && perspectiveMode !== 'deep') {
+      routedWeight = routerV2Tier;
+      if (routerV2Tier === 'trivial') {
         routedModel = 'haiku';
         opIncrement('route_haiku_trivial');
-      } else if (classification.weight === 'lightweight') {
+      } else if (routerV2Tier === 'lightweight') {
         routedModel = 'haiku';
         opIncrement('route_haiku_lightweight');
       } else {
@@ -1162,7 +1161,6 @@ export class EngineOrchestrator {
       if (decisionLogEnabled) {
         console.log('[LoRa::Routing]', {
           weight: routedWeight,
-          reason: routedReason,
           model: routedModel,
         });
       }
@@ -1594,7 +1592,14 @@ export class EngineOrchestrator {
       }
     }
 
-    const systemPrompt = prompt;
+    // Append crisis protocol block when router flagged crisis content. The
+    // block lands AFTER the full engine system prompt and (downstream of
+    // the policy wrapper) AFTER LORA_IDENTITY. Recency weight makes this
+    // the last thing the model attends to; the block declares itself an
+    // override of the 6 Laws and FORBIDDEN PATTERNS explicitly.
+    const systemPrompt = routerV2HasCrisis
+      ? prompt + '\n\n' + CRISIS_RESPONSE_BLOCK
+      : prompt;
     const rawUserMessage = userMessage ?? '';
 
     if (process.env.LORA_DEBUG_PROMPT_SIGNALS === '1') {

@@ -116,6 +116,7 @@ User message → POST /api/chat
 
 ### Environment Variables (Production — Railway)
 
+**LoRa-EmotionalEngine-v1 service:**
 ```
 ANTHROPIC_API_KEY=...
 LLM_PROVIDER=...
@@ -130,6 +131,12 @@ LORA_RELATIONAL_ROUTER=1
 NODE_OPTIONS=...
 POSTHOG_API_KEY=...
 SUPABASE_JWT_SECRET=...
+```
+
+**LoRaMaths service (separate Railway service, `loramaths.railway.internal`):**
+```
+LORA_VORTEX_ENABLED=full   # Required for benchmarked quality (41.6/50 Primary Domain A+B).
+                           # Without this, quick-mode falls back to plain relay (pre-benchmark pipeline).
 ```
 
 ---
@@ -351,6 +358,7 @@ SUPABASE_JWT_SECRET=...
 | Apr 7, 2026 | Sidebar aligned with LoRa session model — "New session" lifecycle | Initial sidebar borrowed ChatGPT terminology ("chat", "New chat") but LoRa runs on sessions with proper lifecycle (each completed session increments `sessionCount`, may promote tier). Renamed: header "Sessions", button "New session", empty state "No sessions yet". The button now invokes `terminateSessionBridge()` (same backend lifecycle as the header New Session button) — backend finalizer fires PostHog `session_ended`, increments tier counter (if ≥2 msgs), runs Memory V2 consolidation (if ≥3 msgs), then starts a fresh session. Header New Session button now also writes to chat history sidebar so the just-completed session appears immediately. Cleanup: removed duplicate `saveChatHistoryEntry` call from sidebar handler — `terminateSessionBridge` already handles it. UX inspiration is ChatGPT/Claude, semantics are pure LoRa. | `e3466ff` (presence-whispers) |
 | Apr 15, 2026 | Migrated production from Sonnet 4 → Sonnet 4.6 (forced by deprecation discovery) | Anthropic deprecation email for `claude-sonnet-4` (retires Jun 15, degraded availability May 14) triggered an audit that revealed production had been running on Sonnet 4, not 4.6, since launch. `LLM_PROVIDER=anthropic` routes through `AnthropicResponder` whose hardcoded fallback was `claude-sonnet-4-20250514`, and `ANTHROPIC_MODEL` env var was never set. Set env var + updated three hardcoded fallbacks to `claude-sonnet-4-6`. Confirmed via deploy log. **Implication:** all prior benchmarks (6-model G-Eval, reasoningEngine 15-question benchmark, every tester case) were on the weaker model — quality is expected to improve from this point. Cost will rise proportionally (4.6 is more expensive per token). | `53a0910` (backend), `62fb923` (reasoningEngine, local) |
 | Apr 21, 2026 | Closed b3_actionability escape hatch in RESPONSE STRUCTURE step 4 | 7-model benchmark (LoRaMaths, 32 conversations, blind-eval, triple-run median) showed LoRa won Primary Domain A+B (41.6/50 vs GPT-5.4 41.5) AND won Categories A (21.3/25) and D (23.5/25) outright — but regressed on b3_actionability to 3.6/5 (from 3.92 in the Mar 24 fix). Per-dimension reasoning revealed the pattern is bimodal: 14 conversations at 5/5 (clean decision problems) + 4 complete failures at 1/5 (R-01 breakup/self-harm, R-02 AI debate, E-02 extreme-short, H-07 love marriage family conflict). Root cause: step 4 had an escape hatch ("if you genuinely need more information first, name exactly what and how to get it") that LoRa was taking under ambiguity, ending on diagnosis or a clarifying question alone. Fix: tightened step 4 to make action MANDATORY even under ambiguity, expanded forbidden soft-verbs ("examine," "consider," "sit with," "journal about"), added fallback verb templates with concrete placeholders ("talk to [person] about [topic]," "call [number/role]"), and now requires pairing any clarifying question with a concrete action. Voice block (rule 3 "ONE BEAT PER RESPONSE") and Vortex pipeline unchanged — the fix is surgical to the one line that was being over-interpreted. Type check clean. | (this change) |
+| Apr 21, 2026 | Router V2 pipeline design + trivial coverage parity | Finalized the post-Router-V2 pipeline contract: trivial tier skips LoRaMaths entirely (Haiku direct, ~2s); lightweight and substantive both hit LoRaMaths quick-mode `/api/analyze`, which internally runs the **Vortex pipeline** (3 peripheral models — Nano/Haiku/Flash-Lite — + pattern-retriever SSM + sonnet synthesizer) when `LORA_VORTEX_ENABLED=full` is set on the LoRaMaths Railway service. This is the exact pipeline that scored 41.6/50 on Primary Domain A+B in the 7-model benchmark (the "LoRa pipeline: Vortex (full) + Voice block + Memory V2" combo). No backend code change needed for Vortex — it's a single env var on LoRaMaths. Also closed v1 parity gaps in `TRIVIAL_WHOLE_MESSAGE` / `SESSION_OPENER_RE`: added farewells (bye, goodbye, see ya, ttyl, later, cya, farewell), locale greetings (good morning/afternoon/evening/night), and Indic greetings (namaste, namaskar, salaam). Router smoke test 14/14 passing; typecheck clean. **Required env var for benchmarked quality: `LORA_VORTEX_ENABLED=full` on LoRaMaths Railway service.** Without it, LoRaMaths quick-mode falls back to the single-call relay (Nano→Haiku→Flash-Lite without the Vortex aggregator) which was the pre-benchmark pipeline. | (this change) |
 
 ---
 
@@ -422,6 +430,7 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 6. **The appraisal-lab directory has massive amounts of duplicate files** (e.g., `file 2.ts`, `file 3.ts`, `file 4.ts` up to `file 7.ts`). These are accidental copies. They are excluded from tsconfig via patterns. Do not delete them without explicit instruction — they don't affect the build.
 7. **Railway logs:** When using `railway logs`, make sure to select the **LoRa-EmotionalEngine-v1** service, NOT Redis. Redis logs are just background saves with zero LoRa data.
 8. **Model identity is split across THREE places — all must agree.** `ANTHROPIC_MODEL` env var in Railway is the source of truth (read by `AnthropicResponder` because `LLM_PROVIDER=anthropic`). `ClaudeResponder.ts:7` is hardcoded for the alternate provider path (currently unused). `chat.route.ts:349` summarizer model is hardcoded with no env override. If any of these three drifts apart, production silently runs the wrong model — this is exactly what happened from Mar 12 → Apr 15, 2026. On any model change: update env var **and** both hardcoded references, then verify the startup log line `[LoRa] Runtime Model: …`.
+9. **Benchmarked quality requires `LORA_VORTEX_ENABLED=full` on the LoRaMaths Railway service.** The 41.6/50 Primary Domain A+B result was measured with the Vortex pipeline (3 peripheral models + SSM pattern retriever + Sonnet synthesizer) serving LoRaMaths quick-mode. If this env var drifts to `off` or `shadow`, quick-mode silently degrades to the plain relay (no aggregator, no pattern retrieval) — same class of silent regression as the Sonnet 4.6 drift. This lives on the LoRaMaths service, NOT the backend. Verify via LoRaMaths deploy log: `[Vortex full] fw=… src=…` lines should appear on every non-trivial request.
 
 ---
 
@@ -438,5 +447,5 @@ npx ts-node scripts/session_analytics.ts railway_logs.txt
 
 ---
 
-*Last updated: April 21, 2026*
+*Last updated: April 21, 2026 (Router V2 + Vortex pipeline contract)*
 *Branch: bugbot-init-review*

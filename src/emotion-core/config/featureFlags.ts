@@ -54,7 +54,11 @@ const rawFlags = Object.freeze({
   memoryV2ShadowEnabled: flag(process.env.LORA_MEMORY_V2_SHADOW, 'memoryV2ShadowEnabled'),
   multiPerspectiveEnabled: flag(process.env.LORA_MULTI_PERSPECTIVE, 'multiPerspectiveEnabled'),
   perspectiveDeepModeEnabled: flag(process.env.LORA_PERSPECTIVE_DEEP_MODE, 'perspectiveDeepModeEnabled'),
-  adaptiveRoutingEnabled: flag(process.env.LORA_ADAPTIVE_ROUTING, 'adaptiveRoutingEnabled'),
+  // Adaptive routing is now unconditional — the outer router in
+  // src/emotion-core/routing decides tier on every message. Former flags
+  // LORA_ADAPTIVE_ROUTING (v1) and LORA_ADAPTIVE_ROUTER_V2 were removed
+  // in Phase 3 of the router integration. If you need to revert routing,
+  // the only path is `git revert` + redeploy.
 });
 
 /**
