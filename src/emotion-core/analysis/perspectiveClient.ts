@@ -23,9 +23,14 @@ import { increment as opIncrement } from '../../server/analytics/operationalCoun
 const PERSPECTIVE_SERVICE_URL =
   process.env.LORA_PERSPECTIVE_URL || 'http://localhost:8000';
 
-/** Max wait time for the perspective engine (ms). */
+/** Max wait time for the perspective engine (ms).
+ *  Vortex-full quick mode (Nano + Haiku + Flash-Lite cooperative handoff +
+ *  pattern retriever + Sonnet synthesizer) typically completes in 10-13s.
+ *  12s was busting the timeout often enough that perspective was being dropped
+ *  from prompts; 15s captures the common case while still failing fast on real
+ *  outages. See Apr 22, 2026 production logs. */
 const PERSPECTIVE_TIMEOUT_QUICK_MS = parseInt(
-  process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '12000',
+  process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '15000',
   10,
 );
 /** Deep reasoning gets more time — 5 parallel frameworks + Sonnet synthesis (68-81s typical, peaks at ~90s). */

@@ -70,6 +70,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@chroma-core/default-embed": "^0.1.9",
     "chromadb": "^3.3.1",
     "chrono-node": "^2.9.0",
     "cors": "^2.8.6",
