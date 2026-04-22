@@ -25,12 +25,15 @@ const PERSPECTIVE_SERVICE_URL =
 
 /** Max wait time for the perspective engine (ms).
  *  Vortex-full quick mode (Nano + Haiku + Flash-Lite cooperative handoff +
- *  pattern retriever + Sonnet synthesizer) typically completes in 10-13s.
- *  12s was busting the timeout often enough that perspective was being dropped
- *  from prompts; 15s captures the common case while still failing fast on real
- *  outages. See Apr 22, 2026 production logs. */
+ *  pattern retriever + Sonnet synthesizer) typically completes in 10-21s.
+ *  Set to 60s to align with the UI's "LoRa answers under 60s" promise — the
+ *  whole reason Vortex exists is to shape the response, so timing it out and
+ *  shipping without its output throws away the work. The 60s ceiling means
+ *  Vortex output ALWAYS reaches the prompt (typical case 15-35s end-to-end
+ *  including LLM), at the cost of letting rare 50s+ outliers blow past the
+ *  UI timer rather than shipping framework-less responses. */
 const PERSPECTIVE_TIMEOUT_QUICK_MS = parseInt(
-  process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '15000',
+  process.env.LORA_PERSPECTIVE_TIMEOUT_MS || '60000',
   10,
 );
 /** Deep reasoning gets more time — 5 parallel frameworks + Sonnet synthesis (68-81s typical, peaks at ~90s). */
