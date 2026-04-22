@@ -55,6 +55,18 @@ function inSubstantiveArc(ctx?: SessionContext): boolean {
   );
 }
 
+/**
+ * Mean EIV across recent turns. Proxy for sustained emotional context:
+ * a session that has been emotionally heavy across the last few exchanges
+ * shouldn't trivialize a brief reply just because the current turn lacks
+ * vocabulary signals. Threshold tuned to 0.4 to match the established
+ * "elevated EIV" cutoff used by the token-warning logic in chat.route.ts.
+ */
+function recentMeanEIV(ctx?: SessionContext): number {
+  if (!ctx || ctx.recentEIVs.length === 0) return 0;
+  return ctx.recentEIVs.reduce((sum, v) => sum + v, 0) / ctx.recentEIVs.length;
+}
+
 export function routeMessage(input: RouterInput): RouteDecision {
   const signals = extractSignals(input.text);
   const ctx = input.context;
@@ -69,6 +81,21 @@ export function routeMessage(input: RouterInput): RouteDecision {
       tier: 'substantive',
       reason: 'crisis_override',
       confidence: 0.99,
+      signals,
+    };
+  }
+
+  // 0.5 Clarification continuation — when the user is mid-clarification on
+  //     a prior deep-mode question, never trivialize their reply. A short
+  //     answer ("yes", "the second one", "no, more like this") is part of
+  //     the in-progress substantive flow, not a fresh casual exchange.
+  //     Without this, "yes" after a deep question routes to trivial → Haiku
+  //     direct, skipping LoRaMaths entirely and breaking the deep flow.
+  if (ctx?.inClarificationLoop) {
+    return {
+      tier: 'substantive',
+      reason: 'clarification_continuation',
+      confidence: 0.85,
       signals,
     };
   }
@@ -223,6 +250,21 @@ export function routeMessage(input: RouterInput): RouteDecision {
       tier: 'substantive',
       reason: 'eiv_solo_promotion',
       confidence: 0.65,
+      signals,
+    };
+  }
+
+  // 7.5 Sustained emotional context — recent turns averaged elevated EIV.
+  //     A brief reply ("yeah", "i guess", "maybe") after several emotionally
+  //     heavy exchanges shouldn't be treated as a casual ack. eiv_solo above
+  //     catches per-turn intensity; this catches accumulated session weight
+  //     when the current turn lacks both vocabulary and surface intensity.
+  //     Factual-shell guard preserved so info questions don't over-promote.
+  if (recentMeanEIV(ctx) > 0.4 && !signals.isFactualShell) {
+    return {
+      tier: 'substantive',
+      reason: 'sustained_emotional_context',
+      confidence: 0.6,
       signals,
     };
   }

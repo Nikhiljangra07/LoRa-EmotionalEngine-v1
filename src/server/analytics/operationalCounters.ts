@@ -22,9 +22,13 @@ export type CounterName =
   | 'llm_fallback_retry_exhausted'
   | 'llm_cooldown_activated'
   // Adaptive routing — model-tier selection per message
+  // route_sonnet         = substantive tier → Sonnet
+  // route_sonnet_lightweight = lightweight tier → Sonnet (post-Apr-21 quality
+  //                          fix; was route_haiku_lightweight before).
+  // route_haiku_trivial  = trivial tier → Haiku (greetings, acks)
   | 'route_sonnet'
+  | 'route_sonnet_lightweight'
   | 'route_haiku_trivial'
-  | 'route_haiku_lightweight'
   // Rate limiting
   | 'rate_limit_user'
   | 'rate_limit_ip'

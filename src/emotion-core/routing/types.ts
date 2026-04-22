@@ -93,6 +93,7 @@ export interface RouteDecision {
 
 export type RouteReason =
   | 'crisis_override'
+  | 'clarification_continuation'
   | 'explicit_deep_request'
   | 'explicit_quick_request'
   | 'trivial_shape'
@@ -104,6 +105,7 @@ export type RouteReason =
   | 'factual_shell_demotion'
   | 'arc_bias'
   | 'eiv_solo_promotion'
+  | 'sustained_emotional_context'
   | 'relationship_vocab'
   | 'self_reflection_vocab'
   | 'code_block'

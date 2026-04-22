@@ -1140,9 +1140,14 @@ export class EngineOrchestrator {
     }
 
     // ── Model selection from router tier ──
-    // Trivial / lightweight → Haiku (faster, cheaper). Substantive → Sonnet
-    // (depth preserved). Deep mode is independent — synthesis bypasses LLM
-    // entirely, so routing doesn't apply.
+    // Trivial → Haiku (greetings/acks don't need Sonnet, ~2s latency win).
+    // Lightweight + substantive → Sonnet. Lightweight was Haiku originally,
+    // but the post-fix benchmark observation (Apr 21) was that Haiku doesn't
+    // reliably honour the b3_actionability rules in LoRaIdentity step 4 on
+    // ambiguous short inputs (the E-02 / R-02 / H-07 failure patterns).
+    // Sonnet adds ~1-2s on top of LoRaMaths quick-mode latency but preserves
+    // full prompt obedience — quality over the borderline latency cost.
+    // Deep mode is independent — synthesis bypasses LLM entirely.
     let routedModel: 'sonnet' | 'haiku' | undefined = undefined;
     let routedWeight: RouterTier = 'substantive';
     const routedReason = 'router_v2';
@@ -1152,8 +1157,8 @@ export class EngineOrchestrator {
         routedModel = 'haiku';
         opIncrement('route_haiku_trivial');
       } else if (routerV2Tier === 'lightweight') {
-        routedModel = 'haiku';
-        opIncrement('route_haiku_lightweight');
+        routedModel = 'sonnet';
+        opIncrement('route_sonnet_lightweight');
       } else {
         routedModel = 'sonnet';
         opIncrement('route_sonnet');
