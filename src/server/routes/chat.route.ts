@@ -837,7 +837,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             opIncrement('deep_reasoning_gated_no_subscription');
             res.status(402).json({
               error: 'subscription_required',
-              message: 'Deep Mode requires a Depth subscription. CA$19.99/mo, cancel anytime.',
+              message: 'Deep Mode requires a Pro subscription. CA$19.99/mo, cancel anytime.',
               action: 'subscribe',
               subscribeUrl: '/pricing',
             });
