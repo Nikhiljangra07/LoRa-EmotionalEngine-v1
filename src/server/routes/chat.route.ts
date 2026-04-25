@@ -137,7 +137,7 @@ export interface ApiChatBody {
   deepMode?: boolean;
   /** Stream response via SSE instead of JSON. */
   stream?: boolean;
-  /** Image or document attachments (max 5, each max 20MB). */
+  /** Image or document attachments (max 5, each max 5MB decoded). */
   attachments?: ChatAttachment[];
   /**
    * Rehydrate engine history from client-provided messages.

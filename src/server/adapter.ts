@@ -83,7 +83,12 @@ app.use((_req, res, next) => {
 // ── Stripe webhook (raw body — MUST be before express.json()) ──
 registerStripeWebhook(app);
 
-app.use(express.json({ limit: '25mb' })); // Raised for base64 image/document attachments
+// Sized to fit ATTACHMENT_LIMITS in chat.route.ts: 5 files × 5MB decoded
+// becomes ~33.5MB encoded after base64 (≈33% overhead) + JSON envelope.
+// Without enough headroom, Express returns 413 before the route's clean
+// per-file/per-count validation runs — giving users a confusing parser
+// error instead of a structured `invalid_request` response.
+app.use(express.json({ limit: '40mb' }));
 
 // ── Supabase JWT auth (after JSON parser, before routes) ──
 app.use(supabaseAuthMiddleware);
