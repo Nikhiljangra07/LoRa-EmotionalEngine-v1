@@ -33,16 +33,19 @@ import type { SessionEntry } from './chat.route';
 // ---------------------------------------------------------------------------
 
 function isAuthorizedHealthRequest(req: Request): boolean {
-  const expected = process.env.HEALTH_DASHBOARD_TOKEN;
-  if (!expected || expected.length === 0) return false;
+  // Defensive .trim() — Railway / copy-paste commonly leaves invisible
+  // trailing newlines or spaces in env var values that silently break
+  // exact-byte comparisons.
+  const expected = (process.env.HEALTH_DASHBOARD_TOKEN ?? '').trim();
+  if (expected.length === 0) return false;
 
   let provided: string;
   const qToken = req.query.token;
   if (typeof qToken === 'string' && qToken.length > 0) {
-    provided = qToken;
+    provided = qToken.trim();
   } else {
     const headerToken = req.headers['x-health-token'];
-    provided = typeof headerToken === 'string' ? headerToken : '';
+    provided = typeof headerToken === 'string' ? headerToken.trim() : '';
   }
   if (provided.length === 0) return false;
 
@@ -724,10 +727,17 @@ export function registerHealthDashboardRoute(
   app: Express,
   engineSessions?: Map<string, SessionEntry>,
 ): void {
-  if (!process.env.HEALTH_DASHBOARD_TOKEN || process.env.HEALTH_DASHBOARD_TOKEN.length === 0) {
+  const trimmedToken = (process.env.HEALTH_DASHBOARD_TOKEN ?? '').trim();
+  if (trimmedToken.length === 0) {
     console.warn(
       '[LoRa::Health] HEALTH_DASHBOARD_TOKEN is not set — /api/health is locked to public mode (service status only). Set it on Railway and pass via ?token=… or X-Health-Token to view the full dashboard.',
     );
+  } else {
+    // Log length only (NOT the value) so the operator can verify the env
+    // var matches their expected length. e.g. `openssl rand -hex 32` → 64.
+    // If this prints something other than the expected length, the value
+    // on Railway has whitespace, was truncated, or was mistyped.
+    console.log(`[LoRa::Health] Token gate active (token length=${trimmedToken.length}).`);
   }
 
   app.get('/api/health', async (req, res) => {
