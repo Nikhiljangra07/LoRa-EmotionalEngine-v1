@@ -1,9 +1,0 @@
-export const PRESSURE_NORM = 10;
-export const TAU_MOOD_SECONDS = 21600; // 6 hours
-export const MOOD_MIN_SIGNAL = 0.05;
-export const CONF_SCALE = 2.0;
-export const SWITCH_ON_DOM = 0.45;
-export const SWITCH_ON_GAP = 0.1;
-export const MOOD_COOLDOWN_SECONDS = 600; // 10 minutes
-export const FORCE_SWITCH_DOM = 0.7;
-export const EPS = 1e-6;

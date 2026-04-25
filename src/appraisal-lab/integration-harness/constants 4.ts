@@ -1,4 +1,0 @@
-export const SESSION_THRESHOLD_SECONDS = 3600;
-export const DEFAULT_BASELINE_LATENCY_SECONDS = 90;
-export const HARNESS_EPS = 1e-9;
-export const MAX_STEPS_STRESS = 50000;
