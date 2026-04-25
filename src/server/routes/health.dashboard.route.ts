@@ -263,7 +263,7 @@ function getSystemInfo(): SystemInfo {
     heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
     rssMB: Math.round(mem.rss / 1024 / 1024),
     env: process.env.NODE_ENV || 'unknown',
-    llmModel: 'Claude Sonnet 4-6',
+    llmModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
     // Default must match EngineOrchestrator.llmTimeoutMs (60000ms). Was '18000'
     // here while the runtime defaulted to 60000, making the dashboard misreport
     // the actual abort threshold.

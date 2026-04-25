@@ -144,7 +144,11 @@ app.use((_req, res) => {
 
 app.listen(port, () => {
   console.log(`LoRa server running on port ${port}`);
-  console.log('[LoRa] Runtime Model: Claude Sonnet 4-6');
+  // Derive from ANTHROPIC_MODEL so the log can't lie when the env var
+  // changes (this is exactly the silent-drift class as the Apr 15 Sonnet 4
+  // incident — see CLAUDE.md fragile-area #8). Fallback matches the
+  // hardcoded default in AnthropicResponder.ts:23.
+  console.log(`[LoRa] Runtime Model: ${process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'}`);
   
   if (process.env.NODE_ENV === 'development') {
     console.log('[LoRa Runtime Profile]');
