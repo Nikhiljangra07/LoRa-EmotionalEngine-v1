@@ -1,14 +1,25 @@
 /**
- * GET /api/health — Full service health dashboard.
+ * GET /api/health — Service health dashboard.
  *
- * Pings all 4 backend services, shows today's activity stats,
- * active session details, feature flags, system resources, and config.
- * Returns a mobile-friendly HTML page.
+ * Two response modes:
+ *   1. Public (default) — only the four service statuses (Redis, Chroma,
+ *      LoRaMaths, LLM) plus an overall status string. No session data,
+ *      no feature flags, no system resource numbers. Safe to expose to
+ *      load balancers, uptime monitors, or curious browsers.
+ *   2. Authorized — full dashboard (active sessions, flags, system info,
+ *      operational counters, today's activity). Gated behind the
+ *      HEALTH_DASHBOARD_TOKEN env var; supply it via `?token=…` query or
+ *      `X-Health-Token` request header.
  *
- * No auth required. Read-only. No side-effects.
+ * If HEALTH_DASHBOARD_TOKEN is unset, the route is locked to public mode
+ * regardless of what the caller sends — secure default. A startup warning
+ * is logged so the operator knows monitoring needs the token configured.
+ *
+ * Read-only. No side-effects.
  */
 
-import type { Express } from 'express';
+import type { Express, Request } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 import { getChromaClient } from '../../emotion-core/memory-v1/db/chromaClient';
 import { getLLMHealth } from '../llmTelemetry';
@@ -16,6 +27,53 @@ import { getSnapshot } from '../analytics/runtimeMetrics';
 import { getCounters } from '../analytics/operationalCounters';
 import { featureFlags } from '../../emotion-core/config/featureFlags';
 import type { SessionEntry } from './chat.route';
+
+// ---------------------------------------------------------------------------
+// Token gate — protects the full dashboard from public exposure
+// ---------------------------------------------------------------------------
+
+function isAuthorizedHealthRequest(req: Request): boolean {
+  const expected = process.env.HEALTH_DASHBOARD_TOKEN;
+  if (!expected || expected.length === 0) return false;
+
+  let provided: string;
+  const qToken = req.query.token;
+  if (typeof qToken === 'string' && qToken.length > 0) {
+    provided = qToken;
+  } else {
+    const headerToken = req.headers['x-health-token'];
+    provided = typeof headerToken === 'string' ? headerToken : '';
+  }
+  if (provided.length === 0) return false;
+
+  // Constant-time compare; require equal lengths to use timingSafeEqual.
+  const a = Buffer.from(expected);
+  const b = Buffer.from(provided);
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public minimal HTML — service status only, no sensitive fields
+// ---------------------------------------------------------------------------
+
+function renderMinimalHTML(services: ServiceStatus[]): string {
+  const anyDown = services.some(s => s.status === 'down');
+  const overallColor = anyDown ? '#ef4444' : '#22c55e';
+  const overallText = anyDown ? 'Degraded' : 'Operational';
+  const rows = services
+    .map(s => {
+      const color = statusColor(s.status);
+      const label = s.status === 'ok' ? 'OK' : s.status === 'down' ? 'DOWN' : 'UNKNOWN';
+      return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #27272a"><span>${s.name}</span><span style="color:${color};font-weight:600">${label}</span></div>`;
+    })
+    .join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LoRa — Health</title><style>body{background:#09090b;color:#e4e4e7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;padding:24px;max-width:520px;margin:0 auto}h1{font-size:18px;margin:0 0 4px}p.sub{color:#a1a1aa;font-size:13px;margin:0 0 24px}.card{background:#18181b;border:1px solid #27272a;border-radius:8px;padding:16px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:${overallColor};margin-right:8px;vertical-align:middle}</style></head><body><h1><span class="dot"></span>LoRa — ${overallText}</h1><p class="sub">Public status. Full dashboard requires a token.</p><div class="card">${rows}</div></body></html>`;
+}
 
 // ---------------------------------------------------------------------------
 // Service checks
@@ -666,7 +724,13 @@ export function registerHealthDashboardRoute(
   app: Express,
   engineSessions?: Map<string, SessionEntry>,
 ): void {
-  app.get('/api/health', async (_req, res) => {
+  if (!process.env.HEALTH_DASHBOARD_TOKEN || process.env.HEALTH_DASHBOARD_TOKEN.length === 0) {
+    console.warn(
+      '[LoRa::Health] HEALTH_DASHBOARD_TOKEN is not set — /api/health is locked to public mode (service status only). Set it on Railway and pass via ?token=… or X-Health-Token to view the full dashboard.',
+    );
+  }
+
+  app.get('/api/health', async (req, res) => {
     try {
       const [falkor, chroma, loraMaths] = await Promise.all([
         checkFalkor(),
@@ -674,17 +738,39 @@ export function registerHealthDashboardRoute(
         checkLoRaMaths(),
       ]);
       const llm = checkLLM();
-
       const services = [falkor, chroma, loraMaths, llm];
+      const anyDown = services.some(s => s.status === 'down');
+      const wantsJson = req.headers.accept?.includes('application/json');
+      const authorized = isAuthorizedHealthRequest(req);
+
+      // Public path — services + status only. No sessions, flags, system,
+      // counters, or activity stats. Safe for load balancers, uptime
+      // monitors, and unauthenticated browsers.
+      if (!authorized) {
+        if (wantsJson) {
+          res.json({
+            status: anyDown ? 'degraded' : 'ok',
+            services: services.map(s => ({
+              name: s.name,
+              status: s.status,
+              latencyMs: s.latencyMs,
+            })),
+          });
+          return;
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(renderMinimalHTML(services));
+        return;
+      }
+
+      // Authorized path — full dashboard.
       const sessions = engineSessions ? getActiveSessions(engineSessions) : [];
       const snapshot = getSnapshot();
       const flags = getKeyFlags();
       const system = getSystemInfo();
       const counters = getCounters();
 
-      // JSON mode
-      if (_req.headers.accept?.includes('application/json')) {
-        const anyDown = services.some(s => s.status === 'down');
+      if (wantsJson) {
         res.json({
           status: anyDown ? 'degraded' : 'ok',
           uptime: uptimeString(),

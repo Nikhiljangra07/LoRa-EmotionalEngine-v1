@@ -198,7 +198,11 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
   });
 
   describe('band gating', () => {
-    it('filters out B0 and B1 anchors', () => {
+    // Note: as of commit a6895e3 (Mar 11, 2026), all EIV bands B0–B4 are
+    // eligible. The previous B0/B1 filter was blocking all stored facts
+    // from reaching the LLM whenever ETV was disabled. The only remaining
+    // band-level filter is for anchors with an undefined band.
+    it('renders B0 and B1 anchors (no band-gating)', () => {
       const anchors = [
         makeAnchor({ anchorId: 'b0', contentSummary: 'B0 content', band: 'B0' }),
         makeAnchor({ anchorId: 'b1', contentSummary: 'B1 content', band: 'B1' }),
@@ -211,12 +215,12 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
         { relevantAnchors: anchors },
       );
 
-      expect(prompt).not.toContain('B0 content');
-      expect(prompt).not.toContain('B1 content');
+      expect(prompt).toContain('B0 content');
+      expect(prompt).toContain('B1 content');
       expect(prompt).toContain('B3 content');
     });
 
-    it('renders no FACT CONTEXT when all anchors are B0/B1', () => {
+    it('renders FACT CONTEXT when only B0/B1 anchors are present', () => {
       const anchors = [
         makeAnchor({ anchorId: 'b0', contentSummary: 'Low band', band: 'B0' }),
         makeAnchor({ anchorId: 'b1', contentSummary: 'Also low', band: 'B1' }),
@@ -228,8 +232,9 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
         { relevantAnchors: anchors },
       );
 
-      expect(prompt).not.toContain('FACT CONTEXT');
-      expect(prompt).not.toContain('Possible context');
+      expect(prompt).toContain('FACT CONTEXT');
+      expect(prompt).toContain('Low band');
+      expect(prompt).toContain('Also low');
     });
 
     it('filters out anchors with undefined band', () => {
@@ -283,7 +288,10 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
       expect(prompt).toContain('Possible context:');
     });
 
-    it('includes trailing "Does this relate to what you mean today?"', () => {
+    it('includes the background-context-only guard so LoRa does not lead with anchors', () => {
+      // Replaced the older "Does this relate to what you mean today?" trailer
+      // on Mar 17, 2026 (commit 9b2161b) — testers reported LoRa forcing old
+      // topics on session start. The new guard is a directive, not a question.
       const anchors = [makeAnchor({ band: 'B3' })];
 
       const prompt = PromptTemplateBuilder.build(
@@ -292,7 +300,8 @@ describe('PromptTemplateBuilder — Anchor Rendering (Phase 3)', () => {
         { relevantAnchors: anchors },
       );
 
-      expect(prompt).toContain('Does this relate to what you mean today?');
+      expect(prompt).toContain('background context ONLY');
+      expect(prompt).toContain('Do NOT lead with it');
     });
 
     it('renders timestamp and summary for each anchor', () => {

@@ -783,7 +783,20 @@ if (arousal === 'MEDIUM' && valence === 'POSITIVE') {
 
   /**
    * Renders fact anchors after the memory context block.
-   * Band B0/B1 anchors are filtered out; absolute cap of MAX_ANCHORS_IN_PROMPT.
+   *
+   * All EIV bands (B0–B4) are eligible; band-gating was removed on Mar 11,
+   * 2026 (commit a6895e3) because it was blocking all stored facts from
+   * reaching the LLM whenever ETV was disabled. Anchors with an undefined
+   * band are still excluded as a safety guard. Absolute cap of
+   * MAX_ANCHORS_IN_PROMPT applies after filtering.
+   *
+   * Bad-data safety nets that DO filter regardless of band:
+   *   1. ENGLISH_SUFFIX_RE / RUNTIME_NOT_A_NAME — drop user_name anchors
+   *      with morphologically-impossible names (legacy bad data from
+   *      before the structural extraction fix).
+   *   2. MemoryService is responsible for confidence/relevance filtering
+   *      upstream — this block trusts what it receives.
+   *
    * No companionship language ("I remember", "you said") is ever emitted.
    */
   private static getAnchorContextBlock(
