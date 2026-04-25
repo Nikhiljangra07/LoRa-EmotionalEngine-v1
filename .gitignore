@@ -17,3 +17,23 @@ stress-tests/
 coverage/
 
 .DS_Store
+
+# macOS Finder / VS Code save-as duplicates — files like
+# "adapter 2.ts", "STABILITY 3.md", etc. tsconfig already excludes
+# them from the build, but they were also accidentally tracked in git
+# and cleaned up in commit (this commit). The CI guard script
+# scripts/check_no_duplicate_files.sh fails on any reintroduction.
+* [2-9].ts
+* [2-9].tsx
+* [2-9].js
+* [2-9].jsx
+* [2-9].md
+* [2-9].json
+* [2-9].py
+* [2-9].csv
+* [2-9].tsv
+* [2-9].txt
+* [2-9].yml
+* [2-9].html
+* [2-9].sh
+* [2-9].pdf
