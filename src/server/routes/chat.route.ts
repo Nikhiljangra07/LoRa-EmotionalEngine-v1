@@ -126,7 +126,13 @@ export interface ChatAttachment {
 }
 
 export interface ApiChatBody {
-  userId: string;
+  /**
+   * Optional. Authenticated requests should rely on the JWT `sub` claim;
+   * `getEffectiveUserId(req, body.userId)` will prefer the verified
+   * userId and only fall back to body.userId for guest sessions. Sending
+   * a body userId for an authenticated request is harmless but redundant.
+   */
+  userId?: string;
   sessionId: string;
   messageId: string;
   text: string;
@@ -198,9 +204,12 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
     return { ok: false, status: 400, error: 'invalid_request', details: 'Request body must be a JSON object.' };
   }
   const b = body as Record<string, unknown>;
-  if (!isNonEmptyString(b.userId)) {
-    return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty userId.' };
-  }
+  // userId is intentionally NOT required here. Authenticated requests
+  // resolve userId from the verified JWT `sub` claim via
+  // getEffectiveUserId(); only guest requests need it in the body. The
+  // missing-userId 400 is enforced after that resolution step (see
+  // `if (!userId)` below the validateBody call) so the error fires only
+  // when neither path produces an effective userId.
   if (!isNonEmptyString(b.sessionId)) {
     return { ok: false, status: 400, error: 'invalid_request', details: 'Missing or empty sessionId.' };
   }
@@ -284,7 +293,7 @@ function validateBody(body: unknown): ValidationOk | ValidationError {
   return {
     ok: true,
     data: {
-      userId: (b.userId as string).trim(),
+      ...(isNonEmptyString(b.userId) ? { userId: (b.userId as string).trim() } : {}),
       sessionId: (b.sessionId as string).trim(),
       messageId,
       text: typeof rawText === 'string' ? rawText.trim() : '',
@@ -570,11 +579,14 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
     }
     const { sessionId, timestamp } = validated.data;
 
-    // Use JWT-verified userId for authenticated users, body userId for guests
+    // Use JWT-verified userId for authenticated users, body userId for guests.
+    // Only return 400 when neither path produces an effective userId — a
+    // signed-in client may legitimately omit body.userId entirely.
     const userId = getEffectiveUserId(req, validated.data.userId);
     if (!userId) {
       res.status(400).json({
-        error: 'userId is required for this endpoint.',
+        error: 'invalid_request',
+        details: 'A userId is required: send Authorization: Bearer <jwt> for an authenticated session, or include "userId" in the body for a guest session.',
       });
       return;
     }
