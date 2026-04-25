@@ -78,7 +78,7 @@ describe('InterventionActionHorizon', () => {
 
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
-    }));
+    }), { userId: 'test-user' });
     const ip = InputProcessor;
 
     const prompts: string[] = [];
@@ -123,7 +123,7 @@ describe('InterventionActionHorizon', () => {
 
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
-    }));
+    }), { userId: 'test-user' });
 
     const prompts: string[] = [];
     for (let i = 0; i < 3; i++) {

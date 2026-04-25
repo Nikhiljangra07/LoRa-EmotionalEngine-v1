@@ -252,7 +252,7 @@ describe('HintStickiness — session reset', () => {
     const { EngineOrchestrator, InputProcessor } = loadModules(stepFn);
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
-    }));
+    }), { userId: 'test-user' });
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     // --- Session 1 (3 messages) ---

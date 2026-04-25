@@ -80,7 +80,7 @@ describe('InterventionStepHorizon', () => {
 
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
-    }));
+    }), { userId: 'test-user' });
 
     const prompts: string[] = [];
     for (let i = 0; i < 3; i++) {
@@ -124,7 +124,7 @@ describe('InterventionStepHorizon', () => {
 
     const engine = new EngineOrchestrator(0.5, {}, () => ({
       generateResponse: async () => 'ok',
-    }));
+    }), { userId: 'test-user' });
 
     const prompts: string[] = [];
     for (let i = 0; i < 3; i++) {

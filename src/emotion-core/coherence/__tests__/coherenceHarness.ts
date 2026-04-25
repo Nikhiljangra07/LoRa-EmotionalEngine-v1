@@ -185,9 +185,16 @@ export async function runSequence(
     buildSpy = jest.spyOn(PromptTemplateBuilder, 'build');
   }
 
-  const engine = new EngineOrchestrator(0.5, {}, () => ({
-    generateResponse: async () => 'ok',
-  }));
+  // EngineOrchestrator's constructor throws when userId is missing
+  // (memory-isolation invariant — see EngineOrchestrator.ts:325). The harness
+  // is shared across scenario/contract tests, so passing a stable test
+  // userId here unblocks every consumer at once.
+  const engine = new EngineOrchestrator(
+    0.5,
+    {},
+    () => ({ generateResponse: async () => 'ok' }),
+    { userId: 'coherence-harness-user' },
+  );
 
   const captured: CapturedStep[] = [];
 
