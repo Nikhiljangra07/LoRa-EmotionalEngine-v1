@@ -66,6 +66,8 @@ pressure, remember without storing conversations, and stay observable and safe i
 ## Development
 
 ```bash
+npm ci               # install (Node 20)
+cp .env.example .env # set ANTHROPIC_API_KEY; Falkor/Chroma hosts default to localhost
 npm run dev          # dev server (debug flags enabled)
 npm test             # full suite
 npx tsc --noEmit     # typecheck
