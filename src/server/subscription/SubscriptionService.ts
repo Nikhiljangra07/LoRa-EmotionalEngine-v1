@@ -24,10 +24,16 @@ import { getFalkorClient } from '../../emotion-core/memory-v1/db/falkorClient';
 
 const REDIS_PREFIX = 'lora:sub:';
 
-// Founder bypass — Nikhil always gets deep mode, independent of Stripe state.
-const UNLIMITED_USERS = new Set<string>([
-  'REDACTED-FOUNDER-ID', // Nikhil
-]);
+// Founder/ops bypass — comma-separated Supabase user IDs, supplied via the
+// UNLIMITED_USER_IDS env var. Never hardcode IDs here: this repo is public,
+// and a published ID combined with the guest body-userId path would let anyone
+// claim the bypass. Unset env var = no bypass (secure default).
+const UNLIMITED_USERS = new Set<string>(
+  (process.env.UNLIMITED_USER_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean),
+);
 
 function redisKey(userId: string): string {
   return `${REDIS_PREFIX}${userId}`;
@@ -105,8 +111,13 @@ export async function getSubscription(userId: string): Promise<SubscriptionStatu
  * (or is in the always-active bypass set). Use this in hot paths like
  * the chat route deep-mode gate.
  */
-export async function isActiveSubscriber(userId: string): Promise<boolean> {
-  if (UNLIMITED_USERS.has(userId)) return true;
+export async function isActiveSubscriber(
+  userId: string,
+  verified: boolean = false,
+): Promise<boolean> {
+  // Bypass only for JWT-verified identities. Guests can put any string in
+  // body.userId, so an unverified match must never unlock the bypass.
+  if (verified && UNLIMITED_USERS.has(userId)) return true;
   const sub = await getSubscription(userId);
   return sub.isActive;
 }

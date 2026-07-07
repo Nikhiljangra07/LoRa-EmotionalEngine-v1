@@ -844,7 +844,7 @@ export function registerChatRoute(app: Express, options?: ChatRouteOptions): Map
             });
             return;
           }
-          const subscribed = await isActiveSubscriber(userId);
+          const subscribed = await isActiveSubscriber(userId, req.isAuthenticated === true);
           if (!subscribed) {
             opIncrement('deep_reasoning_gated_no_subscription');
             res.status(402).json({
