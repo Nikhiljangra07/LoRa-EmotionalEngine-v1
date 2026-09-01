@@ -37,3 +37,5 @@ coverage/
 * [2-9].html
 * [2-9].sh
 * [2-9].pdf
+.DS_Store
+**/.DS_Store
