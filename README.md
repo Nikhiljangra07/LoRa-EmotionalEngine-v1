@@ -4,9 +4,9 @@ LoRa is an AI conversation product built around one design conviction: **people 
 need analysis, not validation.** LoRa diagnoses root causes, projects consequences, and pushes toward a
 decision — it is deliberately *not* a therapist, a life coach, or a mirror.
 
-Built solo (design → code → security → deploy → operations), January–May 2026. Ran as a **live public
-beta at asklora.io for several weeks in spring 2026**, serving beta testers recruited from Reddit and a
-personal network. This repository is the backend; the React frontend (`presence-whispers`) and the
+Work began June 2025; prototype February 2026; this repository (the production backend) dates from
+January 2026. Designed, built, secured, deployed and operated end to end. Ran as a **live public beta at
+asklora.io from March 2026** with about forty testers recruited from Reddit and a personal network. This repository is the backend; the React frontend (`presence-whispers`) and the
 mathematical-reasoning microservice (`LoRaMaths`) live in sibling repositories.
 
 ## What's actually in here
