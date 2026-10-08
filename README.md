@@ -51,8 +51,8 @@ React/Vite frontend ──► Express + TypeScript backend ──► Claude (Ant
 **Engineering discipline:**
 
 - ~36k lines of production TypeScript, **~50k lines of tests** (265 test files)
-- `CLAUDE.md` — a maintained decision log recording every production change, bug post-mortem, and
-  root cause for the project's lifetime, including the unflattering ones
+- A maintained decision log (kept privately, available on request) recording every production change,
+  bug post-mortem, and root cause for the project's lifetime, including the unflattering ones
 - An LLM-evaluation harness (blind multi-model scoring, triple-run medians) used internally to guide
   prompt and pipeline changes
 
@@ -75,4 +75,4 @@ npm run falkor:start # local FalkorDB (Docker)
 npm run chroma:start # local ChromaDB (Docker)
 ```
 
-Production configuration is environment-driven (see `CLAUDE.md` for the full variable reference).
+Production configuration is environment-driven; the variable reference lives in the private decision log.

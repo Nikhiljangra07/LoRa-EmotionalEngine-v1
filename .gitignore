@@ -18,6 +18,9 @@ coverage/
 
 .DS_Store
 
+# Local AI video-generation environment and downloaded model weights
+.video-gen/
+
 # macOS Finder / VS Code save-as duplicates — files like
 # "adapter 2.ts", "STABILITY 3.md", etc. tsconfig already excludes
 # them from the build, but they were also accidentally tracked in git
@@ -39,3 +42,6 @@ coverage/
 * [2-9].pdf
 .DS_Store
 **/.DS_Store
+
+# Project memory for the local coding assistant; kept private
+CLAUDE.md
